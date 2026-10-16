@@ -190,3 +190,12 @@ es separador).
 - Verificado en emulador: descarga de 121 MB con sha256 desde el servidor local, 4 frases alineadas (7/7, 10/10,
   6/6, 6/6 palabras; 0,33–0,64 s cada una), palabra resaltada en pantalla y estado «sincronía por palabra».
 - Pendiente: alineaciones sin persistir (se recalculan al releer), medir en ARM real, MMS no se ofrece por su licencia.
+
+### Palabras sin tiempo (relleno de huecos)
+El alineador no marca las palabras sin letras alineables (números, símbolos) ni las que no consigue situar. En vez de
+saltárselas, `GapFiller` (`:core`) reparte el hueco entre las vecinas alineadas, en proporción a sus letras:
+al inicio desde el principio del audio hasta el inicio de la primera alineada; en medio, del fin de la anterior al inicio
+de la siguiente; al final, hasta el fin del audio; y si una frase no tiene ninguna señal (o el modelo falla), toda la frase
+de principio a fin (con 40 ms de margen, el recorte de Supertonic). Esos tiempos van marcados `estimated` en `TimedToken`:
+son una aproximación, no una medición. Los tiempos reales del modelo se siguen validando (monótonos y con confianza
+suficiente); si no pasan, la frase se resalta entera.

@@ -134,6 +134,8 @@ data class TimedToken(
     val startMs: Long,
     val endMs: Long,
     val confidence: Float? = null,
+    /** true si el tiempo no viene del modelo sino de repartir el hueco entre palabras alineadas ([com.linguareader.core.alignment.GapFiller]). */
+    val estimated: Boolean = false,
 )
 
 sealed interface AlignmentResult {

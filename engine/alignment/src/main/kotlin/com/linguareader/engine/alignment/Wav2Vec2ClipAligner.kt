@@ -43,7 +43,12 @@ class Wav2Vec2ClipAligner(
         return synchronized(lock) {
             val aligner = aligner(lang) ?: return null
             val t0 = System.nanoTime()
-            val timings = aligner.align(samples, sr, words)
+            val timings = try {
+                aligner.align(samples, sr, words)
+            } catch (e: Exception) {
+                log("la alineación falló: ${e.javaClass.simpleName}: ${e.message}")
+                throw e
+            }
             log("alineadas ${timings.size}/${words.size} palabras de ${"%.1f".format(samples.size.toDouble() / sr)} s en ${(System.nanoTime() - t0) / 1_000_000} ms")
             scheduleIdleRelease()
             timings.map { WordSpanMs(it.wordIndex, (it.startSec * 1000).roundToLong(), (it.endSec * 1000).roundToLong(), exp(it.meanLogProb)) }

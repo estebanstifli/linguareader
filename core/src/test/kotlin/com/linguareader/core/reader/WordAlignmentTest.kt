@@ -113,4 +113,22 @@ class WordAlignmentTest {
         c.stop(); advanceUntilIdle()
         assertEquals(1, aligner.released)
     }
+
+    @Test
+    fun `words the model did not align are estimated from their neighbours`() = runTest {
+        // El modelo solo sitúa las palabras 1.. (la 0 queda sin señal): empieza en 100 ms, así que la 0 abarca hasta ahí.
+        aligner.spans = { words -> (1 until words.size).map { i -> WordSpanMs(i, 100L + 300 * i, 100L + 300 * i + 250, 0.9f) } }
+        val c = controller()
+        c.load(passage, "en", null)
+        c.play(); advanceTimeBy(50)
+        val tokens = passage.tokensOf(passage.sentences[0])
+        player.position = ClipPosition(0, 150) // dentro del hueco inicial (0..400)
+        advanceTimeBy(30)
+        assertEquals(tokens[0].id, c.playbackState.value.activeTokenId)
+        assertEquals(HighlightGranularity.WORD, c.playbackState.value.granularity)
+        player.position = ClipPosition(0, 420)
+        advanceTimeBy(30)
+        assertEquals(tokens[1].id, c.playbackState.value.activeTokenId)
+        c.pause(); advanceUntilIdle()
+    }
 }

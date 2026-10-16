@@ -4,6 +4,7 @@ import com.linguareader.core.alignment.AlignmentQuality
 import com.linguareader.core.alignment.AlignmentTimeline
 import com.linguareader.core.alignment.AlignmentValidator
 import com.linguareader.core.alignment.ClipAligner
+import com.linguareader.core.alignment.GapFiller
 import com.linguareader.core.engine.EngineReadiness
 import com.linguareader.core.engine.EngineUnavailableReason
 import com.linguareader.core.engine.SpeechRequest
@@ -341,12 +342,19 @@ class RenderedReaderAudioController(
         scope.launch {
             val spans = alignMutex.withLock {
                 if (loadGen != loadGeneration) return@withLock null
-                withContext(alignDispatcher) { runCatching { al.align(path, tokens.map { it.text }, lang) }.getOrNull() }
+                withContext(alignDispatcher) {
+                    // Un fallo del modelo (p. ej. audio más corto que el texto) cuenta como «sin señal».
+                    runCatching { al.align(path, tokens.map { it.text }, lang) }.getOrNull().orEmpty()
+                }
             } ?: return@launch
             if (loadGen != loadGeneration) return@launch
-            val timed = spans.filter { it.wordIndex in tokens.indices }
+            val real = spans.filter { it.wordIndex in tokens.indices }
                 .map { TimedToken(tokens[it.wordIndex].id, it.startMs, it.endMs, it.confidence) }
-            if (AlignmentValidator.validate(tokens, timed, MIN_COVERAGE, MIN_CONFIDENCE) !is AlignmentQuality.WordLevel) return@launch
+            // Los tiempos del modelo deben ser monótonos y fiables; los huecos (números, símbolos, palabras
+            // sin señal) se reparten entre sus vecinas alineadas y se marcan como estimados.
+            if (real.isNotEmpty() && AlignmentValidator.validate(tokens, real, minCoverage = 0.0, minMeanConfidence = MIN_CONFIDENCE) !is AlignmentQuality.WordLevel) return@launch
+            val duration = GapFiller.wavDurationMs(java.io.File(path)) ?: real.maxOfOrNull { it.endMs }?.plus(GapFiller.EDGE_MARGIN_MS) ?: return@launch
+            val timed = GapFiller.fill(tokens, real, duration)
             timings[index] = ClipTiming(path, AlignmentTimeline(timed), tokens.associateBy { it.id })
             ensureTicker()
         }
@@ -393,8 +401,6 @@ class RenderedReaderAudioController(
             ?: passage.sentences.first()
 
     private companion object {
-        /** Un número suelto sin letras no debe impedir el resaltado por palabra de la frase. */
-        const val MIN_COVERAGE = 0.75
         const val MIN_CONFIDENCE = 0.3f
     }
 }
