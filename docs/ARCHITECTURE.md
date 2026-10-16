@@ -174,3 +174,26 @@ Supertonic sigue descargándose de Hugging Face (revisión fijada).
 2. Al pulsar play, el productor sigue generando frase a frase por delante del reproductor.
 3. La precarga del pasaje siguiente tiene menos prioridad: arranca cuando termina la síntesis del pasaje actual y se
    cancela si hay que volver a sintetizarlo (antes competía con él por la CPU y podía intercalarse).
+
+## Flujo de lectura con Supertonic: tres etapas independientes
+
+```
+Etapa 1  TTS → disco          texto ─► WAV en la caché            (hilo del motor, va por delante de todo)
+Etapa 2  disco → alineación   WAV ─► tiempos por palabra ─► .align.json junto al WAV   (alineDispatcher, de uno en uno)
+Etapa 3  reproducción         ExoPlayer ◄─ clip + tiempos         (hilo principal; sigue la posición para iluminar)
+```
+
+- Las etapas 1 y 2 se comunican por un canal sin límite y no se esperan entre sí: la 1 sigue generando frases mientras
+  la 2 alinea la anterior. Empiezan **antes de reproducir**, en la pantalla «Preparando la lectura» (`warmUp`: TTS +
+  alineación de las 2 primeras frases) y siguen en segundo plano con el pasaje siguiente (`prefetch`, de menor prioridad).
+- Un clip solo se encola en el reproductor cuando su alineación está lista (o se sabe que no la habrá: sin modelo, o no
+  fiable → esa frase se resalta entera). Así, al sonar, **siempre tiene todas sus palabras** (antes se alineaba después
+  de encolar y las primeras frases podían sonar sin iluminar nada o con una sola palabra).
+- **Caché persistente** (`filesDir/audio-cache`, no `cacheDir`, que Android puede vaciar): cada segmento es
+  `<hash>.wav` + `<hash>.wav.align.json` (tiempos, modelo de alineación y tamaño del WAV con los que se calculó). Si la
+  frase se vuelve a leer (volver de página, reabrir la app) no se repite ni el TTS ni la alineación; si cambia el modelo
+  de alineación se recalcula solo la alineación. El LRU expulsa WAV y alineación juntos al superar el límite
+  (Ajustes → Caché: 128/256/512/1024 MB, 256 por defecto). Un minuto de audio ≈ 5 MB (44,1 kHz, 16 bits, mono), así
+  que 64 MB serían ~12 min (un libro demo entero ya los supera); 256 MB ≈ 50 min.
+- Clave por contenido (texto normalizado + idioma + motor/versión + voz + velocidad + pasos), compartida entre libros: la
+  misma frase en dos libros se reutiliza. No hay carpeta por libro; el LRU protege lo que se está leyendo.

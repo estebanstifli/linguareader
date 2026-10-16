@@ -98,7 +98,8 @@ class AlignmentModelManager @Inject constructor(
         val spec = specFor(language) ?: return null
         if (!isInstalled(spec)) return null
         val dir = dirOf(spec)
-        return AlignerModelFiles(File(dir, "model.onnx"), File(dir, "vocab.json"))
+        val model = File(dir, "model.onnx")
+        return AlignerModelFiles(model, File(dir, "vocab.json"), version = "${spec.id}@${spec.sourceRevision.take(8)}:${model.length()}")
     }
 
     private fun set(id: String, state: ModelState) = _states.update { it + (id to state) }

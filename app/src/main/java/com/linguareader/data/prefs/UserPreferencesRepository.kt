@@ -51,6 +51,7 @@ class UserPreferencesRepository @Inject constructor(
         val supertonicLicense = booleanPreferencesKey("supertonic_license_accepted")
         val sentencePause = intPreferencesKey("sentence_pause_ms")
         val paragraphPause = intPreferencesKey("paragraph_pause_ms")
+        val audioCacheMb = intPreferencesKey("audio_cache_mb")
         val packsToken = stringPreferencesKey("packs_token")
     }
 
@@ -95,6 +96,7 @@ class UserPreferencesRepository @Inject constructor(
             stored[Keys.supertonicLicense] = next.supertonicLicenseAccepted
             stored[Keys.sentencePause] = next.sentencePauseMs
             stored[Keys.paragraphPause] = next.paragraphPauseMs
+            stored[Keys.audioCacheMb] = next.audioCacheMb
         }
     }
 
@@ -122,6 +124,7 @@ class UserPreferencesRepository @Inject constructor(
             supertonicLicenseAccepted = p[Keys.supertonicLicense] ?: d.supertonicLicenseAccepted,
             sentencePauseMs = p[Keys.sentencePause] ?: d.sentencePauseMs,
             paragraphPauseMs = p[Keys.paragraphPause] ?: d.paragraphPauseMs,
+            audioCacheMb = p[Keys.audioCacheMb] ?: d.audioCacheMb,
         )
     }
 

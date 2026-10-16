@@ -48,6 +48,8 @@ data class UserPreferences(
     val sentencePauseMs: Int = 550,
     /** Pausa al terminar un párrafo/pasaje (ms). */
     val paragraphPauseMs: Int = 1000,
+    /** Límite de la caché de audio generado y su alineación (MB). Se expulsa lo menos usado al superarlo. */
+    val audioCacheMb: Int = 256,
 ) {
     companion object {
         const val MIN_SPEECH_RATE = 0.5f

@@ -103,6 +103,7 @@ class TtsSettingsViewModel @Inject constructor(
     fun setVoice(voice: String) = update { it.copy(supertonicVoice = voice) }
     fun setSteps(steps: Int) = update { it.copy(supertonicSteps = steps) }
     fun setSpeed(rate: Float) = update { it.copy(speechRate = rate) }
+    fun setCacheLimit(mb: Int) = update { it.copy(audioCacheMb = mb) }.invokeOnCompletion { refreshCache() }
 
     fun acceptLicenseAndDownload() = viewModelScope.launch {
         repo.update { it.copy(supertonicLicenseAccepted = true) }
@@ -274,7 +275,17 @@ fun TtsEngineSection(vm: TtsSettingsViewModel = hiltViewModel()) {
                     is VoiceTestState.Played -> Text("Muestra pregenerada de la voz (paquete de voces, sin cargar el modelo). Con otra velocidad se sintetiza en el momento.", style = MaterialTheme.typography.bodySmall)
                 }
 
-                Text("Caché de audio generado: ${mb(cacheBytes)} (máx. 200 MB)", style = MaterialTheme.typography.bodySmall)
+                Text("Caché de audio y alineación: ${mb(cacheBytes)} de ${prefs.audioCacheMb} MB", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    "Cada frase generada se guarda con su alineación y no se rehace al releer ni al volver atrás de página, " +
+                        "hasta que se supera el límite (se borra lo menos usado). Unos 5 MB por minuto de audio.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(128, 256, 512, 1024).forEach { limit ->
+                        FilterChip(selected = prefs.audioCacheMb == limit, onClick = { vm.setCacheLimit(limit) }, label = { Text("$limit MB") })
+                    }
+                }
                 TextButton(onClick = vm::clearCache) { Text("Vaciar caché") }
                 Text(
                     "Código: MIT. Pesos: ${SupertonicModel.LICENSE_NAME} (restricciones de uso). Proyecto archivado por Supertone, sin soporte. " +

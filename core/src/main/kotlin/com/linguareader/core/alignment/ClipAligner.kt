@@ -10,8 +10,13 @@ data class WordSpanMs(val wordIndex: Int, val startMs: Long, val endMs: Long, va
  */
 interface ClipAligner {
     val id: String
+    /**
+     * Identifica el modelo que se usaría para [languageTag] (id + revisión + tamaño), o null si no hay
+     * ninguno instalado. Se guarda con cada alineación persistida: si cambia, se recalcula.
+     */
+    fun signature(languageTag: String): String?
     /** true si hay un modelo instalado y utilizable para [languageTag]. */
-    fun isAvailable(languageTag: String): Boolean
+    fun isAvailable(languageTag: String): Boolean = signature(languageTag) != null
     /** Alinea [words] (en orden) con el audio WAV de [clipPath]; el resultado omite las palabras sin letras alineables. */
     suspend fun align(clipPath: String, words: List<String>, languageTag: String): List<WordSpanMs>?
     /** Libera el modelo de memoria (se recarga bajo demanda). */

@@ -8,18 +8,25 @@ import java.io.File
  * produce otro fichero y nunca se reproduce audio desactualizado.
  *
  * - Escritura atómica: se escribe en `.part` y se renombra.
- * - LRU por fecha de último acceso; al superar [maxBytes] se borran los más antiguos.
+ * - LRU por fecha de último acceso; al superar el límite se borran los más antiguos. Cada entrada
+ *   incluye su alineación ([AlignmentSidecar]): cuenta en el tamaño y se borra junto al audio, de modo
+ *   que un segmento ya generado y alineado no se rehace hasta que el LRU lo expulse.
  * - Hilo-seguro a nivel de proceso (métodos sincronizados); el contenido es inmutable por clave.
  */
 class FileAudioCache(
     private val directory: File,
-    private val maxBytes: Long,
+    /** Límite de tamaño en bytes; se consulta en cada recorte para poder cambiarlo en caliente. */
+    private val maxBytesProvider: () -> Long,
     private val extension: String = "wav",
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
+    constructor(directory: File, maxBytes: Long, extension: String = "wav", clock: () -> Long = System::currentTimeMillis) :
+        this(directory, { maxBytes }, extension, clock)
+
     init {
         directory.mkdirs()
         directory.listFiles { f -> f.name.endsWith(".part") }?.forEach { it.delete() }
+        removeOrphanSidecars()
     }
 
     private fun fileFor(key: String): File {
@@ -46,6 +53,7 @@ class FileAudioCache(
     fun commit(key: String, tmp: File): File {
         val target = fileFor(key)
         if (target.exists()) target.delete()
+        AlignmentSidecar.fileFor(target).delete() // audio nuevo: la alineación anterior ya no vale
         check(tmp.renameTo(target)) { "No se pudo publicar $target" }
         target.setLastModified(clock())
         trim()
@@ -68,22 +76,37 @@ class FileAudioCache(
     }
 
     @Synchronized
-    fun sizeBytes(): Long = entries().sumOf { it.length() }
+    fun sizeBytes(): Long = entries().sumOf { sizeOf(it) }
 
     @Synchronized
     fun clear() {
-        entries().forEach { it.delete() }
+        entries().forEach { delete(it) }
+        removeOrphanSidecars()
     }
 
     @Synchronized
     fun trim() {
         val files = entries().sortedBy { it.lastModified() }
-        var total = files.sumOf { it.length() }
+        var total = files.sumOf { sizeOf(it) }
+        val max = maxBytesProvider()
         for (f in files) {
-            if (total <= maxBytes) break
-            total -= f.length()
-            f.delete()
+            if (total <= max) break
+            total -= sizeOf(f)
+            delete(f)
         }
+    }
+
+    private fun sizeOf(audio: File) = audio.length() + AlignmentSidecar.fileFor(audio).length()
+
+    private fun delete(audio: File) {
+        audio.delete()
+        AlignmentSidecar.fileFor(audio).delete()
+    }
+
+    private fun removeOrphanSidecars() {
+        directory.listFiles { f -> f.name.endsWith(AlignmentSidecar.SUFFIX) }
+            ?.filter { !File(it.path.removeSuffix(AlignmentSidecar.SUFFIX)).exists() }
+            ?.forEach { it.delete() }
     }
 
     private fun entries(): List<File> =

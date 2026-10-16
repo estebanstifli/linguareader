@@ -55,6 +55,7 @@ annotation class ApplicationScope
 class EngineSettingsHolder @Inject constructor() {
     @Volatile var supertonicSteps: Int = SupertonicEngine.DEFAULT_STEPS
     @Volatile var pauses: SpeechPauses = SpeechPauses()
+    @Volatile var audioCacheBytes: Long = 256L * 1024 * 1024
 }
 
 /**
@@ -113,8 +114,12 @@ object TtsEngineModule {
         ).also { aligner -> manager.beforeDelete = { aligner.release() } }
 
     @Provides @Singleton
-    fun audioCache(@ApplicationContext context: Context): FileAudioCache =
-        FileAudioCache(File(context.cacheDir, "tts-audio"), maxBytes = 200L * 1024 * 1024)
+    fun audioCache(@ApplicationContext context: Context, settings: EngineSettingsHolder): FileAudioCache {
+        // Almacenamiento interno persistente (no cacheDir, que Android puede vaciar sin avisar): los segmentos
+        // ya generados y alineados se conservan hasta que el LRU los expulse por superar el límite elegido.
+        File(context.cacheDir, "tts-audio").deleteRecursively() // caché antigua, sin alineaciones
+        return FileAudioCache(File(context.filesDir, "audio-cache"), maxBytesProvider = { settings.audioCacheBytes })
+    }
 
     @Provides @Singleton
     fun supertonicSynthesizer(engine: SupertonicEngine, cache: FileAudioCache): CachingSpeechSynthesizer =

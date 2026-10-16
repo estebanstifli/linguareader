@@ -10,7 +10,8 @@ import kotlin.math.exp
 import kotlin.math.roundToLong
 
 /** Ficheros de un modelo de alineación instalado. */
-class AlignerModelFiles(val model: File, val vocab: File)
+/** [version] identifica el modelo (id, revisión y tamaño) para invalidar alineaciones guardadas si cambia. */
+class AlignerModelFiles(val model: File, val vocab: File, val version: String = "${model.name}:${model.length()}")
 
 /**
  * [ClipAligner] con modelos wav2vec2 CTC por idioma ([Wav2Vec2OnnxAligner]). Carga el modelo del
@@ -34,7 +35,7 @@ class Wav2Vec2ClipAligner(
     private var idleTask: ScheduledFuture<*>? = null
     private val timer = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "aligner-idle").apply { isDaemon = true } }
 
-    override fun isAvailable(languageTag: String): Boolean = modelFor(code(languageTag)) != null
+    override fun signature(languageTag: String): String? = modelFor(code(languageTag))?.let { "w2v2-ctc:${it.version}" }
 
     override suspend fun align(clipPath: String, words: List<String>, languageTag: String): List<WordSpanMs>? {
         val lang = code(languageTag)

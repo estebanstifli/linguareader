@@ -19,7 +19,7 @@ private class FakeAligner(var available: Boolean = true, var spans: ((List<Strin
     override val id = "fake"
     var calls = 0
     var released = 0
-    override fun isAvailable(languageTag: String) = available
+    override fun signature(languageTag: String) = if (available) "fake" else null
     override suspend fun align(clipPath: String, words: List<String>, languageTag: String): List<WordSpanMs>? {
         calls++
         return spans?.invoke(words) ?: words.mapIndexed { i, _ -> WordSpanMs(i, 100L + 300 * i, 100L + 300 * i + 250, 0.9f) }

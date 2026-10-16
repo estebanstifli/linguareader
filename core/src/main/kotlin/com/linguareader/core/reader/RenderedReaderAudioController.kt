@@ -4,6 +4,9 @@ import com.linguareader.core.alignment.AlignmentQuality
 import com.linguareader.core.alignment.AlignmentTimeline
 import com.linguareader.core.alignment.AlignmentValidator
 import com.linguareader.core.alignment.ClipAligner
+import com.linguareader.core.audio.AlignmentSidecar
+import com.linguareader.core.audio.SidecarData
+import com.linguareader.core.audio.SidecarEntry
 import com.linguareader.core.alignment.GapFiller
 import com.linguareader.core.engine.EngineReadiness
 import com.linguareader.core.engine.EngineUnavailableReason
@@ -19,6 +22,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -80,6 +84,7 @@ class RenderedReaderAudioController(
     private var voiceId: String? = null
     private var generation = 0
     private var synthJob: Job? = null
+    private var ttsJob: Job? = null
     private var prefetchJob: Job? = null
     private var pendingPrefetch: Triple<Passage, String, String?>? = null
 
@@ -87,12 +92,17 @@ class RenderedReaderAudioController(
     private var queuedFrom = -1
     private var lastQueued = -1
 
+    /** Frase ya sintetizada que pasa de una etapa a la siguiente. */
+    private sealed interface Prepared {
+        class Clip(val index: Int, val path: String) : Prepared
+        class Failed(val failure: SpeechResult.Failure) : Prepared
+    }
+
     /** Tiempos por palabra de cada frase ya alineada, válidos solo para el clip [ClipTiming.path]. */
     private class ClipTiming(val path: String, val timeline: AlignmentTimeline, val tokens: Map<String, com.linguareader.core.model.Token>)
     private val timings = HashMap<Int, ClipTiming>()
     private val clipPaths = HashMap<Int, String>()
     private val alignMutex = Mutex()
-    private var loadGeneration = 0
     private var tickerJob: Job? = null
 
     // Interpolación de la posición del reproductor (ver tick()).
@@ -110,7 +120,6 @@ class RenderedReaderAudioController(
             prefetchJob?.cancel()
             pendingPrefetch = null
             timings.clear()
-            loadGeneration++
             this@RenderedReaderAudioController.passage = passage
             this@RenderedReaderAudioController.languageTag = languageTag
             this@RenderedReaderAudioController.voiceId = voiceId
@@ -156,42 +165,57 @@ class RenderedReaderAudioController(
         player.play()
         ensureTicker()
         prefetchJob?.cancel() // el pasaje que suena va primero; la precarga se reanuda al terminar su síntesis
-        synthJob = scope.launch {
-            for (i in from until p.sentences.size) {
-                val result = try {
-                    synthesizer.synthesize(request(p.sentences[i].text))
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: OutOfMemoryError) {
-                    SpeechResult.Failure(EngineUnavailableReason.OUT_OF_MEMORY, e.message ?: "OOM")
-                } catch (e: Exception) {
-                    SpeechResult.Failure(EngineUnavailableReason.SYNTHESIS_ERROR, e.message ?: e.javaClass.simpleName)
+        val lang = languageTag
+        val voice = voiceId
+        val ready = Channel<Prepared>(Channel.UNLIMITED)
+        // Etapa 1 — TTS → disco: sintetiza frase a frase por delante de todo lo demás, sin esperar a nadie.
+        ttsJob = scope.launch {
+            try {
+                for (i in from until p.sentences.size) {
+                    val result = synthesizeSentence(p.sentences[i].text, lang, voice)
+                    if (gen != generation || !isActive) return@launch
+                    when (result) {
+                        is SpeechResult.Failure -> { ready.send(Prepared.Failed(result)); return@launch }
+                        is SpeechResult.Success -> ready.send(Prepared.Clip(i, result.audio.path))
+                    }
                 }
+            } finally {
+                ready.close()
+            }
+        }
+        // Etapas 2 y 3 — disco → alineación → disco, y entrega al reproductor. Un clip solo se encola cuando su
+        // alineación está lista (o se sabe que no habrá), así que al sonar siempre tiene todas sus palabras.
+        synthJob = scope.launch {
+            for (item in ready) {
                 if (gen != generation || !isActive) return@launch
-                when (result) {
-                    is SpeechResult.Failure -> {
+                when (item) {
+                    is Prepared.Failed -> {
                         player.clear()
                         _state.update {
                             it.copy(
                                 status = PlaybackStatus.ERROR, buffering = false,
-                                readiness = if (result.reason == EngineUnavailableReason.SYNTHESIS_ERROR) it.readiness
-                                else EngineReadiness.Unavailable(result.reason, languageTag),
+                                readiness = if (item.failure.reason == EngineUnavailableReason.SYNTHESIS_ERROR) it.readiness
+                                else EngineReadiness.Unavailable(item.failure.reason, languageTag),
                             )
                         }
                         return@launch
                     }
-                    is SpeechResult.Success -> {
+                    is Prepared.Clip -> {
+                        val timing = alignClip(p, item.index, item.path, lang)
+                        if (gen != generation || !isActive) return@launch
+                        val i = item.index
                         if (i > from) player.enqueueSilence(pauses().sentenceMs)
-                        player.enqueue(i, result.audio.path)
-                        clipPaths[i] = result.audio.path
-                        requestAlignment(p, i, result.audio.path)
+                        timing?.let { timings[i] = it }
+                        clipPaths[i] = item.path
+                        player.enqueue(i, item.path)
                         lastQueued = i
                         if (i == p.sentences.lastIndex) player.enqueueSilence(pauses().paragraphMs)
                         if (i == _state.value.sentenceIndex) _state.update { it.copy(buffering = false) }
+                        ensureTicker()
                     }
                 }
             }
-            pendingPrefetch?.let { (np, lang, voice) -> runPrefetch(np, lang, voice) }
+            if (gen == generation) pendingPrefetch?.let { (np, lang2, voice2) -> runPrefetch(np, lang2, voice2) }
         }
     }
 
@@ -281,17 +305,15 @@ class RenderedReaderAudioController(
         if (synthJob?.isActive != true && _state.value.isPlaying) runPrefetch(passage, languageTag, voiceId)
     }
 
-    /** Sintetiza (solo a la caché) las primeras frases antes de empezar; no usa el reproductor. */
+    /**
+     * Prepara en disco las primeras frases antes de empezar (TTS **y** alineación, ambas persistidas en la caché),
+     * sin usar el reproductor. Al pulsar play esas frases ya están listas para sonar con todas sus palabras.
+     */
     override suspend fun warmUp(passage: Passage, languageTag: String, voiceId: String?, sentenceCount: Int, fromSentence: Int): Boolean {
-        for (s in passage.sentences.drop(fromSentence).take(sentenceCount)) {
-            val result = try {
-                synthesizer.synthesize(request(s.text, languageTag, voiceId))
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                return false
-            }
-            if (result is SpeechResult.Failure) return false
+        for (sentence in passage.sentences.drop(fromSentence).take(sentenceCount)) {
+            val result = synthesizeSentence(sentence.text, languageTag, voiceId)
+            if (result !is SpeechResult.Success) return false
+            alignClip(passage, sentence.index, result.audio.path, languageTag)
         }
         return true
     }
@@ -302,7 +324,8 @@ class RenderedReaderAudioController(
         prefetchJob = scope.launch {
             for (s in p.sentences) {
                 if (!isActive) return@launch
-                runCatching { synthesizer.synthesize(request(s.text, lang, voice)) }
+                val result = synthesizeSentence(s.text, lang, voice)
+                if (result is SpeechResult.Success) alignClip(p, s.index, result.audio.path, lang)
             }
             if (pendingPrefetch == request) pendingPrefetch = null
         }
@@ -337,34 +360,67 @@ class RenderedReaderAudioController(
         }
     }
 
-    /** Alinea en segundo plano el clip ya encolado; la frase se resalta por palabra en cuanto estén los tiempos. */
-    private fun requestAlignment(p: Passage, index: Int, path: String) {
-        val al = aligner ?: return
-        if (!al.isAvailable(languageTag) || timings[index]?.path == path) return
-        val sentence = p.sentences[index]
-        val tokens = p.tokensOf(sentence)
-        if (tokens.isEmpty()) return
-        val loadGen = loadGeneration
-        val lang = languageTag
-        scope.launch {
-            val spans = alignMutex.withLock {
-                if (loadGen != loadGeneration) return@withLock null
-                withContext(alignDispatcher) {
-                    // Un fallo del modelo (p. ej. audio más corto que el texto) cuenta como «sin señal».
-                    runCatching { al.align(path, tokens.map { it.text }, lang) }.getOrNull().orEmpty()
-                }
-            } ?: return@launch
-            if (loadGen != loadGeneration) return@launch
-            val real = spans.filter { it.wordIndex in tokens.indices }
-                .map { TimedToken(tokens[it.wordIndex].id, it.startMs, it.endMs, it.confidence) }
-            // Los tiempos del modelo deben ser monótonos y fiables; los huecos (números, símbolos, palabras
-            // sin señal) se reparten entre sus vecinas alineadas y se marcan como estimados.
-            if (real.isNotEmpty() && AlignmentValidator.validate(tokens, real, minCoverage = 0.0, minMeanConfidence = MIN_CONFIDENCE) !is AlignmentQuality.WordLevel) return@launch
-            val duration = GapFiller.wavDurationMs(java.io.File(path)) ?: real.maxOfOrNull { it.endMs }?.plus(GapFiller.EDGE_MARGIN_MS) ?: return@launch
-            val timed = GapFiller.fill(tokens, real, duration)
-            timings[index] = ClipTiming(path, AlignmentTimeline(timed), tokens.associateBy { it.id })
-            ensureTicker()
+    /** Etapa 1: texto → WAV en la caché de disco (acierto de caché = instantáneo). Nunca lanza salvo cancelación. */
+    private suspend fun synthesizeSentence(text: String, lang: String, voice: String?): SpeechResult = try {
+        synthesizer.synthesize(request(text, lang, voice))
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: OutOfMemoryError) {
+        SpeechResult.Failure(EngineUnavailableReason.OUT_OF_MEMORY, e.message ?: "OOM")
+    } catch (e: Exception) {
+        SpeechResult.Failure(EngineUnavailableReason.SYNTHESIS_ERROR, e.message ?: e.javaClass.simpleName)
+    }
+
+    /**
+     * Etapa 2: WAV de disco → tiempos por palabra, persistidos junto al WAV ([AlignmentSidecar]); si ya hay una
+     * alineación válida para ese audio y ese modelo se reutiliza sin recalcular. Devuelve null si no hay alineador
+     * o la alineación no es fiable (esa frase se resaltará entera). Los huecos (números, símbolos, palabras sin
+     * señal) se reparten entre sus vecinas ([GapFiller]).
+     */
+    private suspend fun alignClip(p: Passage, index: Int, path: String, lang: String): ClipTiming? {
+        val al = aligner ?: return null
+        val signature = al.signature(lang) ?: return null
+        val tokens = p.tokensOf(p.sentences[index])
+        if (tokens.isEmpty()) return null
+        val wav = java.io.File(path)
+
+        AlignmentSidecar.read(wav, signature)?.let { saved ->
+            if (!saved.ok) return null
+            if (saved.entries.all { it.i in tokens.indices }) return timingOf(path, tokens, saved.entries.map { tokens[it.i].id to it })
         }
+
+        val spans = alignMutex.withLock {
+            withContext(alignDispatcher) {
+                try {
+                    al.align(path, tokens.map { it.text }, lang)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null // fallo del modelo (audio más corto que el texto…): «sin señal», pero no se persiste
+                }
+            }
+        }
+        val real = spans.orEmpty().filter { it.wordIndex in tokens.indices }
+            .map { TimedToken(tokens[it.wordIndex].id, it.startMs, it.endMs, it.confidence) }
+        // Los tiempos del modelo deben ser monótonos y fiables; si no, la frase no se alinea (y se recuerda).
+        val reliable = real.isEmpty() ||
+            AlignmentValidator.validate(tokens, real, minCoverage = 0.0, minMeanConfidence = MIN_CONFIDENCE) is AlignmentQuality.WordLevel
+        val duration = GapFiller.wavDurationMs(wav) ?: real.maxOfOrNull { it.endMs }?.plus(GapFiller.EDGE_MARGIN_MS)
+        if (!reliable || duration == null) {
+            if (spans != null) AlignmentSidecar.write(wav, SidecarData(signature, wav.length(), ok = false))
+            return null
+        }
+        val timed = GapFiller.fill(tokens, real, duration)
+        if (spans != null) {
+            val entries = timed.mapIndexed { i, t -> SidecarEntry(i, t.startMs, t.endMs, t.confidence, t.estimated) }
+            AlignmentSidecar.write(wav, SidecarData(signature, wav.length(), ok = true, entries = entries))
+        }
+        return timingOf(path, tokens, timed.map { it.tokenId to SidecarEntry(0, it.startMs, it.endMs, it.confidence, it.estimated) })
+    }
+
+    private fun timingOf(path: String, tokens: List<com.linguareader.core.model.Token>, items: List<Pair<String, SidecarEntry>>): ClipTiming {
+        val timed = items.map { (id, e) -> TimedToken(id, e.s, e.e, e.c, e.est) }
+        return ClipTiming(path, AlignmentTimeline(timed), tokens.associateBy { it.id })
     }
 
     private fun ensureTicker() {
@@ -407,6 +463,8 @@ class RenderedReaderAudioController(
     private fun invalidateQueue() {
         clipPaths.clear()
         generation++
+        ttsJob?.cancel()
+        ttsJob = null
         synthJob?.cancel()
         synthJob = null
         player.clear()
