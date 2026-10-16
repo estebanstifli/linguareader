@@ -199,3 +199,9 @@ de la siguiente; al final, hasta el fin del audio; y si una frase no tiene ningu
 de principio a fin (con 40 ms de margen, el recorte de Supertonic). Esos tiempos van marcados `estimated` en `TimedToken`:
 son una aproximación, no una medición. Los tiempos reales del modelo se siguen validando (monótonos y con confianza
 suficiente); si no pasan, la frase se resalta entera.
+
+### Posición del reproductor a saltos
+ExoPlayer informa `currentPosition` a saltos (≈ 250 ms en el emulador; depende de la salida de audio), aunque el
+lector la consulte cada 40 ms. Sin corregirlo, las palabras cortas (< 250 ms) caían entre dos saltos y nunca se
+iluminaban. `RenderedReaderAudioController.tick` interpola la posición con el reloj entre saltos (como máximo
++350 ms) y se re-ancla cuando el reproductor da una posición nueva.

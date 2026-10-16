@@ -38,7 +38,7 @@ class WordAlignmentTest {
     private fun TestScope.controller(al: ClipAligner? = aligner) =
         RenderedReaderAudioController(
             synth, player, FakeClipPlayer(), StandardTestDispatcher(testScheduler),
-            aligner = al, alignDispatcher = StandardTestDispatcher(testScheduler), tickMs = 10,
+            aligner = al, alignDispatcher = StandardTestDispatcher(testScheduler), tickMs = 10, clockMs = { testScheduler.currentTime },
         ).also { advanceUntilIdle() }
 
     @Test
@@ -129,6 +129,23 @@ class WordAlignmentTest {
         player.position = ClipPosition(0, 420)
         advanceTimeBy(30)
         assertEquals(tokens[1].id, c.playbackState.value.activeTokenId)
+        c.pause(); advanceUntilIdle()
+    }
+
+    @Test
+    fun `short words are not skipped when the player position advances in coarse steps`() = runTest {
+        // Palabras de 40 ms separadas 20 ms; el reproductor solo informa 0, 250, 500… (saltos de 250 ms).
+        aligner.spans = { words -> words.indices.map { i -> WordSpanMs(i, 100L + 60 * i, 100L + 60 * i + 40, 0.9f) } }
+        val c = controller()
+        c.load(passage, "en", null)
+        c.play(); advanceTimeBy(50)
+        val tokens = passage.tokensOf(passage.sentences[0])
+        val seen = LinkedHashSet<String>()
+        for (step in 0..2) {
+            player.position = ClipPosition(0, 250L * step)
+            repeat(25) { advanceTimeBy(10); c.playbackState.value.activeTokenId?.let(seen::add) }
+        }
+        assertEquals(tokens.map { it.id }, seen.toList())
         c.pause(); advanceUntilIdle()
     }
 }

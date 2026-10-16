@@ -60,6 +60,8 @@ class RenderedReaderAudioController(
     private val aligner: ClipAligner? = null,
     private val alignDispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val tickMs: Long = 40,
+    /** Reloj monótono en ms; inyectable para pruebas con tiempo virtual. */
+    private val clockMs: () -> Long = { System.nanoTime() / 1_000_000 },
 ) : ReaderAudioController {
 
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
@@ -92,6 +94,11 @@ class RenderedReaderAudioController(
     private val alignMutex = Mutex()
     private var loadGeneration = 0
     private var tickerJob: Job? = null
+
+    // Interpolación de la posición del reproductor (ver tick()).
+    private var anchorTag = -1
+    private var anchorPositionMs = 0L
+    private var anchorAtMs = 0L
 
     init {
         scope.launch { player.events.collect(::onPlayerEvent) }
@@ -363,6 +370,7 @@ class RenderedReaderAudioController(
     private fun ensureTicker() {
         if (aligner == null || tickerJob?.isActive == true) return
         tickerJob = scope.launch {
+            anchorTag = -1
             while (isActive && _state.value.isPlaying) {
                 tick()
                 delay(tickMs)
@@ -370,9 +378,23 @@ class RenderedReaderAudioController(
         }
     }
 
-    /** Correlaciona la posición del reproductor con la palabra activa (búsqueda binaria). */
+    /**
+     * Correlaciona la posición del reproductor con la palabra activa (búsqueda binaria).
+     *
+     * La posición que informa el reproductor avanza **a saltos** (≈ 250 ms en el emulador; depende de la
+     * salida de audio del dispositivo): sin corregirlo, las palabras cortas caen entre dos saltos y nunca se
+     * marcan. Se interpola con el reloj entre saltos, acotando la extrapolación ([MAX_EXTRAPOLATION_MS]),
+     * y se re-ancla en cuanto el reproductor da una posición nueva (salto, cambio de frase, pausa).
+     */
     private fun tick() {
-        val pos = player.position() ?: return
+        val raw = player.position() ?: return
+        val now = clockMs()
+        if (raw.tag != anchorTag || raw.positionMs != anchorPositionMs) {
+            anchorTag = raw.tag
+            anchorPositionMs = raw.positionMs
+            anchorAtMs = now
+        }
+        val pos = ClipPosition(raw.tag, anchorPositionMs + (now - anchorAtMs).coerceIn(0L, MAX_EXTRAPOLATION_MS))
         val timing = timings[pos.tag]?.takeIf { it.path == clipPaths[pos.tag] } ?: return
         val token = timing.timeline.tokenAt(pos.positionMs)?.let { timing.tokens[it.tokenId] }
         _state.update {
@@ -402,5 +424,8 @@ class RenderedReaderAudioController(
 
     private companion object {
         const val MIN_CONFIDENCE = 0.3f
+
+        /** Máximo que se extrapola la posición entre dos actualizaciones del reproductor. */
+        const val MAX_EXTRAPOLATION_MS = 350L
     }
 }
