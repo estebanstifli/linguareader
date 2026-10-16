@@ -5,6 +5,12 @@ graduados (MCER A1–C2). La voz lee el texto, la palabra pronunciada se ilumina
 proporciona tiempos fiables (si no, se ilumina la frase) y al tocar una palabra aparece su
 traducción en contexto.
 
+> ⚠️ **ALPHA en desarrollo.** Proyecto experimental: funciones incompletas, cambios frecuentes y sin garantías.
+> Las voces pregeneradas y los modelos de alineación por palabra se descargan de la release
+> [`packs-v1`](https://github.com/estebanstifli/linguareader/releases/tag/packs-v1) de este repositorio (público, **sin token**).
+> El modelo Supertonic 3 se descarga de Hugging Face. Aún no hay APK publicado: se compila con `run.ps1` (ver «Puesta en marcha»).
+> Licencias de código, modelos y contenido: ver [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) y [docs/ALIGNMENT.md](docs/ALIGNMENT.md).
+
 > Estado: **Fase 1 completa, Fase 2 casi completa, Supertonic 3 integrado (Fase 3)** (ver [docs/ROADMAP.md](docs/ROADMAP.md)).
 
 ## Qué incluye
