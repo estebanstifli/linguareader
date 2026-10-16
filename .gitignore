@@ -1,0 +1,19 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+*/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/
+# Modelos y binarios grandes: nunca en git (ver docs/ARCHITECTURE.md)
+*.onnx
+*.tflite
+/models/
+# Secretos
+*.keystore
+*.jks
+secrets.properties

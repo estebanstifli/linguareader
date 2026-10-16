@@ -1,0 +1,175 @@
+{
+  "formatVersion": 1,
+  "id": "fr-a2-le-marche-du-samedi",
+  "title": "Le marché du samedi",
+  "description": "Pour la première fois, Lila va seule au marché de son quartier, à Lyon.",
+  "learningLanguage": "fr",
+  "cefrLevel": "A2",
+  "genre": "everyday",
+  "authors": ["LinguaReader demo team"],
+  "adaptationCredit": null,
+  "license": {
+    "id": "LicenseRef-LinguaReader-Demo",
+    "name": "Original demo content written for LinguaReader",
+    "url": null
+  },
+  "sourceAttribution": "Histoire originale écrite pour le catalogue de démonstration de LinguaReader. Aucun texte de tiers.",
+  "cover": { "path": "images/cover.png", "sha256": "2ec25074cb0a4efbff54c8a538605a23111ffaf92acb893038ec4bd94a5b3f1c", "alt": "Un étal de marché avec un auvent rayé, des tomates et des fleurs.", "credit": "Illustration originale générée par tools/generate_demo_images.py (CC0-1.0)" },
+  "chapters": [
+    {
+      "id": "ch1",
+      "title": "Une liste importante",
+      "titleTranslations": { "es": "Una lista importante", "en": "An important list" },
+      "passages": [
+        {
+          "id": "ch1-p1",
+          "image": { "path": "images/ch1-p1.png", "sha256": "05c3ecb59f71e65d863f94ef3ba1e72dd918d2a93619dd84bd912692efc94e96", "alt": "Des étals colorés d'un marché de quartier, le matin.", "credit": "Illustration originale générée par tools/generate_demo_images.py (CC0-1.0)" },
+          "sentences": [
+            { "id": "s1", "text": "Lila habite à Lyon avec sa grand-mère.", "translations": { "es": "Lila vive en Lyon con su abuela.", "en": "Lila lives in Lyon with her grandmother." } },
+            { "id": "s2", "text": "Chaque samedi matin, elles vont au marché du quartier.", "translations": { "es": "Cada sábado por la mañana van al mercado del barrio.", "en": "Every Saturday morning, they go to the local market." } },
+            { "id": "s3", "text": "Aujourd'hui, sa grand-mère est fatiguée et elle reste à la maison.", "translations": { "es": "Hoy su abuela está cansada y se queda en casa.", "en": "Today her grandmother is tired and she stays at home." } },
+            { "id": "s4", "text": "« Tu peux y aller toute seule ? » demande-t-elle.", "translations": { "es": "«¿Puedes ir tú sola?», pregunta ella.", "en": "\"Can you go on your own?\" she asks." } },
+            { "id": "s5", "text": "Lila est contente : c'est la première fois !", "translations": { "es": "Lila está contenta: ¡es la primera vez!", "en": "Lila is happy: it's the first time!" } }
+          ]
+        },
+        {
+          "id": "ch1-p2",
+          "sentences": [
+            { "id": "s1", "text": "Sa grand-mère lui donne une liste et un petit porte-monnaie.", "translations": { "es": "Su abuela le da una lista y un monedero pequeño.", "en": "Her grandmother gives her a list and a small purse." } },
+            { "id": "s2", "text": "Sur la liste, il y a des tomates, du fromage, du pain et des fleurs.", "translations": { "es": "En la lista hay tomates, queso, pan y flores.", "en": "On the list there are tomatoes, cheese, bread and flowers." } },
+            { "id": "s3", "text": "Lila met son manteau et prend un grand panier.", "translations": { "es": "Lila se pone el abrigo y coge una cesta grande.", "en": "Lila puts on her coat and takes a big basket." } },
+            { "id": "s4", "text": "Elle n'a pas peur, mais elle est un peu nerveuse.", "translations": { "es": "No tiene miedo, pero está un poco nerviosa.", "en": "She isn't afraid, but she is a little nervous." } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ch2",
+      "title": "Au marché",
+      "titleTranslations": { "es": "En el mercado", "en": "At the market" },
+      "passages": [
+        {
+          "id": "ch2-p1",
+          "image": { "path": "images/ch2-p1.png", "sha256": "a030f6edf511eae30934d504a9e3857b5bd5da7177aaccde87a92a93d311c24f", "alt": "Des tomates rouges et des morceaux de fromage sur un étal.", "credit": "Illustration originale générée par tools/generate_demo_images.py (CC0-1.0)" },
+          "sentences": [
+            { "id": "s1", "text": "Au marché, il y a beaucoup de monde.", "translations": { "es": "En el mercado hay mucha gente.", "en": "At the market there are a lot of people." } },
+            { "id": "s2", "text": "Les vendeurs crient leurs prix et ça sent bon le pain chaud.", "translations": { "es": "Los vendedores gritan sus precios y huele bien a pan caliente.", "en": "The sellers shout their prices and it smells of warm bread." } },
+            { "id": "s3", "text": "D'abord, Lila achète un kilo de tomates bien rouges.", "translations": { "es": "Primero, Lila compra un kilo de tomates bien rojos.", "en": "First, Lila buys a kilo of very red tomatoes." } },
+            { "id": "s4", "text": "Ensuite, elle s'arrête devant le stand de fromages.", "translations": { "es": "Después, se para delante del puesto de quesos.", "en": "Then she stops in front of the cheese stall." } }
+          ]
+        },
+        {
+          "id": "ch2-p2",
+          "sentences": [
+            { "id": "s1", "text": "« Bonjour, mademoiselle ! Qu'est-ce que je vous sers ? » demande le fromager.", "translations": { "es": "«¡Buenos días, señorita! ¿Qué le pongo?», pregunta el quesero.", "en": "\"Good morning, miss! What can I get you?\" asks the cheesemonger." } },
+            { "id": "s2", "text": "Lila choisit un morceau de comté, le fromage préféré de sa grand-mère.", "translations": { "es": "Lila elige un trozo de comté, el queso favorito de su abuela.", "en": "Lila chooses a piece of Comté, her grandmother's favourite cheese." } },
+            { "id": "s3", "text": "Mais quand elle veut payer, elle ne trouve plus le porte-monnaie !", "translations": { "es": "Pero cuando quiere pagar, ¡ya no encuentra el monedero!", "en": "But when she wants to pay, she can't find the purse anymore!" } },
+            { "id": "s4", "text": "Elle cherche dans ses poches et dans le panier.", "translations": { "es": "Busca en sus bolsillos y en la cesta.", "en": "She looks in her pockets and in the basket." } }
+          ]
+        },
+        {
+          "id": "ch2-p3",
+          "image": { "path": "images/ch2-p3.png", "sha256": "b93fa77826bb6b7743f4fdad46d2c8b6838eccd4e5fffc05ac1f615bc6b1b2a4", "alt": "Un petit bouquet de fleurs jaunes.", "credit": "Illustration originale générée par tools/generate_demo_images.py (CC0-1.0)" },
+          "sentences": [
+            { "id": "s1", "text": "Une dame âgée s'approche avec un sourire.", "translations": { "es": "Una señora mayor se acerca con una sonrisa.", "en": "An elderly lady comes over with a smile." } },
+            { "id": "s2", "text": "« C'est à toi ? Il était par terre, près des fleurs. »", "translations": { "es": "«¿Es tuyo? Estaba en el suelo, cerca de las flores».", "en": "\"Is this yours? It was on the ground, near the flowers.\"" } },
+            { "id": "s3", "text": "Lila la remercie de tout son cœur.", "translations": { "es": "Lila le da las gracias de todo corazón.", "en": "Lila thanks her with all her heart." } },
+            { "id": "s4", "text": "Elle lui offre une petite fleur jaune.", "translations": { "es": "Le regala una pequeña flor amarilla.", "en": "She gives her a small yellow flower." } },
+            { "id": "s5", "text": "Le soir, sa grand-mère rit beaucoup en écoutant l'histoire.", "translations": { "es": "Por la noche, su abuela se ríe mucho al escuchar la historia.", "en": "In the evening, her grandmother laughs a lot as she listens to the story." } }
+          ]
+        }
+      ]
+    }
+  ],
+  "glossary": [
+    { "id": "habiter", "lemma": "habiter", "pos": "verbe", "forms": ["habite", "habiter"], "translations": { "es": "vivir (en un lugar)", "en": "to live" } },
+    { "id": "grand-mere", "lemma": "grand-mère", "pos": "nom", "forms": ["grand-mère"], "translations": { "es": "abuela", "en": "grandmother" } },
+    { "id": "chaque", "lemma": "chaque", "pos": "déterminant", "forms": ["chaque"], "translations": { "es": "cada", "en": "every, each" } },
+    { "id": "samedi", "lemma": "samedi", "pos": "nom", "forms": ["samedi"], "translations": { "es": "sábado", "en": "Saturday" } },
+    { "id": "matin", "lemma": "matin", "pos": "nom", "forms": ["matin"], "translations": { "es": "mañana (parte del día)", "en": "morning" } },
+    { "id": "aller", "lemma": "aller", "pos": "verbe", "forms": ["aller", "vont", "va"], "translations": { "es": "ir", "en": "to go" } },
+    { "id": "y-aller", "lemma": "y aller", "kind": "expression", "forms": ["y aller"], "translations": { "es": "ir (allí)", "en": "to go (there)" } },
+    { "id": "marche", "lemma": "marché", "pos": "nom", "forms": ["marché"], "translations": { "es": "mercado", "en": "market" } },
+    { "id": "quartier", "lemma": "quartier", "pos": "nom", "forms": ["quartier"], "translations": { "es": "barrio", "en": "neighbourhood" } },
+    { "id": "aujourdhui", "lemma": "aujourd'hui", "pos": "adverbe", "forms": ["aujourd'hui"], "translations": { "es": "hoy", "en": "today" } },
+    { "id": "fatigue", "lemma": "fatigué", "pos": "adjectif", "forms": ["fatigué", "fatiguée"], "translations": { "es": "cansado", "en": "tired" } },
+    { "id": "rester", "lemma": "rester", "pos": "verbe", "forms": ["reste", "rester"], "translations": { "es": "quedarse", "en": "to stay" } },
+    { "id": "maison", "lemma": "maison", "pos": "nom", "forms": ["maison"], "translations": { "es": "casa", "en": "house, home" } },
+    { "id": "a-la-maison", "lemma": "à la maison", "kind": "expression", "forms": ["à la maison"], "translations": { "es": "en casa", "en": "at home" } },
+    { "id": "pouvoir", "lemma": "pouvoir", "pos": "verbe", "forms": ["peux", "peut", "pouvoir"], "translations": { "es": "poder", "en": "can, to be able to" } },
+    { "id": "tout-seul", "lemma": "tout seul", "kind": "expression", "forms": ["tout seul", "toute seule"], "translations": { "es": "solo, sola (sin nadie)", "en": "on one's own" } },
+    { "id": "demander", "lemma": "demander", "pos": "verbe", "forms": ["demande", "demande-t-elle", "demander"], "translations": { "es": "preguntar, pedir", "en": "to ask" } },
+    { "id": "content", "lemma": "content", "pos": "adjectif", "forms": ["content", "contente"], "translations": { "es": "contento", "en": "happy, pleased" } },
+    { "id": "cest", "lemma": "c'est", "kind": "contraction", "forms": ["c'est"], "translations": { "es": "es (ce + est)", "en": "it is, this is" } },
+    { "id": "premiere-fois", "lemma": "la première fois", "kind": "expression", "forms": ["la première fois", "première fois"], "translations": { "es": "la primera vez", "en": "the first time" } },
+    { "id": "donner", "lemma": "donner", "pos": "verbe", "forms": ["donne", "donner"], "translations": { "es": "dar", "en": "to give" } },
+    { "id": "liste", "lemma": "liste", "pos": "nom", "forms": ["liste"], "translations": { "es": "lista", "en": "list" } },
+    { "id": "petit", "lemma": "petit", "pos": "adjectif", "forms": ["petit", "petite"], "translations": { "es": "pequeño", "en": "small, little" } },
+    { "id": "porte-monnaie", "lemma": "porte-monnaie", "pos": "nom", "forms": ["porte-monnaie"], "translations": { "es": "monedero", "en": "purse" } },
+    { "id": "il-y-a", "lemma": "il y a", "kind": "expression", "forms": ["il y a"], "translations": { "es": "hay", "en": "there is, there are" } },
+    { "id": "tomate", "lemma": "tomate", "pos": "nom", "forms": ["tomate", "tomates"], "translations": { "es": "tomate", "en": "tomato" } },
+    { "id": "fromage", "lemma": "fromage", "pos": "nom", "forms": ["fromage", "fromages"], "translations": { "es": "queso", "en": "cheese" } },
+    { "id": "pain", "lemma": "pain", "pos": "nom", "forms": ["pain"], "translations": { "es": "pan", "en": "bread" } },
+    { "id": "fleur", "lemma": "fleur", "pos": "nom", "forms": ["fleur", "fleurs"], "translations": { "es": "flor", "en": "flower" } },
+    { "id": "mettre", "lemma": "mettre", "pos": "verbe", "forms": ["met", "mettre"], "translations": { "es": "poner; ponerse (ropa)", "en": "to put; to put on" } },
+    { "id": "manteau", "lemma": "manteau", "pos": "nom", "forms": ["manteau"], "translations": { "es": "abrigo", "en": "coat" } },
+    { "id": "prendre", "lemma": "prendre", "pos": "verbe", "forms": ["prend", "prendre"], "translations": { "es": "coger, tomar", "en": "to take" } },
+    { "id": "grand", "lemma": "grand", "pos": "adjectif", "forms": ["grand"], "translations": { "es": "grande", "en": "big" } },
+    { "id": "panier", "lemma": "panier", "pos": "nom", "forms": ["panier"], "translations": { "es": "cesta", "en": "basket" } },
+    { "id": "ne-pas-avoir-peur", "lemma": "ne pas avoir peur", "kind": "expression", "forms": ["n'a pas peur"], "translations": { "es": "no tener miedo", "en": "not to be afraid" } },
+    { "id": "peur", "lemma": "peur", "pos": "nom", "forms": ["peur"], "translations": { "es": "miedo", "en": "fear" } },
+    { "id": "mais", "lemma": "mais", "pos": "conjonction", "forms": ["mais"], "translations": { "es": "pero", "en": "but" } },
+    { "id": "un-peu", "lemma": "un peu", "kind": "expression", "forms": ["un peu"], "translations": { "es": "un poco", "en": "a little" } },
+    { "id": "nerveux", "lemma": "nerveux", "pos": "adjectif", "forms": ["nerveux", "nerveuse"], "translations": { "es": "nervioso", "en": "nervous" } },
+    { "id": "beaucoup", "lemma": "beaucoup", "pos": "adverbe", "forms": ["beaucoup"], "translations": { "es": "mucho", "en": "a lot" } },
+    { "id": "beaucoup-de-monde", "lemma": "beaucoup de monde", "kind": "expression", "forms": ["beaucoup de monde"], "translations": { "es": "mucha gente", "en": "a lot of people" } },
+    { "id": "vendeur", "lemma": "vendeur", "pos": "nom", "forms": ["vendeur", "vendeurs"], "translations": { "es": "vendedor", "en": "seller" } },
+    { "id": "crier", "lemma": "crier", "pos": "verbe", "forms": ["crient", "crier"], "translations": { "es": "gritar", "en": "to shout" } },
+    { "id": "prix", "lemma": "prix", "pos": "nom", "forms": ["prix"], "translations": { "es": "precio", "en": "price" } },
+    { "id": "sentir-bon", "lemma": "sentir bon", "kind": "expression", "forms": ["sent bon"], "translations": { "es": "oler bien", "en": "to smell good" } },
+    { "id": "chaud", "lemma": "chaud", "pos": "adjectif", "forms": ["chaud"], "translations": { "es": "caliente", "en": "warm, hot" } },
+    { "id": "dabord", "lemma": "d'abord", "kind": "expression", "forms": ["d'abord"], "translations": { "es": "primero", "en": "first" } },
+    { "id": "acheter", "lemma": "acheter", "pos": "verbe", "forms": ["achète", "acheter"], "translations": { "es": "comprar", "en": "to buy" } },
+    { "id": "rouge", "lemma": "rouge", "pos": "adjectif", "forms": ["rouge", "rouges"], "translations": { "es": "rojo", "en": "red" } },
+    { "id": "bien", "lemma": "bien", "pos": "adverbe", "forms": ["bien"], "translations": { "es": "bien; (delante de adjetivo) muy", "en": "well; (before an adjective) very" } },
+    { "id": "ensuite", "lemma": "ensuite", "pos": "adverbe", "forms": ["ensuite"], "translations": { "es": "después, luego", "en": "then, next" } },
+    { "id": "sarreter", "lemma": "s'arrêter", "kind": "expression", "pos": "verbe pronominal", "forms": ["s'arrête"], "translations": { "es": "pararse, detenerse", "en": "to stop" } },
+    { "id": "devant", "lemma": "devant", "pos": "préposition", "forms": ["devant"], "translations": { "es": "delante de", "en": "in front of" } },
+    { "id": "stand", "lemma": "stand", "pos": "nom", "forms": ["stand"], "translations": { "es": "puesto (de mercado)", "en": "stall" } },
+    { "id": "bonjour", "lemma": "bonjour", "pos": "interjection", "forms": ["bonjour"], "translations": { "es": "buenos días, hola", "en": "hello, good morning" } },
+    { "id": "mademoiselle", "lemma": "mademoiselle", "pos": "nom", "forms": ["mademoiselle"], "translations": { "es": "señorita", "en": "miss" } },
+    { "id": "quest-ce-que", "lemma": "qu'est-ce que", "kind": "expression", "forms": ["qu'est-ce que"], "translations": { "es": "qué (pregunta)", "en": "what (question)" } },
+    { "id": "quest-ce-que-je-vous-sers", "lemma": "qu'est-ce que je vous sers ?", "kind": "expression", "forms": ["qu'est-ce que je vous sers"], "translations": { "es": "¿qué le pongo?", "en": "what can I get you?" } },
+    { "id": "servir", "lemma": "servir", "pos": "verbe", "forms": ["sers", "servir"], "translations": { "es": "servir; (en una tienda) poner", "en": "to serve" } },
+    { "id": "fromager", "lemma": "fromager", "pos": "nom", "forms": ["fromager"], "translations": { "es": "quesero", "en": "cheesemonger" } },
+    { "id": "choisir", "lemma": "choisir", "pos": "verbe", "forms": ["choisit", "choisir"], "translations": { "es": "elegir", "en": "to choose" } },
+    { "id": "morceau", "lemma": "morceau", "pos": "nom", "forms": ["morceau"], "translations": { "es": "trozo", "en": "piece" } },
+    { "id": "comte", "lemma": "comté", "pos": "nom", "forms": ["comté"], "translations": { "es": "comté (queso del Jura)", "en": "Comté (cheese from the Jura)" } },
+    { "id": "prefere", "lemma": "préféré", "pos": "adjectif", "forms": ["préféré", "préférée"], "translations": { "es": "favorito, preferido", "en": "favourite" } },
+    { "id": "quand", "lemma": "quand", "pos": "conjonction", "forms": ["quand"], "translations": { "es": "cuando", "en": "when" } },
+    { "id": "vouloir", "lemma": "vouloir", "pos": "verbe", "forms": ["veut", "vouloir"], "translations": { "es": "querer", "en": "to want" } },
+    { "id": "payer", "lemma": "payer", "pos": "verbe", "forms": ["payer"], "translations": { "es": "pagar", "en": "to pay" } },
+    { "id": "ne-trouve-plus", "lemma": "ne plus trouver", "kind": "expression", "forms": ["ne trouve plus"], "translations": { "es": "ya no encontrar", "en": "can't find anymore" } },
+    { "id": "trouver", "lemma": "trouver", "pos": "verbe", "forms": ["trouve", "trouver"], "translations": { "es": "encontrar", "en": "to find" } },
+    { "id": "chercher", "lemma": "chercher", "pos": "verbe", "forms": ["cherche", "chercher"], "translations": { "es": "buscar", "en": "to look for" } },
+    { "id": "poche", "lemma": "poche", "pos": "nom", "forms": ["poche", "poches"], "translations": { "es": "bolsillo", "en": "pocket" } },
+    { "id": "dame", "lemma": "dame", "pos": "nom", "forms": ["dame"], "translations": { "es": "señora", "en": "lady" } },
+    { "id": "age", "lemma": "âgé", "pos": "adjectif", "forms": ["âgé", "âgée"], "translations": { "es": "mayor, de edad", "en": "elderly" } },
+    { "id": "sapprocher", "lemma": "s'approcher", "kind": "expression", "pos": "verbe pronominal", "forms": ["s'approche"], "translations": { "es": "acercarse", "en": "to come closer" } },
+    { "id": "sourire", "lemma": "sourire", "pos": "nom", "forms": ["sourire"], "translations": { "es": "sonrisa", "en": "smile" } },
+    { "id": "cest-a-toi", "lemma": "c'est à toi", "kind": "expression", "forms": ["c'est à toi"], "translations": { "es": "es tuyo", "en": "it's yours" } },
+    { "id": "etre", "lemma": "être", "pos": "verbe", "forms": ["est", "était", "être"], "translations": { "es": "ser, estar", "en": "to be" } },
+    { "id": "par-terre", "lemma": "par terre", "kind": "expression", "forms": ["par terre"], "translations": { "es": "en el suelo", "en": "on the ground" } },
+    { "id": "pres-de", "lemma": "près de", "kind": "expression", "forms": ["près de", "près des"], "translations": { "es": "cerca de", "en": "near" } },
+    { "id": "remercier", "lemma": "remercier", "pos": "verbe", "forms": ["remercie", "remercier"], "translations": { "es": "dar las gracias, agradecer", "en": "to thank" } },
+    { "id": "de-tout-son-coeur", "lemma": "de tout son cœur", "kind": "expression", "forms": ["de tout son cœur"], "translations": { "es": "de todo corazón", "en": "with all one's heart" } },
+    { "id": "offrir", "lemma": "offrir", "pos": "verbe", "forms": ["offre", "offrir"], "translations": { "es": "regalar, ofrecer", "en": "to give (as a gift)" } },
+    { "id": "jaune", "lemma": "jaune", "pos": "adjectif", "forms": ["jaune"], "translations": { "es": "amarillo", "en": "yellow" } },
+    { "id": "soir", "lemma": "soir", "pos": "nom", "forms": ["soir"], "translations": { "es": "tarde, noche", "en": "evening" } },
+    { "id": "le-soir", "lemma": "le soir", "kind": "expression", "forms": ["le soir"], "translations": { "es": "por la tarde / por la noche", "en": "in the evening" } },
+    { "id": "rire", "lemma": "rire", "pos": "verbe", "forms": ["rit", "rire"], "translations": { "es": "reír(se)", "en": "to laugh" } },
+    { "id": "en-ecoutant", "lemma": "en écoutant", "kind": "expression", "forms": ["en écoutant"], "translations": { "es": "al escuchar, mientras escucha", "en": "while listening" } },
+    { "id": "histoire", "lemma": "histoire", "pos": "nom", "forms": ["histoire"], "translations": { "es": "historia", "en": "story" } },
+    { "id": "monde", "lemma": "monde", "pos": "nom", "forms": ["monde"], "translations": { "es": "mundo; (aquí) gente", "en": "world; (here) people" } }
+  ]
+}

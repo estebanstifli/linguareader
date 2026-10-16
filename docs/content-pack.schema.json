@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://linguareader.local/schemas/book-manifest-v1.json",
+  "title": "LinguaReader book manifest (formatVersion 1)",
+  "type": "object",
+  "required": ["formatVersion", "id", "title", "learningLanguage", "cefrLevel", "license", "sourceAttribution", "chapters"],
+  "properties": {
+    "formatVersion": { "const": 1 },
+    "id": { "$ref": "#/$defs/id" },
+    "title": { "type": "string", "minLength": 1 },
+    "description": { "type": ["string", "null"] },
+    "learningLanguage": { "$ref": "#/$defs/languageTag" },
+    "cefrLevel": { "enum": ["A1", "A2", "B1", "B2", "C1", "C2"] },
+    "genre": { "type": ["string", "null"] },
+    "authors": { "type": "array", "items": { "type": "string" } },
+    "adaptationCredit": { "type": ["string", "null"] },
+    "license": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "SPDX id o LicenseRef-*" },
+        "name": { "type": ["string", "null"] },
+        "url": { "type": ["string", "null"] }
+      }
+    },
+    "sourceAttribution": { "type": "string", "minLength": 1 },
+    "cover": { "$ref": "#/$defs/media" },
+    "chapters": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "passages"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "title": { "type": "string" },
+          "titleTranslations": { "$ref": "#/$defs/translations" },
+          "passages": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["id", "sentences"],
+              "properties": {
+                "id": { "$ref": "#/$defs/id" },
+                "image": { "$ref": "#/$defs/media" },
+                "sentences": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "required": ["id", "text"],
+                    "properties": {
+                      "id": { "$ref": "#/$defs/id" },
+                      "text": { "type": "string", "minLength": 1 },
+                      "translations": { "$ref": "#/$defs/translations" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "glossary": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "lemma", "forms"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "lemma": { "type": "string" },
+          "kind": { "enum": ["word", "phrasal_verb", "expression", "contraction"], "default": "word" },
+          "pos": { "type": ["string", "null"] },
+          "forms": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+          "translations": { "$ref": "#/$defs/translations" },
+          "examples": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["text"],
+              "properties": {
+                "text": { "type": "string" },
+                "translations": { "$ref": "#/$defs/translations" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+    "languageTag": { "type": "string", "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$" },
+    "translations": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/languageTag" },
+      "additionalProperties": { "type": "string" }
+    },
+    "media": {
+      "type": ["object", "null"],
+      "required": ["path"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^(?!/)(?!.*\\\\)(?!.*(^|/)\\.\\.(/|$))[^/].*$" },
+        "alt": { "type": ["string", "null"] },
+        "credit": { "type": ["string", "null"] },
+        "sha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" }
+      }
+    }
+  }
+}

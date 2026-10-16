@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Icono original: libro abierto con una marca de lectura. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FFFFFFFF" android:pathData="M30,38c8,-4 16,-4 24,1v34c-8,-5 -16,-5 -24,-1z" />
+    <path android:fillColor="#FFF3E9D2" android:pathData="M78,38c-8,-4 -16,-4 -24,1v34c8,-5 16,-5 24,-1z" />
+    <path android:fillColor="#FFE17055" android:pathData="M60,44h12v4H60z" />
+    <path android:fillColor="#FFB2BEC3" android:pathData="M60,52h12v3H60zM60,59h9v3H60zM36,46h12v3H36zM36,53h12v3H36zM36,60h9v3H36z" />
+</vector>
