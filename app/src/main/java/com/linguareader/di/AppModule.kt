@@ -1,15 +1,22 @@
 package com.linguareader.di
 
 import android.content.Context
+import android.util.Log
 import androidx.room.Room
+import com.linguareader.core.audio.CachingSpeechSynthesizer
+import com.linguareader.core.audio.FileAudioCache
 import com.linguareader.core.engine.AlignmentEngine
 import com.linguareader.core.engine.BookRepository
-import com.linguareader.core.engine.SpeechSynthesizer
 import com.linguareader.core.engine.StreamingSpeechEngine
 import com.linguareader.core.engine.TranslationEngine
 import com.linguareader.core.engine.UnavailableAlignmentEngine
 import com.linguareader.core.reader.ReaderAudioController
+import com.linguareader.core.reader.RenderedReaderAudioController
+import com.linguareader.core.reader.SpeechPauses
 import com.linguareader.core.reader.StreamingReaderAudioController
+import com.linguareader.core.reader.SwitchingReaderAudioController
+import com.linguareader.core.reader.TtsEngineRegistry
+import com.linguareader.core.reader.TtsEngineSelector
 import com.linguareader.core.translation.BundledTranslationEngine
 import com.linguareader.core.translation.FallbackTranslationEngine
 import com.linguareader.core.translation.WordLookupService
@@ -19,6 +26,12 @@ import com.linguareader.data.db.BookmarkDao
 import com.linguareader.data.db.ProgressDao
 import com.linguareader.data.db.VocabularyDao
 import com.linguareader.engine.audio.AndroidAudioFocusGate
+import com.linguareader.engine.alignment.AlignmentModelManager
+import com.linguareader.engine.alignment.Wav2Vec2ClipAligner
+import com.linguareader.engine.audio.Media3ClipPlayer
+import com.linguareader.engine.supertonic.AndroidMemoryProbe
+import com.linguareader.engine.supertonic.SupertonicEngine
+import com.linguareader.engine.supertonic.SupertonicModelManager
 import com.linguareader.engine.tts.AndroidTtsEngine
 import dagger.Module
 import dagger.Provides
@@ -28,6 +41,8 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import java.io.File
+import javax.inject.Inject
 import javax.inject.Qualifier
 import javax.inject.Singleton
 
@@ -35,9 +50,16 @@ import javax.inject.Singleton
 @Retention(AnnotationRetention.BINARY)
 annotation class ApplicationScope
 
+/** Ajustes de motor que se leen en caliente desde hilos de síntesis (los rellena [TtsEngineCoordinator]). */
+@Singleton
+class EngineSettingsHolder @Inject constructor() {
+    @Volatile var supertonicSteps: Int = SupertonicEngine.DEFAULT_STEPS
+    @Volatile var pauses: SpeechPauses = SpeechPauses()
+}
+
 /**
- * Elección de adaptadores. Sustituir el glosario por un traductor local/remoto (aquí) o Android TTS
- * por Supertonic ([SpeechEngineModule]) no requiere tocar la UI.
+ * Elección de adaptadores. Sustituir el glosario por un traductor local/remoto (aquí) o añadir
+ * motores TTS ([TtsEngineModule]) no requiere tocar la UI.
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -57,23 +79,84 @@ object AppModule {
     @Provides @Singleton
     fun alignmentEngine(): AlignmentEngine = UnavailableAlignmentEngine()
 
-    @Provides @Singleton
-    fun readerAudioController(engine: StreamingSpeechEngine, focus: AndroidAudioFocusGate): ReaderAudioController =
-        StreamingReaderAudioController(engine, focus, Dispatchers.Main.immediate)
-
     @Provides @Singleton @ApplicationScope
     fun applicationScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 }
 
-/** Motor de voz. Reemplazable en tests (@TestInstallIn) o por Supertonic en Fase 3. */
+/** Motor del sistema (Android TTS). Reemplazable en tests (@TestInstallIn). */
 @Module
 @InstallIn(SingletonComponent::class)
 object SpeechEngineModule {
     @Provides @Singleton
     fun streamingSpeechEngine(impl: AndroidTtsEngine): StreamingSpeechEngine = impl
+}
+
+/** Motores TTS y fachada del lector. Un motor futuro = otro controlador + entrada en el registro. */
+@Module
+@InstallIn(SingletonComponent::class)
+object TtsEngineModule {
 
     @Provides @Singleton
-    fun speechSynthesizer(impl: AndroidTtsEngine): SpeechSynthesizer = impl
+    fun supertonicEngine(manager: SupertonicModelManager, settings: EngineSettingsHolder): SupertonicEngine =
+        SupertonicEngine(
+            modelDir = { manager.modelDir },
+            steps = { settings.supertonicSteps },
+            memory = AndroidMemoryProbe,
+            log = { Log.i("Supertonic", it) },
+        ).also { engine -> manager.beforeDelete = { engine.release() } }
+
+    @Provides @Singleton
+    fun clipAligner(manager: AlignmentModelManager): Wav2Vec2ClipAligner =
+        Wav2Vec2ClipAligner(
+            modelFor = { language -> manager.filesFor(language) },
+            log = { Log.i("WordAlign", it) },
+        ).also { aligner -> manager.beforeDelete = { aligner.release() } }
+
+    @Provides @Singleton
+    fun audioCache(@ApplicationContext context: Context): FileAudioCache =
+        FileAudioCache(File(context.cacheDir, "tts-audio"), maxBytes = 200L * 1024 * 1024)
+
+    @Provides @Singleton
+    fun supertonicSynthesizer(engine: SupertonicEngine, cache: FileAudioCache): CachingSpeechSynthesizer =
+        CachingSpeechSynthesizer(engine, cache)
+
+    @Provides @Singleton
+    fun engineRegistry(streaming: StreamingSpeechEngine, supertonic: CachingSpeechSynthesizer): TtsEngineRegistry =
+        TtsEngineRegistry(listOf(streaming, supertonic))
+
+    @Provides @Singleton
+    fun switchingController(
+        @ApplicationContext context: Context,
+        streaming: StreamingSpeechEngine,
+        focus: AndroidAudioFocusGate,
+        supertonic: CachingSpeechSynthesizer,
+        registry: TtsEngineRegistry,
+        settings: EngineSettingsHolder,
+        aligner: Wav2Vec2ClipAligner,
+    ): SwitchingReaderAudioController {
+        val main = Dispatchers.Main.immediate
+        val rendered = RenderedReaderAudioController(
+            synthesizer = supertonic,
+            player = Media3ClipPlayer(context, handleAudioFocus = true),
+            snippetPlayer = Media3ClipPlayer(context, handleAudioFocus = false),
+            dispatcher = main,
+            parameters = { mapOf("steps" to settings.supertonicSteps.toString()) },
+            pauses = { settings.pauses },
+            aligner = aligner,
+        )
+        return SwitchingReaderAudioController(
+            controllers = mapOf(
+                streaming.id to StreamingReaderAudioController(streaming, focus, main) { settings.pauses },
+                supertonic.id to rendered,
+            ),
+            engines = registry,
+            defaultEngineId = streaming.id,
+            dispatcher = main,
+        )
+    }
+
+    @Provides fun readerAudioController(s: SwitchingReaderAudioController): ReaderAudioController = s
+    @Provides fun engineSelector(s: SwitchingReaderAudioController): TtsEngineSelector = s
 }
 
 @Module

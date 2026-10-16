@@ -117,6 +117,22 @@ class StreamingReaderAudioControllerTest {
     }
 
     @Test
+    fun `sentence pause is enqueued between sentences and paragraph pause delays completion`() = runTest {
+        val c = StreamingReaderAudioController(engine, AudioFocusGate.AlwaysGranted, StandardTestDispatcher(testScheduler)) { SpeechPauses(650, 1000) }
+        advanceUntilIdle()
+        c.load(passage, "en", null)
+        c.play()
+        assertEquals(listOf(650L), engine.silences.map { it.second })
+        val (a, b) = engine.enqueued.map { it.utteranceId }
+        engine.emit(SpeechEvent.Started(a)); engine.emit(SpeechEvent.Done(a))
+        engine.emit(SpeechEvent.Started(b)); engine.emit(SpeechEvent.Done(b))
+        testScheduler.advanceTimeBy(500); testScheduler.runCurrent()
+        assertEquals(PlaybackStatus.PLAYING, c.state.status) // aún en la pausa de párrafo
+        advanceUntilIdle()
+        assertEquals(PlaybackStatus.COMPLETED, c.state.status)
+    }
+
+    @Test
     fun `seek to sentence while playing restarts from that sentence`() = runTest {
         val c = controller()
         c.load(passage, "en", null)

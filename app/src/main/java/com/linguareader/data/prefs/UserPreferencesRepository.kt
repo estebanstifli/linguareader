@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.linguareader.core.model.DisplayMode
@@ -44,6 +45,25 @@ class UserPreferencesRepository @Inject constructor(
         val fontScale = floatPreferencesKey("font_scale")
         val lineHeight = floatPreferencesKey("line_height")
         val theme = stringPreferencesKey("theme")
+        val ttsEngine = stringPreferencesKey("tts_engine")
+        val supertonicVoice = stringPreferencesKey("supertonic_voice")
+        val supertonicSteps = intPreferencesKey("supertonic_steps")
+        val supertonicLicense = booleanPreferencesKey("supertonic_license_accepted")
+        val sentencePause = intPreferencesKey("sentence_pause_ms")
+        val paragraphPause = intPreferencesKey("paragraph_pause_ms")
+        val packsToken = stringPreferencesKey("packs_token")
+    }
+
+    /**
+     * Token de acceso al repositorio (privado) de paquetes. Se guarda aparte de [UserPreferences]
+     * para que no circule por la UI ni los logs; vive en el almacenamiento privado de la app.
+     */
+    val packsToken: Flow<String> = context.userPrefsStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[Keys.packsToken].orEmpty() }
+
+    suspend fun setPacksToken(token: String) {
+        context.userPrefsStore.edit { if (token.isBlank()) it.remove(Keys.packsToken) else it[Keys.packsToken] = token.trim() }
     }
 
     val preferences: Flow<UserPreferences> = context.userPrefsStore.data
@@ -69,6 +89,12 @@ class UserPreferencesRepository @Inject constructor(
             stored[Keys.fontScale] = next.fontScale
             stored[Keys.lineHeight] = next.lineHeight
             stored[Keys.theme] = next.theme.name
+            stored[Keys.ttsEngine] = next.ttsEngineId
+            stored[Keys.supertonicVoice] = next.supertonicVoice
+            stored[Keys.supertonicSteps] = next.supertonicSteps
+            stored[Keys.supertonicLicense] = next.supertonicLicenseAccepted
+            stored[Keys.sentencePause] = next.sentencePauseMs
+            stored[Keys.paragraphPause] = next.paragraphPauseMs
         }
     }
 
@@ -90,6 +116,12 @@ class UserPreferencesRepository @Inject constructor(
             fontScale = p[Keys.fontScale] ?: d.fontScale,
             lineHeight = p[Keys.lineHeight] ?: d.lineHeight,
             theme = enumOr(p[Keys.theme], d.theme),
+            ttsEngineId = p[Keys.ttsEngine] ?: d.ttsEngineId,
+            supertonicVoice = p[Keys.supertonicVoice] ?: d.supertonicVoice,
+            supertonicSteps = p[Keys.supertonicSteps] ?: d.supertonicSteps,
+            supertonicLicenseAccepted = p[Keys.supertonicLicense] ?: d.supertonicLicenseAccepted,
+            sentencePauseMs = p[Keys.sentencePause] ?: d.sentencePauseMs,
+            paragraphPauseMs = p[Keys.paragraphPause] ?: d.paragraphPauseMs,
         )
     }
 

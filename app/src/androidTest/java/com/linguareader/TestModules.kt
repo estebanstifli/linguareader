@@ -31,6 +31,7 @@ import javax.inject.Singleton
  */
 class FakeSpeechEngine : StreamingSpeechEngine, SpeechSynthesizer {
     override val id = "fake"
+    override val info = com.linguareader.core.engine.TtsEngineInfo("fake", "Fake", true, true, false, true)
     override val supportsSpeed = true
     private val _events = MutableSharedFlow<SpeechEvent>(extraBufferCapacity = 64)
     override val events: SharedFlow<SpeechEvent> = _events
@@ -53,7 +54,6 @@ class FakeSpeechEngine : StreamingSpeechEngine, SpeechSynthesizer {
 object FakeSpeechEngineModule {
     private val engine = FakeSpeechEngine()
     @Provides @Singleton fun streaming(): StreamingSpeechEngine = engine
-    @Provides @Singleton fun synthesizer(): SpeechSynthesizer = engine
 }
 
 @Module

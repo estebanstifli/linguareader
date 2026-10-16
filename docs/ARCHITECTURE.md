@@ -18,7 +18,8 @@
 | Módulo | Tipo | Contenido |
 |---|---|---|
 | `:core` | Kotlin/JVM | `model` (Book, Passage, Token…), `engine/Ports.kt` (interfaces), `text` (Tokenizer, PassageBuilder, OffsetIndex), `content` (manifiesto, integridad), `translation` (glosario, expresiones), `alignment` (validador, timeline), `audio` (clave de caché), `reader` (ReaderAudioController + implementación streaming) |
-| `:app` | Android | `data` (assets, Room, DataStore), `engine` (Android TTS, foco de audio), `di`, `ui` (catálogo, lector, ajustes, vocabulario) |
+| `:engine:supertonic` | Kotlin/JVM | Motor Supertonic 3: port del preprocesado de texto, runtime ONNX (4 sesiones), catálogo del modelo con sha256, descargador con reanudación, métricas. Compila contra la API Java de ONNX Runtime (Android y escritorio). Ver [SUPERTONIC.md](SUPERTONIC.md) |
+| `:app` | Android | `data` (assets, Room, DataStore), `engine` (Android TTS, foco de audio, reproductor Media3, gestor del modelo Supertonic), `di`, `ui` (catálogo, lector, ajustes, vocabulario) |
 
 Se empezó con dos módulos para no crear módulos vacíos. Los límites de la organización sugerida en
 `CLAUDE.md` se mantienen por paquetes. Separar `engine/tts-supertonic` en módulo propio tiene
@@ -27,10 +28,14 @@ sentido cuando lleguen dependencias pesadas (ONNX Runtime).
 ## Puertos (`core/.../engine/Ports.kt`, `core/.../reader/ReaderAudioController.kt`)
 
 - `BookRepository`: catálogo filtrable, libro, pasaje y media verificada por sha256.
+- `TtsEngine`: base común de todos los motores (`id`, `info: TtsEngineInfo`, `listVoices`, `release`).
+  `TtsEngineInfo.providesWordTimings` declara si el motor puede dar tiempos por palabra.
+- `TtsEngine`: base común de todos los motores (`id`, `info: TtsEngineInfo`, `listVoices`, `release`).
+  `TtsEngineInfo.providesWordTimings` declara si el motor puede dar tiempos por palabra.
 - `StreamingSpeechEngine`: motor que reproduce directamente con cola de enunciados y emite
   `SpeechEvent` (`Started`, `WordRange`, `Done`, `Stopped`, `Error`). Lo implementa Android TTS.
-- `SpeechSynthesizer`: síntesis a fichero (`AudioAsset` + hash), **sin tiempos**. Android TTS lo
-  implementa con `synthesizeToFile`; Supertonic lo implementará en Fase 3.
+- `SpeechSynthesizer`: síntesis a fichero (`AudioAsset` + hash), **sin tiempos**. Lo implementan
+  Supertonic (vía `CachingSpeechSynthesizer` + `FileAudioCache`) y Android TTS (`synthesizeToFile`).
 - `AlignmentEngine`: texto + audio → `TimedToken` o `Unavailable`. Hoy: `UnavailableAlignmentEngine`.
 - `TranslationEngine`: `TranslationRequest(text, contextBefore, contextAfter, source, target, unit, ref)`
   → `Translated` o `Unavailable(reason)`. Hoy: `BundledTranslationEngine` (glosario + traducciones
@@ -60,13 +65,21 @@ sentido cuando lleguen dependencias pesadas (ONNX Runtime).
 Verificado en emulador (API 36, Google TTS, en/fr): el motor emite `onRangeStart` y el resaltado por
 palabra funciona. Otros motores pueden no emitirlos; entonces la barra muestra «Sincronía por frase».
 
-### Fase 3 (preparado, no implementado)
+### Motores que generan audio (Supertonic 3, implementado)
 
-`RenderedAudioReaderAudioController` (por crear) haría: `SpeechSynthesizer.synthesize` →
-`AudioCacheKey` (hash de texto normalizado + idioma + motor@versión + voz + velocidad + parámetros)
-→ `AlignmentEngine.align` → `AlignmentValidator` (monotonía, cobertura ≥ 90 %, confianza) →
-`AlignmentTimeline.tokenAt(player.currentPosition)` con Media3/ExoPlayer. La UI no cambia, porque
-consume el mismo `PlaybackState`.
+`SwitchingReaderAudioController` es el único `ReaderAudioController` que ve la UI. Delega en
+`StreamingReaderAudioController` (Android TTS) o en `RenderedReaderAudioController` (Supertonic)
+según la preferencia `ttsEngineId`, que aplica `TtsEngineCoordinator`. El controlador renderizado:
+
+- sintetiza **un clip por frase** y lo encola en Media3/ExoPlayer (`ClipPlayer`) según va estando listo;
+- **precarga** el pasaje siguiente;
+- resuelve el audio en caché por `AudioCacheKey` (texto normalizado + idioma + motor@versión de
+  modelo + voz + velocidad + parámetros);
+- resalta **por frase** (límites exactos de clip). No hay tiempos por palabra y no se inventan.
+
+Para resaltado por palabra con Supertonic haría falta un `AlignmentEngine` de forced alignment
+sobre el WAV. `AlignmentValidator` y `AlignmentTimeline` ya están listos para ese caso.
+Detalles, métricas y limitaciones: [SUPERTONIC.md](SUPERTONIC.md).
 
 ## UI
 
@@ -98,11 +111,18 @@ consume el mismo `PlaybackState`.
 | Room / DataStore | 2.8.5 / 1.2.1 | Persistencia local. |
 | Navigation Compose | 2.10.2 | Rutas tipadas con kotlinx.serialization. |
 | Espresso (solo tests) | 3.7.0 | Las versiones anteriores fallan en API 36 (`InputManager.getInstance`). |
+| ONNX Runtime Android | 1.31.0 | Inferencia de Supertonic en CPU. MIT. Natives alineadas a 16 KB. Solo `arm64-v8a` y `x86_64` (`abiFilters`). |
+| ONNX Runtime (JVM, solo tests en PC) | 1.18.0 | ≥ 1.19 falla con el `msvcp140.dll` 14.29 del JBR de Android Studio. |
+| Media3 ExoPlayer | 1.11.1 | Cola de clips WAV de Supertonic, foco de audio, «audio becoming noisy». |
+| ONNX Runtime Android | 1.31.0 | Inferencia de Supertonic en CPU. MIT. Natives alineadas a 16 KB. Solo `arm64-v8a` y `x86_64` (`abiFilters`). |
+| ONNX Runtime (JVM, solo tests en PC) | 1.18.0 | ≥ 1.19 falla con el `msvcp140.dll` 14.29 del JBR de Android Studio. |
+| Media3 ExoPlayer | 1.11.1 | Cola de clips WAV de Supertonic, foco de audio, «audio becoming noisy». |
 
 - **compileSdk 37 / targetSdk 36.** targetSdk 37 se deja para cuando se revisen los cambios de
   comportamiento de Android 17.
-- **Sin Media3 todavía.** El TTS directo no produce un fichero que reproducir. Media3 entra con el
-  audio sintetizado (Fase 3) y para la notificación/MediaSession (Fase 2).
+- **Media3** se usa para el audio generado por Supertonic. La notificación/MediaSession para
+  pantalla bloqueada sigue pendiente (Fase 2).
+- **Permiso `INTERNET`**: solo para la descarga explícita del modelo Supertonic. Todo lo demás es offline.
 - **Sin Readium todavía.** La importación EPUB es Fase 4 y antes hay que verificar su licencia (BSD-3).
 - **Sin librería de iconos.** 16 vectores con trazados de Material Icons en `res/drawable`.
 - **Sin Coil.** Las imágenes son assets locales y se decodifican con `BitmapFactory` tras verificar su sha256.
@@ -117,4 +137,40 @@ consume el mismo `PlaybackState`.
 | Textos de los libros demo | `LicenseRef-LinguaReader-Demo` | Originales del proyecto; **el titular debe fijar la licencia definitiva** (p. ej. CC-BY-4.0) antes de distribuir. |
 | Ilustraciones demo | CC0-1.0 | Generadas por `tools/generate_demo_images.py`. |
 | Android TTS / Google TTS | Del sistema | No se redistribuye; lo usa el dispositivo. |
-| Supertonic (código y pesos) | **Pendiente** | Revisar las licencias del código y de los pesos antes de la Fase 3. No hay ningún modelo en el repo. |
+| Supertonic 3 — código de referencia (portado a Kotlin) | MIT | Supertone Inc. Repositorio archivado. |
+| Supertonic 3 — pesos ONNX | BigScience OpenRAIL-M | **No se empaquetan.** Descarga bajo demanda tras aceptar la licencia en la app; restricciones de uso (Anexo A); se indica «voz sintética». Ver [SUPERTONIC.md](SUPERTONIC.md). |
+| ONNX Runtime | MIT | Microsoft. |
+| Media3 | Apache-2.0 | Google. |
+
+
+## Paquetes descargables (voces y modelos de alineación)
+
+Lo pesado o generado no va en git ni en el APK: se publica como adjuntos de una **release de GitHub**
+(`estebanstifli/linguareader`, etiqueta `packs-v1`; configurable con `-PpacksRepo=` y `-PpacksTag=`). El modelo
+Supertonic sigue descargándose de Hugging Face (revisión fijada).
+
+| Adjunto | Contenido | Tamaño |
+|---|---|---|
+| `voices.zip` | 60 WAV por voz (F1–F5, M1–M5) e idioma (en, fr, es): muestra de prueba y frase «preparando la lectura», + manifest con sha256 | 12 MB |
+| `w2v2-en.model.onnx` / `.vocab.json` | wav2vec2 base 100h (Apache-2.0), int8 | 122 MB |
+| `w2v2-fr.model.onnx` / `.vocab.json` | wav2vec2 large 7K FR (Apache-2.0), int8 | 355 MB |
+
+- Generar y publicar: `./gradlew :engine:supertonic:voicePack`, `python tools/make_release.py` (copia los adjuntos a
+  `.models/release/` y regenera `assets/aligners/catalog.json` y `assets/packs/voices.json` con tamaños y sha256) y
+  `gh release upload packs-v1 .models/release/* --clobber`.
+- **Repositorio privado**: la app resuelve los adjuntos con la API de GitHub (`GithubPackSource`) y necesita un token
+  de solo lectura (Ajustes → «Descarga de paquetes»). El token se guarda solo en el almacenamiento privado del móvil
+  y solo se envía a `api.github.com`; la redirección a la URL firmada de descarga se sigue a mano para no reenviarlo a otro
+  host. Si el repositorio pasa a ser público, el token no es necesario. Nunca va en el APK ni en git.
+- El paquete de voces se baja solo cuando el modelo Supertonic queda instalado; «Probar voz» y la frase de preparación
+  usan esos WAV sin cargar el modelo.
+
+## Arranque de la lectura con Supertonic
+
+1. Al abrir el libro (o cambiar a Supertonic), `ReaderViewModel.prepareAudio` llama a `ReaderAudioController.warmUp`:
+   sintetiza a la caché las 2 primeras frases desde el punto de reanudación. Si tarda (carga del modelo, móvil lento)
+   aparece «Preparando la lectura…» con animación y suena la frase pregenerada de la voz elegida, que se deja terminar.
+   Con las frases ya en caché no se muestra nada (margen de 300 ms).
+2. Al pulsar play, el productor sigue generando frase a frase por delante del reproductor.
+3. La precarga del pasaje siguiente tiene menos prioridad: arranca cuando termina la síntesis del pasaje actual y se
+   cancela si hay que volver a sintetizarlo (antes competía con él por la CPU y podía intercalarse).

@@ -5,7 +5,7 @@ graduados (MCER A1–C2). La voz lee el texto, la palabra pronunciada se ilumina
 proporciona tiempos fiables (si no, se ilumina la frase) y al tocar una palabra aparece su
 traducción en contexto.
 
-> Estado: **Fase 1 completa + bases de Fase 2** (ver [docs/ROADMAP.md](docs/ROADMAP.md)).
+> Estado: **Fase 1 completa, Fase 2 casi completa, Supertonic 3 integrado (Fase 3)** (ver [docs/ROADMAP.md](docs/ROADMAP.md)).
 
 ## Qué incluye
 
@@ -20,7 +20,13 @@ traducción en contexto.
 - **Audio** con el TTS del sistema Android: reproducir/pausar, frase anterior/siguiente, repetir,
   velocidad 0.5×–1.5×, reanudación exacta desde la última palabra oída y continuación automática
   al siguiente pasaje.
+- **Dos motores de voz intercambiables** (Ajustes > Motor de voz):
+  - **Android TTS**, el del sistema.
+  - **Supertonic 3**, voz neuronal local con ONNX Runtime en CPU y sin red. El modelo de 398 MB se
+    descarga bajo demanda, con progreso y opción de borrarlo. El audio se genera por frases con
+    precarga del pasaje siguiente y se guarda en caché. Detalles en [docs/SUPERTONIC.md](docs/SUPERTONIC.md).
 - **Resaltado honesto**: por palabra solo con eventos `onRangeStart` válidos; si no, por frase.
+  Supertonic no da tiempos por palabra, así que con él el resaltado es por frase.
   La barra inferior indica qué sincronía está activa.
 - Estilos de resaltado (fondo, subrayado, marcador), **dedo indicador** opcional, auto-scroll,
   reducción de movimiento, tamaño de letra, interlineado, tema claro/oscuro.
@@ -59,6 +65,8 @@ Opciones:
 | `.\run.cmd -Clean` | compilación limpia |
 | `.\run.cmd -ColdBoot` | arranque en frío del emulador si se queda colgado |
 | `.\run.cmd -Avd Nombre` | elige un emulador concreto |
+| `.\run.cmd -Supertonic` | además instala el modelo Supertonic 3 en el dispositivo (lo descarga al PC la primera vez) |
+| `.\run.cmd -Serial <id>` | usa un dispositivo concreto si hay varios conectados |
 
 Para usar tu móvil: activa *Opciones de desarrollador > Depuración USB*, conéctalo y ejecuta
 `.\run.cmd`; si hay un dispositivo conectado, no arranca el emulador.
@@ -69,10 +77,12 @@ Windows (PowerShell), desde la raíz del repo:
 
 ```powershell
 $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
-.\gradlew.bat :core:test                     # 57 tests JVM (dominio, contenido, controlador de audio)
+.\gradlew.bat :core:test                     # 76 tests JVM (dominio, contenido, controladores de audio, caché)
+.\gradlew.bat :engine:supertonic:test        # 17 tests (texto, WAV, descargador, Supertonic real si está en .models/)
+.\gradlew.bat :engine:supertonic:smokeTest   # descarga el modelo (si falta) y sintetiza inglés/francés en el PC
 .\gradlew.bat :app:assembleDebug             # APK en app\build\outputs\apk\debug\app-debug.apk
 .\gradlew.bat :app:installDebug              # instala en el dispositivo/emulador conectado
-.\gradlew.bat :app:connectedDebugAndroidTest # 4 tests de integración (Hilt + motor TTS falso)
+.\gradlew.bat :app:connectedDebugAndroidTest # 7 tests en dispositivo (lector con motor falso + Supertonic real si está instalado)
 ```
 
 macOS/Linux: `./gradlew` con las mismas tareas. Debe existir `local.properties` con `sdk.dir=…`
@@ -80,6 +90,8 @@ macOS/Linux: `./gradlew` con las mismas tareas. Debe existir `local.properties` 
 
 Si falta la voz de un idioma, el lector lo indica y ofrece «Instalar voz»; se puede leer y
 traducir sin audio.
+
+**Teléfono real con Supertonic:** ver [docs/SUPERTONIC.md §6](docs/SUPERTONIC.md#6-cómo-probarlo-en-un-teléfono-android-real).
 
 ## Estructura
 

@@ -16,9 +16,20 @@ android {
         applicationId = "com.linguareader.app"
         minSdk = 26 // UtteranceProgressListener.onRangeStart (eventos por palabra)
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        // Paquetes descargables: adjuntos de una release de GitHub (docs/ARCHITECTURE.md → Paquetes).
+        val packsRepo = providers.gradleProperty("packsRepo").getOrElse("estebanstifli/linguareader")
+        val packsTag = providers.gradleProperty("packsTag").getOrElse("packs-v1")
+        buildConfigField("String", "PACKS_REPO", "\"$packsRepo\"")
+        buildConfigField("String", "PACKS_TAG", "\"$packsTag\"")
+        versionCode = 2
+        versionName = "0.2.0"
         testInstrumentationRunner = "com.linguareader.HiltTestRunner"
+
+        // ONNX Runtime (Supertonic) aporta ~34 MB nativos por ABI: solo móviles de 64 bits y el emulador.
+        // Un modelo de ~400 MB en fp32 no es práctico en dispositivos de 32 bits.
+        ndk {
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
     }
 
     buildTypes {
@@ -35,6 +46,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     testOptions {
@@ -48,6 +60,10 @@ room {
 
 dependencies {
     implementation(project(":core"))
+    implementation(project(":engine:supertonic"))
+    implementation(project(":engine:alignment"))
+    implementation(libs.onnxruntime.android)
+    implementation(libs.androidx.media3.exoplayer)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

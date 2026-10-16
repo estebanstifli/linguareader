@@ -30,16 +30,26 @@ Leyenda: ✅ hecho y verificado · 🟡 parcial · ⬜ pendiente
 - ⬜ Test instrumentado de reanudación tras reinicio de la app y de offsets tras cambio de tamaño de fuente.
 - ⬜ Prueba manual completa con TalkBack.
 
-## Fase 3 — Supertonic y alineación ⬜
+## Fase 3 — Supertonic y alineación 🟡
 
-- ⬜ Revisar las licencias del código y de los pesos de Supertonic antes de cualquier integración.
-- ⬜ Módulo `engine/tts-supertonic` (ONNX Runtime) que implemente `SpeechSynthesizer`; modelos
-  descargables como pack con aviso de tamaño; nunca en git.
-- ⬜ Medir CPU/RAM/latencia en un móvil real (gama media).
-- ⬜ `AlignmentEngine` de forced alignment desacoplado. Validar con `AlignmentValidator` y persistir
-  junto a `AudioCacheKey` y el hash del audio.
-- ⬜ `RenderedAudioReaderAudioController` con Media3/ExoPlayer + `AlignmentTimeline` (búsqueda binaria ya implementada y testeada).
-- ⬜ Prefetch del pasaje siguiente y limpieza de caché por límite de almacenamiento.
+- ✅ Licencias revisadas: código MIT, pesos OpenRAIL-M (descarga bajo demanda con aceptación; no se empaquetan).
+- ✅ Módulo `:engine:supertonic` (ONNX Runtime, CPU, offline) que implementa `SpeechSynthesizer`;
+  descarga con tamaño, progreso, reanudación, sha256, cancelación y borrado; nunca en git.
+- ✅ Interfaz común `TtsEngine` + `TtsEngineRegistry` + `SwitchingReaderAudioController`: Android TTS
+  y Supertonic intercambiables desde Ajustes, sin cambios en la UI del lector.
+- ✅ `RenderedReaderAudioController` con Media3: un clip por frase, reproducción mientras se
+  sintetiza el resto del párrafo y precarga del pasaje siguiente.
+- ✅ Caché de audio reutilizable (LRU 200 MB, clave con modelo, versión, voz, idioma, velocidad, pasos y texto).
+- ✅ Métricas: carga, verificación, síntesis, duración, RTF, PSS e hilos (logcat + Ajustes > Probar voz).
+- ✅ Medido en PC (RTF 0,16–0,24) y en emulador x86_64 (RTF 0,45–1,05). Ver [SUPERTONIC.md](SUPERTONIC.md).
+- ⬜ **Medir en un móvil real de gama media (arm64)** y ajustar los pasos por defecto.
+- ✅ Estudio de alineadores forzados ([ALIGNMENT.md](ALIGNMENT.md)): MMS (audio.cpp y ONNX) y Qwen3 (audio.cpp).
+  MMS-ONNX en Kotlin (`:engine:alignment`) funciona en Android: ~30 ms de error, RTF 0,39 en el emulador.
+- ⬜ Integrar la alineación en el lector (resaltado por palabra con Supertonic) — **decidir la licencia**:
+  MMS es CC-BY-NC (no comercial); Qwen3 es Apache-2.0 pero pesado para móvil.
+- ✅ Pausas controladas entre frases y párrafos (configurables) y recorte de silencios de Supertonic.
+- ⬜ Cuantización int8/fp16 del modelo para reducir descarga y RAM (exige validar la calidad).
+- ⬜ Descarga en segundo plano con WorkManager (hoy continúa mientras el proceso vive y se reanuda al volver).
 
 ## Fase 4 — Contenido e idiomas ⬜
 

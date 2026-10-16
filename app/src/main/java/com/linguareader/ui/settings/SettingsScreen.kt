@@ -113,9 +113,11 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) 
             ReaderPreferencesPanel(prefs = prefs, onUpdate = { t -> vm.update(t) }, voices = emptyList(), selectedVoice = null, onVoice = {})
 
             HorizontalDivider()
-            SectionTitle("Voz")
+            TtsEngineSection()
+            WordAlignmentSection()
+            PacksSection()
             Text(
-                "Motor actual: TTS del sistema Android. Las voces se instalan desde los ajustes de Android; se prefieren voces sin conexión.",
+                "Voces del sistema: se instalan desde los ajustes de Android; se prefieren voces sin conexión.",
                 style = MaterialTheme.typography.bodySmall,
             )
             OutlinedButton(onClick = {
@@ -127,7 +129,7 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) 
             HorizontalDivider()
             SectionTitle("Acerca de")
             Text(
-                "LinguaReader 0.1.0 · Biblioteca local sin conexión. Libros de demostración originales. " +
+                "LinguaReader 0.2.0 · Biblioteca local sin conexión. Libros de demostración originales. " +
                     "Iconos: Material Icons (Apache 2.0). Ver docs/ARCHITECTURE.md para licencias.",
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -181,6 +183,14 @@ fun ReaderPreferencesPanel(
         SwitchRow("Pausar al tocar una palabra", prefs.pauseOnWordTap) { v -> onUpdate { it.copy(pauseOnWordTap = v) } }
         SwitchRow("Continuar con el siguiente pasaje", prefs.autoContinue) { v -> onUpdate { it.copy(autoContinue = v) } }
         SwitchRow("Reducir movimiento", prefs.reduceMotion) { v -> onUpdate { it.copy(reduceMotion = v) } }
+
+        SectionTitle("Pausas de lectura")
+        LabeledSlider("Entre frases", prefs.sentencePauseMs / 1000f, 0.2f..1.5f, "%.1f s".format(Locale.ROOT, prefs.sentencePauseMs / 1000f)) { v ->
+            onUpdate { it.copy(sentencePauseMs = (v * 1000).toInt() / 50 * 50) }
+        }
+        LabeledSlider("Entre párrafos", prefs.paragraphPauseMs / 1000f, 0.3f..3.0f, "%.1f s".format(Locale.ROOT, prefs.paragraphPauseMs / 1000f)) { v ->
+            onUpdate { it.copy(paragraphPauseMs = (v * 1000).toInt() / 50 * 50) }
+        }
 
         SectionTitle("Texto")
         LabeledSlider("Tamaño", prefs.fontScale, 0.8f..1.8f, "%.0f%%".format(Locale.ROOT, prefs.fontScale * 100)) { v ->

@@ -168,7 +168,7 @@ private fun TranslationLine(result: TranslationResult, target: String, italic: B
 fun ReaderSettingsSheet(
     prefs: UserPreferences,
     voices: List<VoiceInfo>,
-    bookLanguage: String?,
+    selectedVoice: String?,
     onUpdate: ((UserPreferences) -> UserPreferences) -> Unit,
     onVoice: (String?) -> Unit,
     onDismiss: () -> Unit,
@@ -179,7 +179,7 @@ fun ReaderSettingsSheet(
                 prefs = prefs,
                 onUpdate = onUpdate,
                 voices = voices,
-                selectedVoice = bookLanguage?.let { prefs.voiceByLanguage[LanguageTags.primary(it)] },
+                selectedVoice = selectedVoice,
                 onVoice = onVoice,
             )
         }

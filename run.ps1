@@ -17,7 +17,9 @@
   .\run.ps1 -Reset          # borra los datos de la app (progreso, vocabulario, ajustes)
   .\run.ps1 -Clean          # compilación limpia
   .\run.ps1 -Avd Otro_AVD   # usar un emulador concreto
-  .\run.ps1 -Headless       # emulador sin ventana (sin audio)
+  .\run.ps1 -Headless       # emulador sin ventana
+  .\run.ps1 -Supertonic     # además instala el modelo Supertonic 3 en el dispositivo (descarga ~398 MB la 1.ª vez)
+  .\run.ps1 -Serial emulator-5556   # usar un dispositivo concreto si hay varios
   .\run.ps1 -ColdBoot       # arranque en frío del emulador
 #>
 [CmdletBinding()]
@@ -28,6 +30,8 @@ param(
     [switch]$Clean,
     [switch]$Headless,
     [switch]$ColdBoot,
+    [switch]$Supertonic,
+    [string]$Serial = "",
     [string]$Avd = ""
 )
 
@@ -39,6 +43,8 @@ $AppId = "com.linguareader.app"
 $Activity = "com.linguareader.MainActivity"
 $DefaultAvdName = "LinguaReader_API_36"
 $SystemImage = "system-images;android-36.1;google_apis_playstore;x86_64"
+$SupertonicRevision = "aafc6e32416a594460b32413efc49d7fe4ce6d46"
+$SupertonicHostDir = Join-Path $ProjectDir ".models\supertonic-3\$SupertonicRevision"
 
 function Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
 function Info($msg) { Write-Host "    $msg" -ForegroundColor Gray }
@@ -120,7 +126,9 @@ function Get-ReadyDevices {
     (& $adb devices) | Select-Object -Skip 1 | Where-Object { $_ -match "^\S+\s+device$" } | ForEach-Object { ($_ -split "\s+")[0] }
 }
 
+if ($Serial) { $env:ANDROID_SERIAL = $Serial }
 $devices = @(Get-ReadyDevices)
+if ($Serial) { $devices = @($devices | Where-Object { $_ -eq $Serial }) }
 if ($devices.Count -gt 0) {
     Info "Usando dispositivo conectado: $($devices -join ', ')"
 } else {
@@ -142,7 +150,8 @@ if ($devices.Count -gt 0) {
 
     Info "Arrancando emulador '$chosen' (la primera vez puede tardar 1-3 minutos)"
     $emuArgs = @("-avd", $chosen, "-netdelay", "none", "-netspeed", "full")
-    if ($Headless) { $emuArgs += @("-no-window", "-no-audio") }
+    # Sin -no-audio: ExoPlayer necesita un dispositivo de audio para llevar el ritmo real.
+    if ($Headless) { $emuArgs += @("-no-window") }
     if ($ColdBoot) { $emuArgs += "-no-snapshot-load" }
     Start-Process -FilePath $emulator -ArgumentList $emuArgs | Out-Null
 
@@ -176,6 +185,11 @@ try {
         Step "Tests instrumentados (en el dispositivo)"
         Invoke-Native $gradlew @(":app:connectedDebugAndroidTest", "--console=plain") "Tests instrumentados"
         Info "OK. Informe: app\build\reports\androidTests\connected\debug\index.html"
+        Info "(Los tests desinstalan la app al terminar: se reinstala a continuación.)"
+    }
+    if ($Supertonic -and -not (Test-Path (Join-Path $SupertonicHostDir "onnx\vector_estimator.onnx"))) {
+        Step "Descargando Supertonic 3 en el PC (~398 MB, revisión fijada, verificado con sha256)"
+        Invoke-Native $gradlew @(":engine:supertonic:smokeTest", "--console=plain") "Descarga/prueba de Supertonic en el PC"
     }
 
     Step "Compilando e instalando (la primera vez descarga dependencias)"
@@ -184,16 +198,38 @@ try {
     Pop-Location
 }
 
+$targets = @(Get-ReadyDevices)
+if ($Serial) { $targets = @($targets | Where-Object { $_ -eq $Serial }) }
+
 if ($Reset) {
     Step "Borrando datos de la app"
-    & $adb shell pm clear $AppId | Out-Null
+    foreach ($d in $targets) { & $adb -s $d shell pm clear $AppId | Out-Null }
+}
+
+if ($Supertonic) {
+    Step "Copiando el modelo Supertonic 3 al dispositivo"
+    # El modelo vive en el almacenamiento INTERNO de la app (files/). adb no puede escribir ahí
+    # directamente: se sube a /data/local/tmp y se copia con run-as (solo builds de depuración).
+    $tmp = "/data/local/tmp/supertonic-$SupertonicRevision"
+    $rel = "files/models/supertonic-3/$SupertonicRevision"
+    foreach ($d in $targets) {
+        & $adb -s $d shell "rm -rf $tmp; mkdir -p $tmp" | Out-Null
+        & $adb -s $d push "$SupertonicHostDir\." "$tmp/"
+        if ($LASTEXITCODE -ne 0) { Fail "No se pudo subir el modelo a $d." }
+        & $adb -s $d shell "run-as $AppId sh -c 'rm -rf $rel; mkdir -p $rel && cp -R $tmp/. $rel/'"
+        if ($LASTEXITCODE -ne 0) { Fail "run-as no pudo copiar el modelo (¿build de release?)." }
+        & $adb -s $d shell "rm -rf $tmp" | Out-Null
+        # Restos de versiones anteriores que usaban Android/data (carpetas de 'shell' que la app no puede leer).
+        & $adb -s $d shell "rm -rf /sdcard/Android/data/$AppId/files/models" | Out-Null
+    }
+    Info "Modelo instalado. En la app: Ajustes > Motor de voz > Supertonic 3."
 }
 
 Step "Abriendo LinguaReader"
-& $adb shell am start -n "$AppId/$Activity" | Out-Null
+foreach ($d in $targets) { & $adb -s $d shell am start -n "$AppId/$Activity" | Out-Null }
 
 # Voces TTS: la app avisa dentro si faltan, pero lo indicamos también aquí.
-$ttsEngines = (& $adb shell cmd package query-services -a android.intent.action.TTS_SERVICE 2>$null) -join "`n"
+$ttsEngines = (& $adb -s $targets[0] shell cmd package query-services -a android.intent.action.TTS_SERVICE 2>$null) -join "`n"
 if ($ttsEngines -notmatch "packageName=") {
     Warn "No se detecta motor de voz (TTS) en el dispositivo. La app funcionará sin audio."
 }
@@ -205,3 +241,4 @@ Write-Host "  - Toca una palabra (p. ej. 'up' en 'wakes up') para ver la ficha; 
 Write-Host "  - Icono de ajustes del lector: cinco modos, resaltado, dedo indicador, tamaño de letra..."
 Write-Host "  - Si falta la voz de un idioma, la app muestra 'Instalar voz'."
 Write-Host "  - Si no oyes nada, sube el volumen del emulador (botones laterales de su barra)."
+Write-Host "  - Supertonic: Ajustes > Motor de voz. Con -Supertonic el modelo ya viene instalado; si no, pulsa Descargar."

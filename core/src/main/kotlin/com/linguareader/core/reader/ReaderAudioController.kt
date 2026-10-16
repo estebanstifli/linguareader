@@ -25,6 +25,10 @@ data class PlaybackState(
     /** true si el motor ha emitido eventos de palabra válidos en este pasaje. */
     val wordEventsObserved: Boolean = false,
     val errorCode: Int? = null,
+    /** Generando audio de la frase que toca (motores renderizados). */
+    val buffering: Boolean = false,
+    /** El motor activo nunca entrega tiempos por palabra (p. ej. Supertonic). */
+    val engineLacksWordTimings: Boolean = false,
 ) {
     val isPlaying: Boolean get() = status == PlaybackStatus.PLAYING
     val isAudioAvailable: Boolean get() = readiness is EngineReadiness.Ready
@@ -50,6 +54,22 @@ interface ReaderAudioController {
     suspend fun speakSnippet(text: String, languageTag: String)
     /** Detiene el audio conservando la posición (al salir del lector). */
     suspend fun stop()
+    /** Prepara en segundo plano el audio de otro pasaje (normalmente el siguiente). */
+    suspend fun prefetch(passage: Passage, languageTag: String, voiceId: String?) {}
+    /**
+     * Genera de antemano las primeras [sentenceCount] frases de [passage] (motores que sintetizan) para
+     * que la reproducción arranque sin esperas. Suspende hasta tenerlas; false si la síntesis falló.
+     */
+    suspend fun warmUp(passage: Passage, languageTag: String, voiceId: String?, sentenceCount: Int = 2, fromSentence: Int = 0): Boolean = true
+}
+
+/** Pausas que inserta el reproductor (no se graban en el audio generado, así la caché no depende de ellas). */
+data class SpeechPauses(val sentenceMs: Long = 550, val paragraphMs: Long = 1000)
+
+/** Permite elegir el motor TTS activo sin que la UI conozca las implementaciones. */
+interface TtsEngineSelector {
+    val selectedEngineId: StateFlow<String>
+    suspend fun selectEngine(engineId: String)
 }
 
 /** Foco de audio del sistema, abstraído para poder testear el controlador en JVM. */

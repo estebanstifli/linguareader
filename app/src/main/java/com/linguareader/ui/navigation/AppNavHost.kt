@@ -26,7 +26,7 @@ fun AppNavHost() {
                 onOpenSettings = { nav.navigate(SettingsRoute) },
             )
         }
-        composable<ReaderRoute> { ReaderScreen(onBack = { nav.popBackStack() }) }
+        composable<ReaderRoute> { ReaderScreen(onBack = { nav.popBackStack() }, onOpenSettings = { nav.navigate(SettingsRoute) }) }
         composable<VocabularyRoute> { VocabularyScreen(onBack = { nav.popBackStack() }) }
         composable<SettingsRoute> { SettingsScreen(onBack = { nav.popBackStack() }) }
     }

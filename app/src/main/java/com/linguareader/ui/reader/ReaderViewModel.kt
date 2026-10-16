@@ -6,7 +6,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.linguareader.core.engine.BookRepository
-import com.linguareader.core.engine.StreamingSpeechEngine
 import com.linguareader.core.engine.TranslationResult
 import com.linguareader.core.engine.VoiceInfo
 import com.linguareader.core.model.Book
@@ -18,6 +17,9 @@ import com.linguareader.core.model.UserPreferences
 import com.linguareader.core.reader.PlaybackState
 import com.linguareader.core.reader.PlaybackStatus
 import com.linguareader.core.reader.ReaderAudioController
+import com.linguareader.core.reader.TtsEngineRegistry
+import com.linguareader.core.reader.TtsEngineSelector
+import com.linguareader.core.text.OffsetIndex
 import com.linguareader.core.translation.WordLookup
 import com.linguareader.core.translation.WordLookupService
 import com.linguareader.data.db.BookmarkDao
@@ -28,16 +30,24 @@ import com.linguareader.data.db.VocabularyDao
 import com.linguareader.data.db.VocabularyEntity
 import com.linguareader.data.prefs.UserPreferencesRepository
 import com.linguareader.di.ApplicationScope
+import com.linguareader.engine.audio.CuePlayer
+import com.linguareader.engine.packs.VoiceClip
+import com.linguareader.engine.packs.VoicePackManager
+import com.linguareader.engine.supertonic.SupertonicModel
 import com.linguareader.ui.common.toImageBitmap
 import com.linguareader.ui.navigation.ReaderRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -77,6 +87,8 @@ data class ReaderUiState(
     val wordCard: WordCardState? = null,
     val sentenceCard: SentenceCardState? = null,
     val voices: List<VoiceInfo> = emptyList(),
+    /** Pantalla «Preparando la lectura…» mientras el motor genera las primeras frases. */
+    val preparing: Boolean = false,
 ) {
     val hasPrevious: Boolean get() = passageIndex > 0
     val hasNext: Boolean get() = passageIndex < totalPassages - 1
@@ -87,12 +99,15 @@ class ReaderViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val books: BookRepository,
     private val audio: ReaderAudioController,
-    private val speechEngine: StreamingSpeechEngine,
+    private val engines: TtsEngineRegistry,
+    private val engineSelector: TtsEngineSelector,
     private val lookupService: WordLookupService,
     private val preferencesRepository: UserPreferencesRepository,
     private val progressDao: ProgressDao,
     private val bookmarkDao: BookmarkDao,
     private val vocabularyDao: VocabularyDao,
+    private val voicePacks: VoicePackManager,
+    private val cue: CuePlayer,
     @param:ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
 
@@ -125,7 +140,7 @@ class ReaderViewModel @Inject constructor(
         val saved = progressDao.get(bookId)
         val index = saved?.passageIndex?.coerceIn(0, book.passages.lastIndex) ?: 0
         val offset = saved?.takeIf { book.passages[index].id == it.passageId }?.charOffset ?: 0
-        showPassage(index, offset, autoplay = false)
+        showPassage(index, offset, autoplay = false, immediate = true)
 
         viewModelScope.launch { bookmarkDao.observeForBook(bookId).collect { list -> _state.update { it.copy(bookmarks = list) } } }
         viewModelScope.launch {
@@ -140,16 +155,69 @@ class ReaderViewModel @Inject constructor(
                 .distinctUntilChanged { a, b -> a.passageId == b.passageId && a.sentenceIndex == b.sentenceIndex && a.status == b.status }
                 .collect { saveProgress(it) }
         }
+        viewModelScope.launch { refreshVoices() }
         viewModelScope.launch {
-            _state.update { it.copy(voices = speechEngine.listVoices(book.learningLanguage)) }
+            // Cambio de motor (Android TTS ↔ Supertonic): recargar el pasaje en el mismo punto.
+            engineSelector.selectedEngineId.drop(1).collect { retryAudio() }
         }
+        viewModelScope.launch {
+            preferences.map { it.supertonicVoice }.distinctUntilChanged().drop(1).collect {
+                if (isSupertonicActive()) retryAudio()
+            }
+        }
+    }
+
+    private suspend fun refreshVoices() {
+        val book = _state.value.book ?: return
+        val engine = engines[engineSelector.selectedEngineId.value] ?: return
+        _state.update { it.copy(voices = engine.listVoices(book.learningLanguage)) }
+    }
+
+    private var preparingFor: String? = null
+
+    /**
+     * Motores que sintetizan (Supertonic): antes de empezar a leer, genera las 2 primeras frases para tener
+     * ya un pequeño búfer y arrancar sin cortes. Si tarda (carga del modelo, móvil lento) se muestra la
+     * pantalla «Preparando la lectura…» y suena la frase pregenerada del paquete de voces, que se deja
+     * terminar. Si las frases ya estaban en caché no se ve nada.
+     * @param immediate al abrir el libro: pantalla de preparación desde el primer momento.
+     */
+    private suspend fun prepareAudio(book: Book, passage: Passage, offset: Int, immediate: Boolean) {
+        if (!isSupertonicActive() || !playback.value.isAudioAvailable) return
+        val from = OffsetIndex.sentenceAt(passage.sentences, offset)?.index ?: 0
+        preparingFor = passage.id
+        try {
+            coroutineScope {
+                val overlay = async {
+                    if (!immediate) delay(PREPARING_GRACE_MS) // si va rápido, ni se nota
+                    _state.update { it.copy(preparing = true) }
+                    voicePacks.clip(book.learningLanguage, voiceFor(book) ?: SupertonicModel.DEFAULT_VOICE, VoiceClip.READY)?.let { cue.play(it) }
+                }
+                audio.warmUp(passage, book.learningLanguage, voiceFor(book), WARM_UP_SENTENCES, from)
+                // Si la pantalla aún no había salido, no hace falta; si salió, se deja acabar la frase.
+                if (overlay.isActive && !_state.value.preparing) overlay.cancel() else overlay.await()
+            }
+        } finally {
+            if (preparingFor == passage.id) {
+                preparingFor = null
+                _state.update { it.copy(preparing = false) }
+            }
+        }
+    }
+
+    private fun isSupertonicActive() = engineSelector.selectedEngineId.value == SupertonicModel.ENGINE_ID
+
+    /** Precarga (en motores que generan audio) el pasaje siguiente mientras suena el actual. */
+    private suspend fun prefetchNext(book: Book, index: Int) {
+        val next = book.passages.getOrNull(index + 1) ?: return
+        audio.prefetch(next, book.learningLanguage, voiceFor(book))
     }
 
     // --------------------------------------------------------------------------------------
     // Navegación por pasajes
     // --------------------------------------------------------------------------------------
 
-    private fun showPassage(index: Int, offset: Int, autoplay: Boolean) {
+    private fun showPassage(index: Int, offset: Int, autoplay: Boolean, immediate: Boolean = false) {
         val book = _state.value.book ?: return
         val passage = book.passages.getOrNull(index) ?: return
         passageJob?.cancel()
@@ -163,7 +231,9 @@ class ReaderViewModel @Inject constructor(
         passageJob = viewModelScope.launch {
             audio.load(passage, book.learningLanguage, voiceFor(book), offset)
             persist(passage, offset)
+            prepareAudio(book, passage, offset, immediate)
             if (autoplay) audio.play()
+            prefetchNext(book, index)
             refreshTranslations()
             passage.image?.let { media ->
                 val bitmap = books.loadMedia(book.id, media).toImageBitmap()
@@ -228,11 +298,17 @@ class ReaderViewModel @Inject constructor(
         val book = _state.value.book ?: return@launch
         val passage = _state.value.passage ?: return@launch
         audio.load(passage, book.learningLanguage, voiceFor(book), playback.value.resumeOffset)
-        _state.update { it.copy(voices = speechEngine.listVoices(book.learningLanguage)) }
+        prepareAudio(book, passage, playback.value.resumeOffset, immediate = false)
+        refreshVoices()
+        prefetchNext(book, passage.index)
     }
 
     private fun voiceFor(book: Book): String? =
-        preferences.value.voiceByLanguage[LanguageTags.primary(book.learningLanguage)]
+        if (isSupertonicActive()) preferences.value.supertonicVoice
+        else preferences.value.voiceByLanguage[LanguageTags.primary(book.learningLanguage)]
+
+    /** Voz seleccionada en el motor activo (para la hoja de ajustes del lector). */
+    fun selectedVoice(): String? = _state.value.book?.let(::voiceFor)
 
     // --------------------------------------------------------------------------------------
     // Palabras, frases y traducción
@@ -376,6 +452,10 @@ class ReaderViewModel @Inject constructor(
 
     fun setVoice(voiceId: String?) {
         val book = _state.value.book ?: return
+        if (isSupertonicActive()) {
+            updatePreferences { it.copy(supertonicVoice = voiceId ?: "F1") }
+            return
+        }
         val key = LanguageTags.primary(book.learningLanguage)
         updatePreferences { p ->
             p.copy(voiceByLanguage = if (voiceId == null) p.voiceByLanguage - key else p.voiceByLanguage + (key to voiceId))
@@ -398,6 +478,7 @@ class ReaderViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        cue.stop()
         val passage = _state.value.passage
         appScope.launch {
             audio.stop()
@@ -405,3 +486,6 @@ class ReaderViewModel @Inject constructor(
         }
     }
 }
+
+private const val WARM_UP_SENTENCES = 2
+private const val PREPARING_GRACE_MS = 300L

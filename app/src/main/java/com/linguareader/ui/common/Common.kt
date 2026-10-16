@@ -88,6 +88,10 @@ object Labels {
                 "El motor de voz no soporta el $lang. Puedes leer y traducir sin audio."
             EngineUnavailableReason.VOICE_NOT_FOUND -> "La voz elegida ya no está instalada."
             EngineUnavailableReason.SYNTHESIS_ERROR -> "El motor de voz ha fallado."
+            EngineUnavailableReason.MODEL_NOT_INSTALLED ->
+                "El modelo de Supertonic no está instalado. Descárgalo en Ajustes > Motor de voz o vuelve a la voz del sistema."
+            EngineUnavailableReason.OUT_OF_MEMORY ->
+                "No hay memoria suficiente para Supertonic en este dispositivo. Prueba con la voz del sistema."
         }
     }
 }

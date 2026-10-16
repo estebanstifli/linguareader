@@ -35,6 +35,10 @@ class FakeStreamingEngine(
     data class Enqueued(val utteranceId: String, val text: String, val speed: Float, val flush: Boolean)
 
     override val id = "fake"
+    override val info = com.linguareader.core.engine.TtsEngineInfo(
+        id = "fake", displayName = "Fake", streaming = true, providesWordTimings = true,
+        requiresModelDownload = false, offline = true,
+    )
     private val _events = MutableSharedFlow<SpeechEvent>(extraBufferCapacity = 64)
     override val events: SharedFlow<SpeechEvent> = _events
     val enqueued = mutableListOf<Enqueued>()
@@ -45,6 +49,8 @@ class FakeStreamingEngine(
         if (flush) enqueued.clear()
         enqueued += Enqueued(utteranceId, text, speed, flush)
     }
+    val silences = mutableListOf<Pair<String, Long>>()
+    override fun enqueueSilence(utteranceId: String, durationMs: Long) { silences += utteranceId to durationMs }
     override fun stop() { stopCount++; enqueued.clear() }
     override suspend fun listVoices(languageTag: String) = emptyList<VoiceInfo>()
 

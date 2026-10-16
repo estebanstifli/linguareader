@@ -4,7 +4,7 @@
 /.idea/
 .DS_Store
 /build/
-*/build/
+**/build/
 /captures/
 .externalNativeBuild/
 .cxx/
@@ -17,3 +17,6 @@
 *.keystore
 *.jks
 secrets.properties
+
+# Modelos descargados para pruebas en el PC (Supertonic: ~398 MB)
+.models/

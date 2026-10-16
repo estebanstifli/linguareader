@@ -2,6 +2,7 @@ package com.linguareader.core.alignment
 
 import com.linguareader.core.engine.TimedToken
 import com.linguareader.core.model.Passage
+import com.linguareader.core.model.Token
 
 /** Calidad de una alineación: decide si el lector puede resaltar por palabra o solo por frase. */
 sealed interface AlignmentQuality {
@@ -21,11 +22,19 @@ object AlignmentValidator {
         timed: List<TimedToken>,
         minCoverage: Double = 0.9,
         minMeanConfidence: Float = 0.5f,
+    ): AlignmentQuality = validate(passage.tokens, timed, minCoverage, minMeanConfidence)
+
+    /** Igual que [validate] sobre un subconjunto de tokens (p. ej. los de una frase alineada por separado). */
+    fun validate(
+        tokens: List<Token>,
+        timed: List<TimedToken>,
+        minCoverage: Double = 0.9,
+        minMeanConfidence: Float = 0.5f,
     ): AlignmentQuality {
         val reasons = mutableListOf<String>()
         if (timed.isEmpty()) return AlignmentQuality.SentenceOnly(listOf("sin tiempos"))
 
-        val tokenIndex = passage.tokens.associate { it.id to it.index }
+        val tokenIndex = tokens.associate { it.id to it.index }
         if (timed.any { it.tokenId !in tokenIndex }) reasons += "tokens desconocidos"
         if (timed.any { it.startMs < 0 || it.endMs < it.startMs }) reasons += "intervalos inválidos"
 
@@ -34,7 +43,7 @@ object AlignmentValidator {
         }
         if (!monotonic) reasons += "no monótona"
 
-        val coverage = timed.map { it.tokenId }.toSet().size.toDouble() / passage.tokens.size.coerceAtLeast(1)
+        val coverage = timed.map { it.tokenId }.toSet().size.toDouble() / tokens.size.coerceAtLeast(1)
         if (coverage < minCoverage) reasons += "cobertura ${"%.0f".format(coverage * 100)}% < ${(minCoverage * 100).toInt()}%"
 
         val confidences = timed.mapNotNull { it.confidence }

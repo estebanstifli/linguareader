@@ -57,16 +57,43 @@ sealed interface SpeechResult {
 
 enum class EngineUnavailableReason {
     ENGINE_NOT_INSTALLED, LANGUAGE_NOT_SUPPORTED, LANGUAGE_DATA_MISSING, VOICE_NOT_FOUND, INIT_FAILED, SYNTHESIS_ERROR,
+    /** Motor con modelo descargable que todavía no está instalado. */
+    MODEL_NOT_INSTALLED,
+    OUT_OF_MEMORY,
+}
+
+/** Descripción de un motor TTS, independiente del proveedor. */
+data class TtsEngineInfo(
+    val id: String,
+    val displayName: String,
+    /** true: reproduce él mismo (Android TTS). false: genera audio que reproduce la app. */
+    val streaming: Boolean,
+    /** true solo si el motor entrega tiempos por palabra fiables (eventos o marcas temporales). */
+    val providesWordTimings: Boolean,
+    val requiresModelDownload: Boolean,
+    val offline: Boolean,
+    /** Subetiquetas primarias soportadas; vacío = depende de las voces instaladas en el sistema. */
+    val languages: Set<String> = emptySet(),
+)
+
+/** Base común de todos los motores TTS (en streaming o renderizados). */
+interface TtsEngine {
+    val id: String
+    val info: TtsEngineInfo
+    suspend fun listVoices(languageTag: String): List<VoiceInfo>
+    /** Libera recursos pesados (sesiones ONNX, servicios). Puede volver a usarse después. */
+    fun release() {}
 }
 
 /**
- * Síntesis a fichero (motores offline tipo Supertonic/ONNX en Fase 3). El audio resultante
- * NO trae tiempos por palabra: la alineación es responsabilidad de un [AlignmentEngine].
+ * Síntesis a fichero (motores offline tipo Supertonic/ONNX). El audio resultante NO trae tiempos
+ * por palabra salvo que el motor lo declare en [TtsEngineInfo.providesWordTimings]; la
+ * alineación es responsabilidad de un [AlignmentEngine].
  */
-interface SpeechSynthesizer {
-    val id: String
+interface SpeechSynthesizer : TtsEngine {
     suspend fun synthesize(request: SpeechRequest): SpeechResult
-    suspend fun listVoices(languageTag: String): List<VoiceInfo>
+    /** Comprueba (sin sintetizar) si el motor puede hablar este idioma con esta voz. */
+    suspend fun availability(languageTag: String, voiceId: String?): EngineReadiness = EngineReadiness.Ready
 }
 
 sealed interface EngineReadiness {
@@ -88,14 +115,14 @@ sealed interface SpeechEvent {
  * Motor TTS de reproducción directa con cola de enunciados. Puede emitir [SpeechEvent.WordRange]
  * (Android `onRangeStart`); si no los emite, el lector resalta por frase.
  */
-interface StreamingSpeechEngine {
-    val id: String
+interface StreamingSpeechEngine : TtsEngine {
     val events: SharedFlow<SpeechEvent>
     val supportsSpeed: Boolean
     suspend fun prepare(languageTag: String, voiceId: String?): EngineReadiness
     fun enqueue(utteranceId: String, text: String, speed: Float, flush: Boolean)
+    /** Encola un silencio (pausa entre frases). Los motores que no lo soporten pueden ignorarlo. */
+    fun enqueueSilence(utteranceId: String, durationMs: Long) {}
     fun stop()
-    suspend fun listVoices(languageTag: String): List<VoiceInfo>
 }
 
 // ---------------------------------------------------------------------------------------------

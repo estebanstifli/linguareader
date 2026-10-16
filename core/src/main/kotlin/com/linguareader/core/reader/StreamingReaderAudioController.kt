@@ -9,6 +9,7 @@ import com.linguareader.core.text.OffsetIndex
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,6 +31,7 @@ class StreamingReaderAudioController(
     private val engine: StreamingSpeechEngine,
     private val focus: AudioFocusGate,
     private val dispatcher: CoroutineDispatcher,
+    private val pauses: () -> SpeechPauses = { SpeechPauses() },
 ) : ReaderAudioController {
 
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
@@ -84,6 +86,7 @@ class StreamingReaderAudioController(
         for (i in sentence.index until p.sentences.size) {
             val s = p.sentences[i]
             val b = if (i == sentence.index) base else 0
+            if (i > sentence.index) engine.enqueueSilence("p|$gen|$i", pauses().sentenceMs)
             engine.enqueue(utteranceId(gen, i, b), s.text.substring(b), current.speed, flush = i == sentence.index)
         }
         _state.update {
@@ -194,9 +197,14 @@ class StreamingReaderAudioController(
             }
             is SpeechEvent.Done -> {
                 if (sentence.index == p.sentences.lastIndex) {
-                    focus.abandon()
-                    _state.update {
-                        it.copy(status = PlaybackStatus.COMPLETED, activeTokenId = null, granularity = HighlightGranularity.NONE, resumeOffset = 0)
+                    // Pausa de fin de párrafo antes de dar el pasaje por terminado (y pasar al siguiente).
+                    val gen = parsed.generation
+                    _state.update { it.copy(activeTokenId = null, granularity = HighlightGranularity.NONE, resumeOffset = 0) }
+                    scope.launch {
+                        delay(pauses().paragraphMs)
+                        if (gen != generation || !_state.value.isPlaying) return@launch
+                        focus.abandon()
+                        _state.update { it.copy(status = PlaybackStatus.COMPLETED) }
                     }
                 } else {
                     _state.update { it.copy(resumeOffset = p.sentences[sentence.index + 1].rangeStart) }

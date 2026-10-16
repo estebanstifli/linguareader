@@ -90,6 +90,11 @@ fun PlayerControls(
             }
             val sync = when {
                 !playback.isAudioAvailable -> "Sin audio"
+                playback.buffering && playback.isPlaying -> "Generando audio…"
+                playback.engineLacksWordTimings && playback.granularity == HighlightGranularity.WORD ->
+                    "Voz sintética (Supertonic) · sincronía por palabra (alineación forzada)"
+                playback.engineLacksWordTimings && (playback.status == PlaybackStatus.PLAYING || playback.status == PlaybackStatus.PAUSED) ->
+                    "Voz sintética (Supertonic) · sincronía por frase: el motor no da tiempos por palabra"
                 playback.granularity == HighlightGranularity.WORD -> "Sincronía por palabra (eventos del motor)"
                 playback.status == PlaybackStatus.PLAYING || playback.status == PlaybackStatus.PAUSED ->
                     if (playback.wordEventsObserved) "Sincronía por frase en esta frase" else "Sincronía por frase (el motor no envía tiempos por palabra)"

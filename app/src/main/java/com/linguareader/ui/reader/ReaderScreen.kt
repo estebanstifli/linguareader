@@ -80,7 +80,7 @@ import kotlinx.coroutines.flow.filterNotNull
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReaderScreen(onBack: () -> Unit, vm: ReaderViewModel = hiltViewModel()) {
+fun ReaderScreen(onBack: () -> Unit, onOpenSettings: () -> Unit = {}, vm: ReaderViewModel = hiltViewModel()) {
     val ui by vm.state.collectAsStateWithLifecycle()
     val prefs by vm.preferences.collectAsStateWithLifecycle()
     val playback by vm.playback.collectAsStateWithLifecycle()
@@ -131,19 +131,22 @@ fun ReaderScreen(onBack: () -> Unit, vm: ReaderViewModel = hiltViewModel()) {
             )
         },
     ) { padding ->
+      Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(padding)) {
             LinearProgressIndicator(
                 progress = { if (ui.totalPassages == 0) 0f else (ui.passageIndex + 1f) / ui.totalPassages },
                 modifier = Modifier.fillMaxWidth().height(3.dp),
                 drawStopIndicator = {},
             )
-            AudioBanner(playback, languageTag = ui.book?.learningLanguage, onRetry = vm::retryAudio)
+            AudioBanner(playback, languageTag = ui.book?.learningLanguage, onRetry = vm::retryAudio, onOpenSettings = onOpenSettings)
             when {
                 ui.error != null -> Text(ui.error!!, Modifier.padding(24.dp), color = MaterialTheme.colorScheme.error)
                 ui.passage == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
                 else -> PassageContent(ui, prefs, playback, vm)
             }
         }
+        if (ui.preparing) PreparingOverlay(reduceMotion = prefs.reduceMotion, title = ui.book?.title.orEmpty())
+      }
     }
 
     ui.wordCard?.let { card ->
@@ -163,7 +166,7 @@ fun ReaderScreen(onBack: () -> Unit, vm: ReaderViewModel = hiltViewModel()) {
         ReaderSettingsSheet(
             prefs = prefs,
             voices = ui.voices,
-            bookLanguage = ui.book?.learningLanguage,
+            selectedVoice = vm.selectedVoice(),
             onUpdate = vm::updatePreferences,
             onVoice = vm::setVoice,
             onDismiss = { showSettings = false },
@@ -187,7 +190,7 @@ fun ReaderScreen(onBack: () -> Unit, vm: ReaderViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun AudioBanner(playback: PlaybackState, languageTag: String?, onRetry: () -> Unit) {
+private fun AudioBanner(playback: PlaybackState, languageTag: String?, onRetry: () -> Unit, onOpenSettings: () -> Unit) {
     val context = LocalContext.current
     val readiness = playback.readiness
     val message = when {
@@ -198,7 +201,12 @@ private fun AudioBanner(playback: PlaybackState, languageTag: String?, onRetry: 
     Surface(color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
             Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
-            if (readiness is EngineReadiness.Unavailable) {
+            if (readiness is EngineReadiness.Unavailable && readiness.reason.isModelProblem()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = onOpenSettings) { Text("Abrir ajustes") }
+                    TextButton(onClick = onRetry) { Text("Reintentar") }
+                }
+            } else if (readiness is EngineReadiness.Unavailable) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = {
                         try {
@@ -452,3 +460,7 @@ private fun Credits(ui: ReaderUiState) {
         Text("Licencia: ${book.license.name ?: book.license.id}", style = MaterialTheme.typography.bodySmall)
     }
 }
+
+private fun com.linguareader.core.engine.EngineUnavailableReason.isModelProblem() =
+    this == com.linguareader.core.engine.EngineUnavailableReason.MODEL_NOT_INSTALLED ||
+        this == com.linguareader.core.engine.EngineUnavailableReason.OUT_OF_MEMORY

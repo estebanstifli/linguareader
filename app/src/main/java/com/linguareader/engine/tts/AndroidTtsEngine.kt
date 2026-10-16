@@ -17,6 +17,7 @@ import com.linguareader.core.engine.SpeechRequest
 import com.linguareader.core.engine.SpeechResult
 import com.linguareader.core.engine.SpeechSynthesizer
 import com.linguareader.core.engine.StreamingSpeechEngine
+import com.linguareader.core.engine.TtsEngineInfo
 import com.linguareader.core.engine.VoiceInfo
 import com.linguareader.core.model.LanguageTags
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -54,6 +55,14 @@ class AndroidTtsEngine @Inject constructor(
 
     override val id: String = "android-tts"
     override val supportsSpeed: Boolean = true
+    override val info = TtsEngineInfo(
+        id = id,
+        displayName = "Voz del sistema (Android TTS)",
+        streaming = true,
+        providesWordTimings = true, // solo si el motor instalado emite onRangeStart; si no, resaltado por frase
+        requiresModelDownload = false,
+        offline = true,
+    )
 
     private val _events = MutableSharedFlow<SpeechEvent>(extraBufferCapacity = 256)
     override val events: SharedFlow<SpeechEvent> = _events.asSharedFlow()
@@ -148,6 +157,10 @@ class AndroidTtsEngine @Inject constructor(
         val params = Bundle().apply { putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId) }
         val result = t.speak(text, if (flush) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, params, utteranceId)
         if (result != TextToSpeech.SUCCESS) _events.tryEmit(SpeechEvent.Error(utteranceId, result))
+    }
+
+    override fun enqueueSilence(utteranceId: String, durationMs: Long) {
+        if (durationMs > 0) tts?.playSilentUtterance(durationMs, TextToSpeech.QUEUE_ADD, utteranceId)
     }
 
     override fun stop() {

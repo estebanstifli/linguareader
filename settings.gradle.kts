@@ -24,3 +24,5 @@ rootProject.name = "LinguaReader"
 
 include(":app")
 include(":core")
+include(":engine:supertonic")
+include(":engine:alignment")
