@@ -20,19 +20,27 @@ import com.linguareader.core.reader.TtsEngineSelector
 import com.linguareader.core.translation.BundledTranslationEngine
 import com.linguareader.core.translation.FallbackTranslationEngine
 import com.linguareader.core.translation.WordLookupService
-import com.linguareader.data.content.AssetBookRepository
+import com.linguareader.data.content.CompositeBookRepository
 import com.linguareader.data.db.AppDatabase
 import com.linguareader.data.db.BookmarkDao
+import com.linguareader.data.db.MachineTranslationDao
 import com.linguareader.data.db.ProgressDao
 import com.linguareader.data.db.VocabularyDao
 import com.linguareader.engine.audio.AndroidAudioFocusGate
 import com.linguareader.engine.alignment.AlignmentModelManager
 import com.linguareader.engine.alignment.Wav2Vec2ClipAligner
 import com.linguareader.engine.audio.Media3ClipPlayer
+import com.linguareader.engine.importing.PdfExtractor
 import com.linguareader.engine.supertonic.AndroidMemoryProbe
 import com.linguareader.engine.supertonic.SupertonicEngine
 import com.linguareader.engine.supertonic.SupertonicModelManager
+import com.linguareader.engine.translation.MlKitTranslationEngine
+import com.linguareader.engine.translation.TranslationModelManager
+import com.linguareader.core.text.speech.RuleBasedSpeechNormalizer
+import com.linguareader.core.text.speech.SwitchableNormalizer
+import com.linguareader.engine.text.AndroidIcuNumberSpeller
 import com.linguareader.engine.tts.AndroidTtsEngine
+import com.linguareader.importer.ExtractorRegistry
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -56,6 +64,7 @@ class EngineSettingsHolder @Inject constructor() {
     @Volatile var supertonicSteps: Int = SupertonicEngine.DEFAULT_STEPS
     @Volatile var pauses: SpeechPauses = SpeechPauses()
     @Volatile var audioCacheBytes: Long = 256L * 1024 * 1024
+    @Volatile var normalizeSpeech: Boolean = true
 }
 
 /**
@@ -67,12 +76,20 @@ class EngineSettingsHolder @Inject constructor() {
 object AppModule {
 
     @Provides @Singleton
-    fun bookRepository(impl: AssetBookRepository): BookRepository = impl
+    fun bookRepository(impl: CompositeBookRepository): BookRepository = impl
 
+    /** Formatos importables. Un extractor nuevo (PDF, MOBI...) se añade aquí sin tocar la UI. */
     @Provides @Singleton
-    fun translationEngine(books: BookRepository): TranslationEngine =
-        // Fase 4: añadir aquí un proveedor local por modelos o remoto (sin claves embebidas).
-        FallbackTranslationEngine(listOf(BundledTranslationEngine(books)))
+    fun extractorRegistry(@ApplicationContext context: Context): ExtractorRegistry =
+        ExtractorRegistry.default(extra = listOf(PdfExtractor(context)))
+
+    /**
+     * Primero lo incluido en el libro (traducciones revisadas y glosario); si no hay, traducción
+     * automática en el dispositivo (ML Kit). Un proveedor remoto iría detrás, sin claves embebidas.
+     */
+    @Provides @Singleton
+    fun translationEngine(books: BookRepository, models: TranslationModelManager, cache: MachineTranslationDao): TranslationEngine =
+        FallbackTranslationEngine(listOf(BundledTranslationEngine(books), MlKitTranslationEngine(models, cache)))
 
     @Provides @Singleton
     fun wordLookup(engine: TranslationEngine): WordLookupService = WordLookupService(engine)
@@ -148,6 +165,7 @@ object TtsEngineModule {
             parameters = { mapOf("steps" to settings.supertonicSteps.toString()) },
             pauses = { settings.pauses },
             aligner = aligner,
+            normalizer = SwitchableNormalizer({ settings.normalizeSpeech }, RuleBasedSpeechNormalizer(AndroidIcuNumberSpeller)),
         )
         return SwitchingReaderAudioController(
             controllers = mapOf(
@@ -174,4 +192,5 @@ object DatabaseModule {
     @Provides fun progressDao(db: AppDatabase): ProgressDao = db.progressDao()
     @Provides fun bookmarkDao(db: AppDatabase): BookmarkDao = db.bookmarkDao()
     @Provides fun vocabularyDao(db: AppDatabase): VocabularyDao = db.vocabularyDao()
+    @Provides fun machineTranslationDao(db: AppDatabase): MachineTranslationDao = db.machineTranslationDao()
 }

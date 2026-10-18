@@ -147,7 +147,7 @@ class PipelineTest {
         val aligner = CountingAligner()
         val c = controller(synth, aligner)
         c.load(passage, "en", null)
-        assertTrue(c.warmUp(passage, "en", null, 2))
+        assertTrue(c.warmUp(passage, "en", null, WarmUpPolicy(maxSentences = 2)))
         assertEquals(2, aligner.calls)
         assertTrue(player.queue.isEmpty())
         val ttsBefore = synth.requests.size
@@ -157,6 +157,25 @@ class PipelineTest {
         assertNotNull(c.playbackState.value)
         assertFalse(c.playbackState.value.buffering)
         assertEquals(ttsBefore + 2, synth.requests.size) // la síntesis pasa por la caché (aquí el fake la cuenta, el WAV ya existe)
+    }
+
+    @Test
+    fun `window prefetch also aligns every sentence of the following pages so they start with all their words`() = runTest {
+        val synth = DiskSynthesizer(tmp.newFolder())
+        val aligner = CountingAligner()
+        val c = controller(synth, aligner)
+        val window = TestPages.build(4).subList(1, 4)
+        c.load(passage, "en", null)
+        c.play(); c.prefetch(window, "en", null)
+        advanceTimeBy(500); c.pause(); advanceUntilIdle() // pausa el ticker; la precarga sigue hasta terminar
+        val distinct = (listOf(passage) + window).flatMap { p -> p.sentences.map { it.text } }.distinct().size
+        assertEquals(distinct, aligner.calls)
+
+        // Al llegar a la página siguiente todo está en caché: ni síntesis nueva en disco ni alineación nueva.
+        val callsBefore = aligner.calls
+        c.load(window[0], "en", null)
+        assertTrue(c.warmUp(window[0], "en", null, WarmUpPolicy(maxSentences = window[0].sentences.size)))
+        assertEquals(callsBefore, aligner.calls)
     }
 
     @Test

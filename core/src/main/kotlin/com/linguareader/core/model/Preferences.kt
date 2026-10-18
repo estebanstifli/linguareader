@@ -48,8 +48,14 @@ data class UserPreferences(
     val sentencePauseMs: Int = 550,
     /** Pausa al terminar un párrafo/pasaje (ms). */
     val paragraphPauseMs: Int = 1000,
+    /** Pasar números, abreviaturas y símbolos a palabras antes de la voz generada (Supertonic). */
+    val normalizeSpeech: Boolean = true,
     /** Límite de la caché de audio generado y su alineación (MB). Se expulsa lo menos usado al superarlo. */
     val audioCacheMb: Int = 256,
+    /** Ya se mostró la configuración inicial de traducción (elegir idioma y descargar su modelo). */
+    val translationSetupDone: Boolean = false,
+    /** Descargar modelos de traducción solo con Wi-Fi. */
+    val translationWifiOnly: Boolean = true,
 ) {
     companion object {
         const val MIN_SPEECH_RATE = 0.5f

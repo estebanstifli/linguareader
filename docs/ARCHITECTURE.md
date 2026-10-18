@@ -19,6 +19,7 @@
 |---|---|---|
 | `:core` | Kotlin/JVM | `model` (Book, Passage, Token…), `engine/Ports.kt` (interfaces), `text` (Tokenizer, PassageBuilder, OffsetIndex), `content` (manifiesto, integridad), `translation` (glosario, expresiones), `alignment` (validador, timeline), `audio` (clave de caché), `reader` (ReaderAudioController + implementación streaming) |
 | `:engine:supertonic` | Kotlin/JVM | Motor Supertonic 3: port del preprocesado de texto, runtime ONNX (4 sesiones), catálogo del modelo con sha256, descargador con reanudación, métricas. Compila contra la API Java de ONNX Runtime (Android y escritorio). Ver [SUPERTONIC.md](SUPERTONIC.md) |
+| `:importer` | Kotlin/JVM | Puerto `DocumentExtractor`, `ExtractorRegistry` (detección por firma), extractores EPUB/MOBI/DOCX/ODT/RTF/FB2/HTML/TXT/Markdown/SRT, `PageTextCleaner` (PDF) e `ImportedBookBuilder` (texto → `manifest.json`). Ver [IMPORT.md](IMPORT.md) |
 | `:app` | Android | `data` (assets, Room, DataStore), `engine` (Android TTS, foco de audio, reproductor Media3, gestor del modelo Supertonic), `di`, `ui` (catálogo, lector, ajustes, vocabulario) |
 
 Se empezó con dos módulos para no crear módulos vacíos. Los límites de la organización sugerida en
@@ -77,6 +78,9 @@ según la preferencia `ttsEngineId`, que aplica `TtsEngineCoordinator`. El contr
   modelo + voz + velocidad + parámetros);
 - resalta **por frase** (límites exactos de clip). No hay tiempos por palabra y no se inventan.
 
+Antes del TTS, `SpeechTextNormalizer` convierte cada frase en su forma hablada (números, abreviaturas,
+símbolos) con un mapa token → habla, sin tocar el texto ni los tokens: ver [SPEECH_NORMALIZATION.md](SPEECH_NORMALIZATION.md).
+
 Para resaltado por palabra con Supertonic haría falta un `AlignmentEngine` de forced alignment
 sobre el WAV. `AlignmentValidator` y `AlignmentTimeline` ya están listos para ese caso.
 Detalles, métricas y limitaciones: [SUPERTONIC.md](SUPERTONIC.md).
@@ -117,13 +121,21 @@ Detalles, métricas y limitaciones: [SUPERTONIC.md](SUPERTONIC.md).
 | ONNX Runtime Android | 1.31.0 | Inferencia de Supertonic en CPU. MIT. Natives alineadas a 16 KB. Solo `arm64-v8a` y `x86_64` (`abiFilters`). |
 | ONNX Runtime (JVM, solo tests en PC) | 1.18.0 | ≥ 1.19 falla con el `msvcp140.dll` 14.29 del JBR de Android Studio. |
 | Media3 ExoPlayer | 1.11.1 | Cola de clips WAV de Supertonic, foco de audio, «audio becoming noisy». |
+| jsoup | 1.21.1 | Importación: HTML/XHTML y XML (EPUB, DOCX, ODT, FB2, páginas web). MIT. |
+| PdfBox-Android | 2.0.27.0 | Importación de PDF con capa de texto. Apache-2.0. Siempre incluido en el APK. |
+| ML Kit Translate | 17.0.3 | Traducción automática en el dispositivo detrás de las traducciones incluidas. |
 
 - **compileSdk 37 / targetSdk 36.** targetSdk 37 se deja para cuando se revisen los cambios de
   comportamiento de Android 17.
 - **Media3** se usa para el audio generado por Supertonic. La notificación/MediaSession para
   pantalla bloqueada sigue pendiente (Fase 2).
-- **Permiso `INTERNET`**: solo para la descarga explícita del modelo Supertonic. Todo lo demás es offline.
-- **Sin Readium todavía.** La importación EPUB es Fase 4 y antes hay que verificar su licencia (BSD-3).
+- **Permiso `INTERNET`**: solo para acciones explícitas del usuario (descargar el modelo Supertonic,
+  los modelos de traducción de ML Kit o importar una página web). Todo lo demás es offline.
+- **Sin Readium.** Readium es un motor de maquetado/visor; el lector solo necesita el texto en
+  orden de lectura, así que EPUB se lee con un parser propio (ZIP + OPF + XHTML con jsoup).
+  Lo mismo para MOBI, DOCX, ODT, RTF y FB2: parsers propios sin dependencias. Ver [IMPORT.md](IMPORT.md).
+- **PDF con PdfBox-Android** (Apache-2.0) en `:app`, registrado como extractor extra. El
+  `PdfRenderer` nativo solo da texto en API 35+ (minSdk 26) y sin estructura de párrafos.
 - **Sin librería de iconos.** 16 vectores con trazados de Material Icons en `res/drawable`.
 - **Sin Coil.** Las imágenes son assets locales y se decodifican con `BitmapFactory` tras verificar su sha256.
 
@@ -141,6 +153,10 @@ Detalles, métricas y limitaciones: [SUPERTONIC.md](SUPERTONIC.md).
 | Supertonic 3 — pesos ONNX | BigScience OpenRAIL-M | **No se empaquetan.** Descarga bajo demanda tras aceptar la licencia en la app; restricciones de uso (Anexo A); se indica «voz sintética». Ver [SUPERTONIC.md](SUPERTONIC.md). |
 | ONNX Runtime | MIT | Microsoft. |
 | Media3 | Apache-2.0 | Google. |
+| jsoup | MIT | Importación de HTML/XHTML/XML. |
+| ML Kit Translation (Google) | ML Kit Terms of Service (no es código abierto) | Traducción en el dispositivo. Modelos (~30 MB/idioma) descargados de servidores de Google bajo demanda. Revisar los términos y la declaración de datos de Play antes de publicar. Ver [TRANSLATION.md](TRANSLATION.md). |
+| PdfBox-Android | Apache-2.0 | Importación de PDF. Incluye tablas CMap y una fuente Liberation (SIL OFL) como recursos. |
+| Libros importados por el usuario | Del usuario | Se guardan solo en el dispositivo (`license.id = user-import`); no se redistribuyen. |
 
 
 ## Paquetes descargables (voces y modelos de alineación)
@@ -158,17 +174,19 @@ Supertonic sigue descargándose de Hugging Face (revisión fijada).
 - Generar y publicar: `./gradlew :engine:supertonic:voicePack`, `python tools/make_release.py` (copia los adjuntos a
   `.models/release/` y regenera `assets/aligners/catalog.json` y `assets/packs/voices.json` con tamaños y sha256) y
   `gh release upload packs-v1 .models/release/* --clobber`.
-- **Repositorio privado**: la app resuelve los adjuntos con la API de GitHub (`GithubPackSource`) y necesita un token
-  de solo lectura (Ajustes → «Descarga de paquetes»). El token se guarda solo en el almacenamiento privado del móvil
-  y solo se envía a `api.github.com`; la redirección a la URL firmada de descarga se sigue a mano para no reenviarlo a otro
-  host. Si el repositorio pasa a ser público, el token no es necesario. Nunca va en el APK ni en git.
+- **Repositorio público**: la app resuelve los adjuntos con la API de GitHub (`GithubPackSource`) sin token ni cuenta.
+- **Velocidad**: el audio se genera siempre a 1.0× (clave de caché única); la velocidad del reproductor del lector solo cambia la reproducción (Media3 `setPlaybackParameters`, tono intacto) y no regenera nada.
 - El paquete de voces se baja solo cuando el modelo Supertonic queda instalado; «Probar voz» y la frase de preparación
   usan esos WAV sin cargar el modelo.
 
 ## Arranque de la lectura con Supertonic
 
 1. Al abrir el libro (o cambiar a Supertonic), `ReaderViewModel.prepareAudio` llama a `ReaderAudioController.warmUp`:
-   sintetiza a la caché las 2 primeras frases desde el punto de reanudación. Si tarda (carga del modelo, móvil lento)
+   sintetiza a la caché las primeras frases desde el punto de reanudación **por duración, no por número**: para en
+   cuanto el audio generado suma 15 s (≈ 38 palabras), con un máximo de 2 frases (`WarmUpPolicy`). Una primera frase
+   larga basta sola, porque mientras suena hay tiempo de generar la siguiente; con frases cortas se esperan las 2. La
+   duración es la real del audio (`AudioAsset.durationMs`); si el motor no la informa se estima a 400 ms por palabra.
+   Si tarda (carga del modelo, móvil lento)
    aparece «Preparando la lectura…» con animación y suena la frase pregenerada de la voz elegida, que se deja terminar.
    Con las frases ya en caché no se muestra nada (margen de 300 ms).
 2. Al pulsar play, el productor sigue generando frase a frase por delante del reproductor.
@@ -185,7 +203,14 @@ Etapa 3  reproducción         ExoPlayer ◄─ clip + tiempos         (hilo pri
 
 - Las etapas 1 y 2 se comunican por un canal sin límite y no se esperan entre sí: la 1 sigue generando frases mientras
   la 2 alinea la anterior. Empiezan **antes de reproducir**, en la pantalla «Preparando la lectura» (`warmUp`: TTS +
-  alineación de las 2 primeras frases) y siguen en segundo plano con el pasaje siguiente (`prefetch`, de menor prioridad).
+  alineación de las primeras frases, según `WarmUpPolicy`) y siguen en segundo plano con los pasajes siguientes (`prefetch`, de
+  menor prioridad): una **ventana de 4 páginas** por delante de la que suena (`PREFETCH_PAGES_AHEAD`, `PrefetchWindow`). La
+  generación no se detiene al final de la página; el tope evita seguir hasta el final del libro. Dentro de la precarga, TTS y
+  alineación van en paralelo (como en la lectura). Mientras la lectura está en pausa no se genera nada (y se retoma al reanudar).
+- **Cambio de página.** Al terminar la última frase, el lector pasa solo a la primera de la siguiente (`autoContinue`) como una
+  *continuación*: no se muestra «Preparando la lectura…» ni suena su aviso (eso es solo para el arranque o un salto manual). Con la
+  página ya en caché empieza al instante; si no (el motor no puede ir por delante de la lectura), la barra indica «Generando
+  audio…» y la voz arranca con la primera frase lista. `PageFlipTest` lo comprueba con Supertonic real.
 - Un clip solo se encola en el reproductor cuando su alineación está lista (o se sabe que no la habrá: sin modelo, o no
   fiable → esa frase se resalta entera). Así, al sonar, **siempre tiene todas sus palabras** (antes se alineaba después
   de encolar y las primeras frases podían sonar sin iluminar nada o con una sola palabra).

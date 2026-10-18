@@ -51,20 +51,10 @@ class UserPreferencesRepository @Inject constructor(
         val supertonicLicense = booleanPreferencesKey("supertonic_license_accepted")
         val sentencePause = intPreferencesKey("sentence_pause_ms")
         val paragraphPause = intPreferencesKey("paragraph_pause_ms")
+        val normalizeSpeech = booleanPreferencesKey("normalize_speech")
         val audioCacheMb = intPreferencesKey("audio_cache_mb")
-        val packsToken = stringPreferencesKey("packs_token")
-    }
-
-    /**
-     * Token de acceso al repositorio (privado) de paquetes. Se guarda aparte de [UserPreferences]
-     * para que no circule por la UI ni los logs; vive en el almacenamiento privado de la app.
-     */
-    val packsToken: Flow<String> = context.userPrefsStore.data
-        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
-        .map { it[Keys.packsToken].orEmpty() }
-
-    suspend fun setPacksToken(token: String) {
-        context.userPrefsStore.edit { if (token.isBlank()) it.remove(Keys.packsToken) else it[Keys.packsToken] = token.trim() }
+        val translationSetupDone = booleanPreferencesKey("translation_setup_done")
+        val translationWifiOnly = booleanPreferencesKey("translation_wifi_only")
     }
 
     val preferences: Flow<UserPreferences> = context.userPrefsStore.data
@@ -96,7 +86,10 @@ class UserPreferencesRepository @Inject constructor(
             stored[Keys.supertonicLicense] = next.supertonicLicenseAccepted
             stored[Keys.sentencePause] = next.sentencePauseMs
             stored[Keys.paragraphPause] = next.paragraphPauseMs
+            stored[Keys.normalizeSpeech] = next.normalizeSpeech
             stored[Keys.audioCacheMb] = next.audioCacheMb
+            stored[Keys.translationSetupDone] = next.translationSetupDone
+            stored[Keys.translationWifiOnly] = next.translationWifiOnly
         }
     }
 
@@ -120,11 +113,14 @@ class UserPreferencesRepository @Inject constructor(
             theme = enumOr(p[Keys.theme], d.theme),
             ttsEngineId = p[Keys.ttsEngine] ?: d.ttsEngineId,
             supertonicVoice = p[Keys.supertonicVoice] ?: d.supertonicVoice,
-            supertonicSteps = p[Keys.supertonicSteps] ?: d.supertonicSteps,
+            supertonicSteps = (p[Keys.supertonicSteps] ?: d.supertonicSteps).coerceAtLeast(d.supertonicSteps), // «Rápida» (3) ya no existe
             supertonicLicenseAccepted = p[Keys.supertonicLicense] ?: d.supertonicLicenseAccepted,
             sentencePauseMs = p[Keys.sentencePause] ?: d.sentencePauseMs,
             paragraphPauseMs = p[Keys.paragraphPause] ?: d.paragraphPauseMs,
+            normalizeSpeech = p[Keys.normalizeSpeech] ?: d.normalizeSpeech,
             audioCacheMb = p[Keys.audioCacheMb] ?: d.audioCacheMb,
+            translationSetupDone = p[Keys.translationSetupDone] ?: d.translationSetupDone,
+            translationWifiOnly = p[Keys.translationWifiOnly] ?: d.translationWifiOnly,
         )
     }
 

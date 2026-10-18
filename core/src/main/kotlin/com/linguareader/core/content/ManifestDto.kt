@@ -19,6 +19,8 @@ data class BookManifestDto(
     val cover: MediaDto? = null,
     val chapters: List<ChapterDto>,
     val glossary: List<GlossaryEntryDto> = emptyList(),
+    /** Léxico de pronunciación para el TTS: término escrito → forma hablada (p. ej. "Dr." → "doctor"). */
+    val pronunciations: Map<String, String> = emptyMap(),
 )
 
 @Serializable
@@ -56,6 +58,8 @@ data class SentenceDto(
     val id: String,
     val text: String,
     val translations: Map<String, String> = emptyMap(),
+    /** Forma hablada opcional: lo que debe leer la voz cuando difiere del texto («42» → «cuarenta y dos»). */
+    val speech: String? = null,
 )
 
 @Serializable

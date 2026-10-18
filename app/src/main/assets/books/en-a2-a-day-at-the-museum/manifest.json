@@ -1,0 +1,217 @@
+{
+  "formatVersion": 1,
+  "id": "en-a2-a-day-at-the-museum",
+  "title": "A Day at the Museum",
+  "description": "The Green family visits the city museum. A test story full of numbers, dates, times, prices, Roman numerals and abbreviations.",
+  "learningLanguage": "en",
+  "cefrLevel": "A2",
+  "genre": "everyday",
+  "authors": [
+    "LinguaReader demo team"
+  ],
+  "adaptationCredit": null,
+  "license": {
+    "id": "LicenseRef-LinguaReader-Demo",
+    "name": "Original demo content written for LinguaReader",
+    "url": null
+  },
+  "sourceAttribution": "Original story written for the LinguaReader demo catalogue to test speech normalization. No third-party text.",
+  "chapters": [
+    {
+      "id": "ch1",
+      "title": "Monday, March 3",
+      "titleTranslations": {
+        "es": "Lunes, 3 de marzo"
+      },
+      "passages": [
+        {
+          "id": "ch1-p1",
+          "sentences": [
+            {
+              "id": "s1",
+              "text": "On Monday, March 3, 2025, Mr. and Mrs. Green took their two children to the city museum.",
+              "translations": {
+                "es": "El lunes 3 de marzo de 2025, el señor y la señora Green llevaron a sus dos hijos al museo de la ciudad."
+              }
+            },
+            {
+              "id": "s2",
+              "text": "Their daughter, Amy, is 9 years old, and their son, Ben, is 12.",
+              "translations": {
+                "es": "Su hija, Amy, tiene 9 años, y su hijo, Ben, tiene 12."
+              }
+            },
+            {
+              "id": "s3",
+              "text": "The bus left at 8:15 a.m. from No. 42 Park Rd.",
+              "translations": {
+                "es": "El autobús salió a las 8:15 de la mañana desde el número 42 de Park Road."
+              }
+            },
+            {
+              "id": "s4",
+              "text": "The trip took 45 minutes and cost $12.50 per person.",
+              "translations": {
+                "es": "El viaje duró 45 minutos y costó 12,50 dólares por persona."
+              }
+            }
+          ]
+        },
+        {
+          "id": "ch1-p2",
+          "sentences": [
+            {
+              "id": "s1",
+              "text": "The museum opened in 1887 and has more than 25,000 objects.",
+              "translations": {
+                "es": "El museo abrió en 1887 y tiene más de 25.000 objetos."
+              }
+            },
+            {
+              "id": "s2",
+              "text": "Last year, 1,250,000 people visited it.",
+              "translations": {
+                "es": "El año pasado lo visitaron 1.250.000 personas."
+              }
+            },
+            {
+              "id": "s3",
+              "text": "About 75% of the visitors are students.",
+              "translations": {
+                "es": "Alrededor del 75 % de los visitantes son estudiantes."
+              }
+            },
+            {
+              "id": "s4",
+              "text": "A ticket for adults costs £8, but children under 16 go in for free.",
+              "translations": {
+                "es": "Una entrada de adulto cuesta 8 libras, pero los menores de 16 entran gratis."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ch2",
+      "title": "Kings and Queens",
+      "titleTranslations": {
+        "es": "Reyes y reinas"
+      },
+      "passages": [
+        {
+          "id": "ch2-p1",
+          "sentences": [
+            {
+              "id": "s1",
+              "text": "In Room XII, Dr. Patel showed them a painting of King Henry VIII.",
+              "translations": {
+                "es": "En la sala XII, la doctora Patel les enseñó un cuadro del rey Enrique VIII."
+              }
+            },
+            {
+              "id": "s2",
+              "text": "Next to it was a photo of Queen Elizabeth II from 1953.",
+              "translations": {
+                "es": "Al lado había una foto de la reina Isabel II de 1953."
+              }
+            },
+            {
+              "id": "s3",
+              "text": "Amy read Chapter IV of the guide, i.e. the part about World War II.",
+              "translations": {
+                "es": "Amy leyó el capítulo IV de la guía, es decir, la parte sobre la Segunda Guerra Mundial."
+              }
+            },
+            {
+              "id": "s4",
+              "text": "They saw swords, coins, old books, etc.",
+              "translations": {
+                "es": "Vieron espadas, monedas, libros antiguos, etc."
+              }
+            }
+          ]
+        },
+        {
+          "id": "ch2-p2",
+          "sentences": [
+            {
+              "id": "s1",
+              "text": "Ben liked the 3rd floor best, e.g. the room with maps from the 17th century.",
+              "translations": {
+                "es": "A Ben le gustó más la tercera planta, por ejemplo, la sala con mapas del siglo XVII."
+              }
+            },
+            {
+              "id": "s2",
+              "text": "At 12:30 p.m. they had lunch in the café on the 2nd floor.",
+              "translations": {
+                "es": "A las 12:30 del mediodía comieron en la cafetería de la segunda planta."
+              }
+            },
+            {
+              "id": "s3",
+              "text": "It was Ben vs. Amy in a quiz, and Ben won 7 to 5.",
+              "translations": {
+                "es": "Fue Ben contra Amy en un concurso, y Ben ganó 7 a 5."
+              }
+            },
+            {
+              "id": "s4",
+              "text": "Outside, it was cold: only 4.5 degrees.",
+              "translations": {
+                "es": "Fuera hacía frío: solo 4,5 grados."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ch3",
+      "title": "See You in June",
+      "titleTranslations": {
+        "es": "Hasta junio"
+      },
+      "passages": [
+        {
+          "id": "ch3-p1",
+          "sentences": [
+            {
+              "id": "s1",
+              "text": "They walked home along St. James Street and arrived at 4:00 p.m.",
+              "translations": {
+                "es": "Volvieron a casa por la calle St. James y llegaron a las 4 de la tarde."
+              }
+            },
+            {
+              "id": "s2",
+              "text": "The museum's phone number is 555-0199.",
+              "translations": {
+                "es": "El número de teléfono del museo es el 555-0199."
+              },
+              "speech": "The museum's phone number is five five five, oh one nine nine."
+            },
+            {
+              "id": "s3",
+              "text": "Their next visit is on the 1st of June, for Part II of the trip.",
+              "translations": {
+                "es": "Su próxima visita es el 1 de junio, para la segunda parte del viaje."
+              }
+            },
+            {
+              "id": "s4",
+              "text": "\"See you on June 21!\" said Mrs. Green.",
+              "translations": {
+                "es": "«¡Nos vemos el 21 de junio!», dijo la señora Green."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "pronunciations": {
+    "Rd.": "Road"
+  }
+}

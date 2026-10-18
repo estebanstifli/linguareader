@@ -14,14 +14,19 @@ import com.linguareader.core.model.DisplayMode
 import com.linguareader.core.model.LanguageTags
 import com.linguareader.core.model.Passage
 import com.linguareader.core.model.UserPreferences
+import com.linguareader.core.reader.PREFETCH_PAGES_AHEAD
+import com.linguareader.core.reader.PrefetchWindow
 import com.linguareader.core.reader.PlaybackState
 import com.linguareader.core.reader.PlaybackStatus
 import com.linguareader.core.reader.ReaderAudioController
 import com.linguareader.core.reader.TtsEngineRegistry
 import com.linguareader.core.reader.TtsEngineSelector
+import com.linguareader.core.reader.WarmUpPolicy
 import com.linguareader.core.text.OffsetIndex
 import com.linguareader.core.translation.WordLookup
 import com.linguareader.core.translation.WordLookupService
+import com.linguareader.engine.translation.ModelDownload
+import com.linguareader.engine.translation.TranslationModelManager
 import com.linguareader.data.db.BookmarkDao
 import com.linguareader.data.db.BookmarkEntity
 import com.linguareader.data.db.ProgressDao
@@ -89,6 +94,8 @@ data class ReaderUiState(
     val voices: List<VoiceInfo> = emptyList(),
     /** Pantalla «Preparando la lectura…» mientras el motor genera las primeras frases. */
     val preparing: Boolean = false,
+    /** Idiomas (código ML Kit) cuyo modelo de traducción falta para traducir este libro. */
+    val missingTranslationModels: List<String> = emptyList(),
 ) {
     val hasPrevious: Boolean get() = passageIndex > 0
     val hasNext: Boolean get() = passageIndex < totalPassages - 1
@@ -108,8 +115,12 @@ class ReaderViewModel @Inject constructor(
     private val vocabularyDao: VocabularyDao,
     private val voicePacks: VoicePackManager,
     private val cue: CuePlayer,
+    private val translationModels: TranslationModelManager,
     @param:ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
+
+    /** Descargas de modelos de traducción en curso o fallidas (para el aviso del lector). */
+    val translationDownloads: StateFlow<Map<String, ModelDownload>> = translationModels.downloads
 
     private val bookId = savedStateHandle.toRoute<ReaderRoute>().bookId
 
@@ -144,7 +155,8 @@ class ReaderViewModel @Inject constructor(
 
         viewModelScope.launch { bookmarkDao.observeForBook(bookId).collect { list -> _state.update { it.copy(bookmarks = list) } } }
         viewModelScope.launch {
-            preferences.map { it.translationLanguage }.distinctUntilChanged().collect { refreshTranslations() }
+            // También al cambiar de modo: «solo texto» no traduce nada en segundo plano.
+            preferences.map { it.translationLanguage to it.displayMode }.distinctUntilChanged().collect { refreshTranslations() }
         }
         viewModelScope.launch {
             preferences.map { it.speechRate }.distinctUntilChanged().collect { audio.setSpeed(it) }
@@ -176,8 +188,9 @@ class ReaderViewModel @Inject constructor(
     private var preparingFor: String? = null
 
     /**
-     * Motores que sintetizan (Supertonic): antes de empezar a leer, genera las 2 primeras frases para tener
-     * ya un pequeño búfer y arrancar sin cortes. Si tarda (carga del modelo, móvil lento) se muestra la
+     * Motores que sintetizan (Supertonic): antes de empezar a leer, genera las primeras frases hasta reunir unos
+     * [WarmUpPolicy.targetDurationMs] de audio (como mucho 2 frases): con una primera frase larga no espera a la
+     * segunda. Así hay ya un pequeño búfer para arrancar sin cortes. Si tarda (carga del modelo, móvil lento) se muestra la
      * pantalla «Preparando la lectura…» y suena la frase pregenerada del paquete de voces, que se deja
      * terminar. Si las frases ya estaban en caché no se ve nada.
      * @param immediate al abrir el libro: pantalla de preparación desde el primer momento.
@@ -193,7 +206,7 @@ class ReaderViewModel @Inject constructor(
                     _state.update { it.copy(preparing = true) }
                     voicePacks.clip(book.learningLanguage, voiceFor(book) ?: SupertonicModel.DEFAULT_VOICE, VoiceClip.READY)?.let { cue.play(it) }
                 }
-                audio.warmUp(passage, book.learningLanguage, voiceFor(book), WARM_UP_SENTENCES, from)
+                audio.warmUp(passage, book.learningLanguage, voiceFor(book), WarmUpPolicy(), from)
                 // Si la pantalla aún no había salido, no hace falta; si salió, se deja acabar la frase.
                 if (overlay.isActive && !_state.value.preparing) overlay.cancel() else overlay.await()
             }
@@ -207,17 +220,26 @@ class ReaderViewModel @Inject constructor(
 
     private fun isSupertonicActive() = engineSelector.selectedEngineId.value == SupertonicModel.ENGINE_ID
 
-    /** Precarga (en motores que generan audio) el pasaje siguiente mientras suena el actual. */
+    /**
+     * Precarga (en motores que generan audio) las [PREFETCH_PAGES_AHEAD] páginas siguientes mientras suena la actual.
+     * La ventana se desplaza con cada cambio de página: la generación no se detiene al final de la página que suena.
+     */
     private suspend fun prefetchNext(book: Book, index: Int) {
-        val next = book.passages.getOrNull(index + 1) ?: return
-        audio.prefetch(next, book.learningLanguage, voiceFor(book))
+        val upcoming = PrefetchWindow.after(book.passages, index)
+        if (upcoming.isNotEmpty()) audio.prefetch(upcoming, book.learningLanguage, voiceFor(book))
     }
 
     // --------------------------------------------------------------------------------------
     // Navegación por pasajes
     // --------------------------------------------------------------------------------------
 
-    private fun showPassage(index: Int, offset: Int, autoplay: Boolean, immediate: Boolean = false) {
+    /**
+     * @param continuation cambio de página automático al terminar la anterior mientras se leía: la lectura debe
+     *   continuar sin interrupciones, así que no se muestra «Preparando la lectura» ni suena su aviso. Normalmente
+     *   el audio de la página ya está en caché (precarga de [PREFETCH_PAGES_AHEAD] páginas); si no, la barra del
+     *   reproductor indica «Generando audio…» y empieza a sonar con la primera frase lista.
+     */
+    private fun showPassage(index: Int, offset: Int, autoplay: Boolean, immediate: Boolean = false, continuation: Boolean = false) {
         val book = _state.value.book ?: return
         val passage = book.passages.getOrNull(index) ?: return
         passageJob?.cancel()
@@ -231,7 +253,7 @@ class ReaderViewModel @Inject constructor(
         passageJob = viewModelScope.launch {
             audio.load(passage, book.learningLanguage, voiceFor(book), offset)
             persist(passage, offset)
-            prepareAudio(book, passage, offset, immediate)
+            if (!continuation) prepareAudio(book, passage, offset, immediate)
             if (autoplay) audio.play()
             prefetchNext(book, index)
             refreshTranslations()
@@ -257,7 +279,7 @@ class ReaderViewModel @Inject constructor(
         if (completionHandledFor == passage.id) return
         completionHandledFor = passage.id
         if (preferences.value.autoContinue && current.hasNext) {
-            showPassage(current.passageIndex + 1, 0, autoplay = true)
+            showPassage(current.passageIndex + 1, 0, autoplay = true, continuation = true)
         }
     }
 
@@ -326,6 +348,7 @@ class ReaderViewModel @Inject constructor(
         val target = prefs.translationLanguage
         _state.update { it.copy(wordCard = WordCardState(tokenId, pausedForCard = paused, targetLanguage = target), sentenceCard = null) }
         val lookup = lookupService.lookup(book, passage, token, target)
+        noteMissingModels(book, target, lookup.word, lookup.sentenceTranslation)
         val term = lookup.expression?.surface ?: token.text
         val saved = vocabularyDao.exists(book.id, term.lowercase(), target)
         _state.update { s ->
@@ -352,6 +375,7 @@ class ReaderViewModel @Inject constructor(
         val prefs = preferences.value
         val paused = pauseIfNeeded(prefs)
         val translation = lookupService.translateSentence(book, passage, sentence, prefs.translationLanguage)
+        noteMissingModels(book, prefs.translationLanguage, translation)
         _state.update {
             it.copy(
                 wordCard = null,
@@ -385,9 +409,33 @@ class ReaderViewModel @Inject constructor(
     private suspend fun refreshTranslations() {
         val book = _state.value.book ?: return
         val passage = _state.value.passage ?: return
-        val target = preferences.value.translationLanguage
+        val prefs = preferences.value
+        // Quien solo quiere leer no paga traducciones: se traduce al tocar una palabra o frase.
+        if (prefs.displayMode == DisplayMode.TEXT_ONLY) return
+        val target = prefs.translationLanguage
         val map = passage.sentences.associate { it.id to lookupService.translateSentence(book, passage, it, target) }
+        noteMissingModels(book, target, *map.values.toTypedArray())
         _state.update { s -> if (s.passage?.id == passage.id) s.copy(sentenceTranslations = map) else s }
+    }
+
+    /** Si alguna traducción falló por falta de modelo, anota qué idiomas hay que descargar. */
+    private suspend fun noteMissingModels(book: Book, target: String, vararg results: TranslationResult) {
+        val missing = if (results.any { (it as? TranslationResult.Unavailable)?.reason == TranslationResult.Reason.MODEL_MISSING }) {
+            listOfNotNull(translationModels.code(book.learningLanguage), translationModels.code(target))
+                .distinct().filterNot { translationModels.isDownloaded(it) }
+        } else {
+            emptyList()
+        }
+        _state.update { it.copy(missingTranslationModels = missing) }
+    }
+
+    /** Descarga los modelos que faltan y vuelve a traducir el pasaje. */
+    fun downloadTranslationModels() = viewModelScope.launch {
+        val ok = _state.value.missingTranslationModels.all { translationModels.awaitDownload(it) }
+        if (ok) {
+            _state.update { it.copy(missingTranslationModels = emptyList()) }
+            refreshTranslations()
+        }
     }
 
     fun saveWord() = viewModelScope.launch {
@@ -487,5 +535,4 @@ class ReaderViewModel @Inject constructor(
     }
 }
 
-private const val WARM_UP_SENTENCES = 2
 private const val PREPARING_GRACE_MS = 300L

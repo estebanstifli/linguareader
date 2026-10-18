@@ -29,9 +29,10 @@ class SampleContentTest {
 
     @Test
     fun `every media file exists and matches its sha256`() {
+        // Las ilustraciones son opcionales (el libro de prueba de normalización no tiene), pero el catálogo las usa.
+        assertTrue("Ningún libro tiene imágenes", books.any { (_, book) -> book.cover != null || book.passages.any { it.image != null } })
         books.forEach { (folder, book) ->
             val media = listOfNotNull(book.cover) + book.passages.mapNotNull { it.image }
-            assertTrue("${book.id} debería tener imágenes", media.isNotEmpty())
             media.forEach { ref ->
                 val file = File(root, "$folder/${ref.path}")
                 assertTrue("Falta ${file.path}", file.exists())

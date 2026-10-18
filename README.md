@@ -36,6 +36,12 @@ traducción en contexto.
   La barra inferior indica qué sincronía está activa.
 - Estilos de resaltado (fondo, subrayado, marcador), **dedo indicador** opcional, auto-scroll,
   reducción de movimiento, tamaño de letra, interlineado, tema claro/oscuro.
+- **Importa tus propios libros** (botón + de la biblioteca, «Abrir con…» o «Compartir»): EPUB,
+  PDF con texto, MOBI/AZW3 sin DRM, DOCX, ODT, RTF, FB2, HTML, TXT, Markdown, subtítulos SRT/VTT,
+  páginas web (modo lectura) y texto pegado. Detalles y limitaciones en [docs/IMPORT.md](docs/IMPORT.md).
+- **Traducción automática sin conexión** (ML Kit) para lo que el libro no trae traducido: libros
+  importados (mientras se lee o el libro entero al importarlo) y palabras fuera del glosario. Se
+  indica «Traducción automática». Detalles en [docs/TRANSLATION.md](docs/TRANSLATION.md).
 - **Progreso persistente** (Room), marcadores, vocabulario, preferencias (DataStore). Idioma de
   lectura e idioma de traducción son independientes.
 
@@ -86,7 +92,8 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 .\gradlew.bat :core:test                     # 76 tests JVM (dominio, contenido, controladores de audio, caché)
 .\gradlew.bat :engine:supertonic:test        # 17 tests (texto, WAV, descargador, Supertonic real si está en .models/)
 .\gradlew.bat :engine:supertonic:smokeTest   # descarga el modelo (si falta) y sintetiza inglés/francés en el PC
-.\gradlew.bat :app:assembleDebug             # APK en app\build\outputs\apk\debug\app-debug.apk
+.\gradlew.bat :app:assembleDebug             # un APK por arquitectura en app\build\outputs\apk\debug\:
+                                             #   app-arm64-v8a-debug.apk (móviles) y app-x86_64-debug.apk (emulador)
 .\gradlew.bat :app:installDebug              # instala en el dispositivo/emulador conectado
 .\gradlew.bat :app:connectedDebugAndroidTest # 7 tests en dispositivo (lector con motor falso + Supertonic real si está instalado)
 ```
@@ -104,8 +111,11 @@ traducir sin audio.
 ```
 core/   Kotlin/JVM puro: modelos, puertos (TTS, alineación, traducción, contenido),
         tokenizador, parser de manifiestos, controlador de audio, traducción por glosario.
-app/    Android: Compose UI, Room, DataStore, Hilt, adaptador Android TTS, libros en assets/books.
-docs/   ARCHITECTURE.md, CONTENT_FORMAT.md, content-pack.schema.json, ROADMAP.md.
+importer/ Kotlin/JVM puro: extractores de formatos (EPUB, MOBI, DOCX, ODT, RTF, FB2, HTML, TXT,
+        Markdown, SRT/VTT) y constructor de libros importados. Ver docs/IMPORT.md.
+app/    Android: Compose UI, Room, DataStore, Hilt, adaptador Android TTS, libros en assets/books,
+        importación (SAF, intents, PDF con PdfBox-Android).
+docs/   ARCHITECTURE.md, CONTENT_FORMAT.md, IMPORT.md, content-pack.schema.json, ROADMAP.md.
 tools/  generate_demo_images.py (ilustraciones provisionales + sha256 en manifiestos).
 ```
 

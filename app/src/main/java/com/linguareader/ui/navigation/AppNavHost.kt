@@ -1,9 +1,11 @@
 package com.linguareader.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.linguareader.data.content.PendingImports
 import com.linguareader.ui.catalog.CatalogScreen
 import com.linguareader.ui.reader.ReaderScreen
 import com.linguareader.ui.settings.SettingsScreen
@@ -16,8 +18,12 @@ import kotlinx.serialization.Serializable
 @Serializable object SettingsRoute
 
 @Composable
-fun AppNavHost() {
+fun AppNavHost(pendingImports: PendingImports) {
     val nav = rememberNavController()
+    // Un libro compartido mientras se lee: volver a la biblioteca, donde se muestra la importación.
+    LaunchedEffect(pendingImports) {
+        pendingImports.arrivals.collect { nav.popBackStack(CatalogRoute, inclusive = false) }
+    }
     NavHost(navController = nav, startDestination = CatalogRoute) {
         composable<CatalogRoute> {
             CatalogScreen(

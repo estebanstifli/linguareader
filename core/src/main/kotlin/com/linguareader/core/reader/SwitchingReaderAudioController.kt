@@ -75,8 +75,8 @@ class SwitchingReaderAudioController(
     }
     override suspend fun speakSnippet(text: String, languageTag: String) = current.speakSnippet(text, languageTag)
     override suspend fun stop() = current.stop()
-    override suspend fun prefetch(passage: Passage, languageTag: String, voiceId: String?) =
-        current.prefetch(passage, languageTag, voiceId)
-    override suspend fun warmUp(passage: Passage, languageTag: String, voiceId: String?, sentenceCount: Int, fromSentence: Int) =
-        current.warmUp(passage, languageTag, voiceId, sentenceCount, fromSentence)
+    override suspend fun prefetch(passages: List<Passage>, languageTag: String, voiceId: String?) =
+        current.prefetch(passages, languageTag, voiceId)
+    override suspend fun warmUp(passage: Passage, languageTag: String, voiceId: String?, policy: WarmUpPolicy, fromSentence: Int) =
+        current.warmUp(passage, languageTag, voiceId, policy, fromSentence)
 }

@@ -3,7 +3,9 @@ package com.linguareader
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.click
+import androidx.compose.ui.test.hasScrollToNodeAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -36,18 +38,26 @@ class ReaderFlowTest {
     @Before
     fun setUp() {
         hilt.inject()
-        runBlocking { preferences.update { UserPreferences() } }
+        // Sin la pantalla inicial de traducción, que taparía la biblioteca.
+        runBlocking { preferences.update { UserPreferences(translationSetupDone = true) } }
+    }
+
+    /** Los libros importados van primero: el incluido puede estar fuera de pantalla. */
+    private fun scrollToBook(title: String) {
+        compose.waitUntilAtLeastOneExists(hasText("pasajes", substring = true), 10_000) // catálogo cargado
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText(title))
     }
 
     private fun openRedKite() {
-        compose.waitUntilAtLeastOneExists(hasText("The Red Kite"), 10_000)
+        scrollToBook("The Red Kite")
         compose.onNodeWithText("The Red Kite").performClick()
         compose.waitUntilAtLeastOneExists(hasText("Tom is eight years old.", substring = true), 10_000)
     }
 
     @Test
     fun catalogListsBothDemoBooks() {
-        compose.waitUntilAtLeastOneExists(hasText("The Red Kite"), 10_000)
+        scrollToBook("The Red Kite")
+        scrollToBook("Le marché du samedi")
         compose.onNodeWithText("Le marché du samedi").assertExists()
     }
 
@@ -67,12 +77,16 @@ class ReaderFlowTest {
     }
 
     @Test
-    fun tappingAWordWithoutGlossaryEntrySaysUnavailable() {
+    fun tappingAWordWithoutGlossaryEntryFallsBackToMachineTranslation() {
         openRedKite()
-        // Primera palabra del pasaje: "Tom" (nombre propio, sin entrada en el glosario).
+        // Primera palabra del pasaje: "Tom" (nombre propio, sin entrada en el glosario). Sin dato
+        // incluido, se usa el traductor del dispositivo: o traduce (y lo indica) o pide el modelo.
         compose.onNodeWithText("Tom is eight years old.", substring = true).performTouchInput {
             click(Offset(15f, 30f)) // dentro de la primera línea, sobre la primera palabra
         }
-        compose.waitUntilAtLeastOneExists(hasText("no disponible en este libro", substring = true), 5_000)
+        compose.waitUntilAtLeastOneExists(
+            hasText("Traducción automática", substring = true) or hasText("Falta descargar el traductor", substring = true),
+            15_000,
+        )
     }
 }

@@ -101,6 +101,8 @@ class Media3ClipPlayer(context: Context, handleAudioFocus: Boolean) : ClipPlayer
         return ClipPosition(tag, player.currentPosition)
     }
 
+    override fun setPlaybackSpeed(speed: Float) = player.setPlaybackParameters(androidx.media3.common.PlaybackParameters(speed, 1f))
+
     override fun release() = player.release()
 
     private companion object {

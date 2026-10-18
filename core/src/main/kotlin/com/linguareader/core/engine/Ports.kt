@@ -195,7 +195,8 @@ sealed interface TranslationResult {
 
     data class Unavailable(val reason: Reason, val providerId: String) : TranslationResult
 
-    enum class Reason { NO_ENTRY, SAME_LANGUAGE, LANGUAGE_PAIR_UNSUPPORTED, OFFLINE, ENGINE_ERROR }
+    /** [MODEL_MISSING]: el traductor del dispositivo necesita descargar el modelo de algún idioma. */
+    enum class Reason { NO_ENTRY, SAME_LANGUAGE, LANGUAGE_PAIR_UNSUPPORTED, OFFLINE, ENGINE_ERROR, MODEL_MISSING }
 }
 
 interface TranslationEngine {

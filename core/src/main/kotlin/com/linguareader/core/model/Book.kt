@@ -99,6 +99,8 @@ data class Passage(
     val sentences: List<Sentence>,
     val tokens: List<Token>,
     val image: MediaRef?,
+    /** Léxico de pronunciación del libro (término escrito → forma hablada), para el TTS. */
+    val pronunciations: Map<String, String> = emptyMap(),
 ) {
     fun sentenceById(id: String): Sentence? = sentences.firstOrNull { it.id == id }
     fun tokenById(id: String): Token? = tokens.firstOrNull { it.id == id }
@@ -118,6 +120,8 @@ data class Sentence(
     val rangeStart: Int,
     val rangeEnd: Int,
     val translations: Map<String, String>,
+    /** Forma hablada dada por el autor (se envía al TTS en lugar de [text]); null = normalización automática. */
+    val speech: String? = null,
 )
 
 /** Unidad pulsable: palabra (con apóstrofos/guiones internos). La puntuación no genera tokens. */

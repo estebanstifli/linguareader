@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.linguareader.R
+import com.linguareader.engine.translation.ModelDownload
 import com.linguareader.core.engine.EngineReadiness
 import com.linguareader.core.engine.TranslationResult
 import com.linguareader.core.model.DisplayMode
@@ -75,6 +76,7 @@ import com.linguareader.core.reader.HighlightGranularity
 import com.linguareader.core.reader.PlaybackState
 import com.linguareader.core.reader.PlaybackStatus
 import com.linguareader.ui.common.Labels
+import com.linguareader.ui.common.Languages
 import com.linguareader.ui.theme.LocalReaderColors
 import kotlinx.coroutines.flow.filterNotNull
 
@@ -139,6 +141,8 @@ fun ReaderScreen(onBack: () -> Unit, onOpenSettings: () -> Unit = {}, vm: Reader
                 drawStopIndicator = {},
             )
             AudioBanner(playback, languageTag = ui.book?.learningLanguage, onRetry = vm::retryAudio, onOpenSettings = onOpenSettings)
+            val translationDownloads by vm.translationDownloads.collectAsStateWithLifecycle()
+            TranslationModelBanner(ui.missingTranslationModels, translationDownloads, onDownload = vm::downloadTranslationModels)
             when {
                 ui.error != null -> Text(ui.error!!, Modifier.padding(24.dp), color = MaterialTheme.colorScheme.error)
                 ui.passage == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -185,6 +189,31 @@ fun ReaderScreen(onBack: () -> Unit, onOpenSettings: () -> Unit = {}, vm: Reader
                 onDeleteBookmark = vm::deleteBookmark,
                 onDismiss = { showChapters = false },
             )
+        }
+    }
+}
+
+/** Falta el modelo de traducción de algún idioma: se ofrece descargarlo (nunca se descarga sin avisar). */
+@Composable
+private fun TranslationModelBanner(missing: List<String>, downloads: Map<String, ModelDownload>, onDownload: () -> Unit) {
+    if (missing.isEmpty()) return
+    val names = missing.joinToString(" y ") { Languages.nameInSpanish(it) }
+    val running = missing.any { downloads[it] == ModelDownload.Running }
+    val error = missing.firstNotNullOfOrNull { (downloads[it] as? ModelDownload.Failed)?.message }
+    Surface(color = MaterialTheme.colorScheme.tertiaryContainer, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                "Para traducir hace falta el traductor de $names (≈${40 * missing.size} MB, se descarga una vez y funciona sin conexión).",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+            when {
+                running -> LinearProgressIndicator(Modifier.fillMaxWidth())
+                else -> {
+                    error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+                    TextButton(onClick = onDownload) { Text(if (error != null) "Reintentar descarga" else "Descargar") }
+                }
+            }
         }
     }
 }

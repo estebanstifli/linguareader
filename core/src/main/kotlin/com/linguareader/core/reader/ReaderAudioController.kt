@@ -4,6 +4,21 @@ import com.linguareader.core.engine.EngineReadiness
 import com.linguareader.core.model.Passage
 import kotlinx.coroutines.flow.StateFlow
 
+/**
+ * Páginas (pasajes) por delante de la que suena cuyo audio se genera de antemano. Es un tope: sin él, la
+ * generación seguiría hasta el final del libro, gastando batería y espacio de caché en páginas que quizá no se lean.
+ */
+const val PREFETCH_PAGES_AHEAD = 4
+
+object PrefetchWindow {
+    /** Los [ahead] pasajes que siguen a [currentIndex] (menos cerca del final del libro; vacío en el último). */
+    fun after(passages: List<Passage>, currentIndex: Int, ahead: Int = PREFETCH_PAGES_AHEAD): List<Passage> {
+        val from = currentIndex + 1
+        if (ahead <= 0 || from > passages.lastIndex) return emptyList()
+        return passages.subList(from, minOf(passages.size, from + ahead))
+    }
+}
+
 enum class PlaybackStatus { IDLE, PREPARING, READY, PLAYING, PAUSED, COMPLETED, ERROR }
 
 /** Qué se puede resaltar con honestidad: por palabra solo con tiempos/eventos fiables. */
@@ -54,13 +69,38 @@ interface ReaderAudioController {
     suspend fun speakSnippet(text: String, languageTag: String)
     /** Detiene el audio conservando la posición (al salir del lector). */
     suspend fun stop()
-    /** Prepara en segundo plano el audio de otro pasaje (normalmente el siguiente). */
-    suspend fun prefetch(passage: Passage, languageTag: String, voiceId: String?) {}
     /**
-     * Genera de antemano las primeras [sentenceCount] frases de [passage] (motores que sintetizan) para
-     * que la reproducción arranque sin esperas. Suspende hasta tenerlas; false si la síntesis falló.
+     * Prepara en segundo plano el audio de los pasajes que vienen a continuación ([passages], en orden de lectura;
+     * la lectura usa [PREFETCH_PAGES_AHEAD]). Así el cambio de página encuentra ya generado el audio de la siguiente
+     * y la lectura no se detiene al final de la actual. Tiene menos prioridad que el pasaje que suena.
      */
-    suspend fun warmUp(passage: Passage, languageTag: String, voiceId: String?, sentenceCount: Int = 2, fromSentence: Int = 0): Boolean = true
+    suspend fun prefetch(passages: List<Passage>, languageTag: String, voiceId: String?) {}
+
+    suspend fun prefetch(passage: Passage, languageTag: String, voiceId: String?) = prefetch(listOf(passage), languageTag, voiceId)
+    /**
+     * Genera de antemano las primeras frases de [passage] (motores que sintetizan) para que la reproducción
+     * arranque sin esperas: las que hagan falta hasta reunir [WarmUpPolicy.targetDurationMs] de audio. Suspende
+     * hasta tenerlas; false si la síntesis falló.
+     */
+    suspend fun warmUp(passage: Passage, languageTag: String, voiceId: String?, policy: WarmUpPolicy = WarmUpPolicy(), fromSentence: Int = 0): Boolean = true
+}
+
+/**
+ * Cuánto audio hay que tener listo antes de empezar a sonar. Se mide en **duración**, no en número de frases:
+ * una primera frase larga ya da margen de sobra para generar la siguiente mientras suena, así que no se espera a
+ * la segunda. Con frases cortas se espera a [maxSentences] como mucho, para que el arranque no se alargue
+ * (la reproducción continúa generando por delante de lo que suena).
+ *
+ * @param targetDurationMs duración de audio con la que se considera suficiente el búfer (15 s ≈ 38 palabras).
+ * @param maxSentences tope de frases que se esperan antes de empezar.
+ */
+data class WarmUpPolicy(val targetDurationMs: Long = 15_000, val maxSentences: Int = 2) {
+    init { require(targetDurationMs > 0 && maxSentences > 0) }
+
+    companion object {
+        /** Estimación de la duración de una frase cuando el motor no informa del audio real (~2,5 palabras/s). */
+        const val MS_PER_WORD = 400L
+    }
 }
 
 /** Pausas que inserta el reproductor (no se graban en el audio generado, así la caché no depende de ellas). */

@@ -79,8 +79,9 @@ object BookManifestParser {
                         chapterId = chapterDto.id,
                         globalIndex = globalIndex++,
                         languageTag = dto.learningLanguage,
-                        sentences = passageDto.sentences.map { SentenceInput(it.id, it.text, it.translations) },
+                        sentences = passageDto.sentences.map { SentenceInput(it.id, it.text, it.translations, it.speech) },
                         image = passageDto.image?.let(::media),
+                        pronunciations = dto.pronunciations,
                     )
                 } catch (e: IllegalArgumentException) {
                     throw ContentFormatException(e.message ?: "Pasaje inválido", e)

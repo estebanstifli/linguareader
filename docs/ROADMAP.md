@@ -33,6 +33,9 @@ Leyenda: ✅ hecho y verificado · 🟡 parcial · ⬜ pendiente
 ## Fase 3 — Supertonic y alineación 🟡
 
 - ✅ Licencias revisadas: código MIT, pesos OpenRAIL-M (descarga bajo demanda con aceptación; no se empaquetan).
+- ✅ Lectura continua entre páginas con Supertonic: precarga de 4 páginas por delante, cambio de página sin la pantalla
+  «Preparando la lectura…» y preparación del arranque por duración de audio (15 s, máx. 2 frases) en vez de 2 frases fijas.
+  Pendiente: encadenar los clips de la página siguiente en el propio reproductor para eliminar el pequeño hueco al cambiar.
 - ✅ Módulo `:engine:supertonic` (ONNX Runtime, CPU, offline) que implementa `SpeechSynthesizer`;
   descarga con tamaño, progreso, reanudación, sha256, cancelación y borrado; nunca en git.
 - ✅ Interfaz común `TtsEngine` + `TtsEngineRegistry` + `SwitchingReaderAudioController`: Android TTS
@@ -47,15 +50,27 @@ Leyenda: ✅ hecho y verificado · 🟡 parcial · ⬜ pendiente
   MMS-ONNX en Kotlin (`:engine:alignment`) funciona en Android: ~30 ms de error, RTF 0,39 en el emulador.
 - ⬜ Integrar la alineación en el lector (resaltado por palabra con Supertonic) — **decidir la licencia**:
   MMS es CC-BY-NC (no comercial); Qwen3 es Apache-2.0 pero pesado para móvil.
+- ✅ Normalización de texto antes del TTS renderizado ([SPEECH_NORMALIZATION.md](SPEECH_NORMALIZATION.md)): números,
+  ordinales, horas, %, moneda y abreviaturas (es/en/fr; enteros en el resto) con ICU del sistema, léxico y forma
+  hablada del autor en el manifiesto, mapa token → habla para la alineación. Pendiente: escucharlo en dispositivo.
 - ✅ Pausas controladas entre frases y párrafos (configurables) y recorte de silencios de Supertonic.
 - ⬜ Cuantización int8/fp16 del modelo para reducir descarga y RAM (exige validar la calidad).
 - ⬜ Descarga en segundo plano con WorkManager (hoy continúa mientras el proceso vive y se reanuda al volver).
 
 ## Fase 4 — Contenido e idiomas ⬜
 
-- ⬜ Importación TXT (parser propio con segmentación de frases) y EPUB (Readium, tras verificar licencia).
+- ✅ Importación de libros del usuario ([IMPORT.md](IMPORT.md)): EPUB, PDF con texto, MOBI/AZW3 sin
+  DRM, DOCX, ODT, RTF, FB2, HTML, TXT, Markdown, SRT/VTT, páginas web y texto compartido/pegado.
+  Parsers propios (sin Readium), segmentación de frases por locale, «Abrir con…»/«Compartir».
+- ⬜ OCR (ML Kit, en el dispositivo) para PDF/DjVu escaneados.
+- ⬜ Detección automática del idioma de un libro importado sin metadatos.
+- ✅ Decisión: PdfBox-Android va siempre incluido en el APK (no como pack descargable). Pendiente
+  opcional: activar R8 en release para reducir su código.
 - ⬜ Packs descargables con verificación de integridad (formato ya preparado: sha256 por media).
-- ⬜ Proveedor de traducción contextual local o remoto (sin claves embebidas) tras `FallbackTranslationEngine`.
+- ✅ Traducción automática en el dispositivo con ML Kit tras `FallbackTranslationEngine` (caché en Room,
+  configuración inicial, modelos en Ajustes, pretraducción de libros importados). Ver [TRANSLATION.md](TRANSLATION.md).
+- ⬜ Pretraducción con WorkManager (hoy sigue mientras el proceso vive y se reanuda al reabrir la app).
+- ⬜ Traducción de palabras con contexto (ML Kit traduce el texto aislado; la ficha muestra también la frase).
 - ⬜ Expresiones discontinuas ("wake him up"), más idiomas, RTL.
 - ⬜ Pantalla de vocabulario con repaso.
 - ⬜ Mover los textos de UI a `strings.xml` para localizar la interfaz (hoy, español en código).

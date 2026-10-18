@@ -37,6 +37,9 @@ class TtsEngineCoordinator @Inject constructor(
                 .distinctUntilChanged().collect { settings.pauses = it }
         }
         scope.launch {
+            preferences.preferences.map { it.normalizeSpeech }.distinctUntilChanged().collect { settings.normalizeSpeech = it }
+        }
+        scope.launch {
             preferences.preferences.map { it.audioCacheMb }.distinctUntilChanged().collect { settings.audioCacheBytes = it * 1024L * 1024 }
         }
         scope.launch {

@@ -148,8 +148,8 @@ Ryzen 9 3900XT, 4 hilos, ONNX Runtime 1.18 (JVM).
 
 > **No se ha medido en un teléfono real.** Un emulador x86_64 sobre un Ryzen de escritorio no
 > representa un ARM de gama media. Hay que medir en dispositivo (ver §6) antes de decidir los pasos
-> por defecto. Si el RTF supera 1, la reproducción tendrá esperas entre frases: usar calidad
-> «Rápida (3)» o la voz del sistema.
+> por defecto. Si el RTF supera 1, la reproducción tendrá esperas entre frases: usar la voz
+> del sistema o el motor de pasos «Normal (5)».
 
 ### Incidencia encontrada en el PC (no afecta a Android)
 

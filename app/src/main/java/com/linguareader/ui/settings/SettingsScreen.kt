@@ -87,15 +87,12 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) 
             SectionTitle("Idiomas")
             Text("Idioma del texto (libros que se muestran)", style = MaterialTheme.typography.labelLarge)
             ChipRow(Languages.readingOptions, prefs.readingLanguage, Languages::name) { tag -> vm.update { it.copy(readingLanguage = tag) } }
-            Text("Idioma de traducción", style = MaterialTheme.typography.labelLarge)
-            ChipRow(Languages.translationTargets, prefs.translationLanguage, Languages::name) { tag ->
-                vm.update { it.copy(translationLanguage = tag) }
-            }
             Text(
-                "Son independientes: puedes leer en francés y traducir al inglés. Si un libro no incluye esa traducción, se indicará «no disponible».",
+                "El idioma de lectura y el de traducción son independientes: puedes leer en francés y traducir al inglés.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            TranslationSection()
 
             HorizontalDivider()
             SectionTitle("Apariencia")
@@ -191,6 +188,7 @@ fun ReaderPreferencesPanel(
         LabeledSlider("Entre párrafos", prefs.paragraphPauseMs / 1000f, 0.3f..3.0f, "%.1f s".format(Locale.ROOT, prefs.paragraphPauseMs / 1000f)) { v ->
             onUpdate { it.copy(paragraphPauseMs = (v * 1000).toInt() / 50 * 50) }
         }
+        SwitchRow("Leer números y abreviaturas como palabras (voz Supertonic)", prefs.normalizeSpeech) { v -> onUpdate { it.copy(normalizeSpeech = v) } }
 
         SectionTitle("Texto")
         LabeledSlider("Tamaño", prefs.fontScale, 0.8f..1.8f, "%.0f%%".format(Locale.ROOT, prefs.fontScale * 100)) { v ->

@@ -54,6 +54,16 @@ class CtcAlignerTest {
     }
 
     @Test
+    fun `a spoken form of several words aligns as one token`() {
+        // El normalizador manda «cuarenta y dos» para el token «42»: todas sus letras cuentan para ese token.
+        val p = MmsText(vocab).prepare(listOf("el", "ab ab", "be"))
+        assertEquals(listOf(0, 1, 2), p.alignedWords)
+        assertArrayEquals(intArrayOf(0, 0, 1, 1, 1, 1, 2, 2), p.targetToWord)
+        val w = Wav2Vec2Text(mapOf("<pad>" to 0, "|" to 4, "A" to 7, "B" to 5))
+        assertEquals("ABAB", w.normalize("ab ab"))
+    }
+
+    @Test
     fun `resampler keeps duration and tone`() {
         val sr = 44_100
         val x = FloatArray(sr) { kotlin.math.sin(2 * Math.PI * 440 * it / sr).toFloat() }

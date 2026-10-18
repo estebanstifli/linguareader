@@ -7,6 +7,7 @@ import com.linguareader.core.alignment.ClipAligner
 import com.linguareader.core.audio.AlignmentSidecar
 import com.linguareader.core.audio.SidecarData
 import com.linguareader.core.audio.SidecarEntry
+import com.linguareader.core.content.Hashing
 import com.linguareader.core.alignment.GapFiller
 import com.linguareader.core.engine.EngineReadiness
 import com.linguareader.core.engine.EngineUnavailableReason
@@ -15,8 +16,12 @@ import com.linguareader.core.engine.SpeechResult
 import com.linguareader.core.engine.SpeechSynthesizer
 import com.linguareader.core.engine.TimedToken
 import com.linguareader.core.model.Passage
+import com.linguareader.core.model.Sentence
 import com.linguareader.core.model.UserPreferences
 import com.linguareader.core.text.OffsetIndex
+import com.linguareader.core.text.speech.IdentityNormalizer
+import com.linguareader.core.text.speech.SpeechTextNormalizer
+import com.linguareader.core.text.speech.SpokenText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -62,6 +67,8 @@ class RenderedReaderAudioController(
     private val parameters: () -> Map<String, String> = { emptyMap() },
     private val pauses: () -> SpeechPauses = { SpeechPauses() },
     private val aligner: ClipAligner? = null,
+    /** Texto mostrado → texto hablado (números, abreviaturas...). El audio y la alineación usan la forma hablada. */
+    private val normalizer: SpeechTextNormalizer = IdentityNormalizer,
     private val alignDispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val tickMs: Long = 40,
     /** Reloj monótono en ms; inyectable para pruebas con tiempo virtual. */
@@ -86,7 +93,15 @@ class RenderedReaderAudioController(
     private var synthJob: Job? = null
     private var ttsJob: Job? = null
     private var prefetchJob: Job? = null
-    private var pendingPrefetch: Triple<Passage, String, String?>? = null
+    private var pendingPrefetch: PrefetchPlan? = null
+    private var runningPrefetch: PrefetchPlan? = null
+
+    /** Pasajes que se generan de antemano, en orden. Dos planes son iguales si cubren los mismos pasajes con la misma voz. */
+    private class PrefetchPlan(val passages: List<Passage>, val lang: String, val voice: String?) {
+        private val key = Triple(passages.map { it.id }, lang, voice)
+        override fun equals(other: Any?) = other is PrefetchPlan && other.key == key
+        override fun hashCode() = key.hashCode()
+    }
 
     /** Frases encoladas en el reproductor en esta generación: [queuedFrom, lastQueued]. */
     private var queuedFrom = -1
@@ -146,6 +161,8 @@ class RenderedReaderAudioController(
             player.play()
             _state.update { it.copy(status = PlaybackStatus.PLAYING) }
             ensureTicker()
+            // La pausa detuvo la precarga; se retoma (si el productor de este pasaje ya terminó, si no lo hará él al acabar).
+            if (synthJob?.isActive != true) pendingPrefetch?.let(::runPrefetch)
             return@withContext
         }
         startPipeline(p, start)
@@ -172,7 +189,7 @@ class RenderedReaderAudioController(
         ttsJob = scope.launch {
             try {
                 for (i in from until p.sentences.size) {
-                    val result = synthesizeSentence(p.sentences[i].text, lang, voice)
+                    val result = synthesizeSentence(p, p.sentences[i], lang, voice)
                     if (gen != generation || !isActive) return@launch
                     when (result) {
                         is SpeechResult.Failure -> { ready.send(Prepared.Failed(result)); return@launch }
@@ -215,13 +232,15 @@ class RenderedReaderAudioController(
                     }
                 }
             }
-            if (gen == generation) pendingPrefetch?.let { (np, lang2, voice2) -> runPrefetch(np, lang2, voice2) }
+            if (gen == generation) pendingPrefetch?.let(::runPrefetch)
         }
     }
 
     override suspend fun pause() = withContext(dispatcher) {
         if (!_state.value.isPlaying) return@withContext
         player.pause()
+        // Con la lectura en pausa nadie escucha: no se gasta CPU ni batería generando páginas por adelantado.
+        prefetchJob?.cancel()
         _state.update { it.copy(status = PlaybackStatus.PAUSED) }
     }
 
@@ -274,18 +293,17 @@ class RenderedReaderAudioController(
     override suspend fun setSpeed(speed: Float) = withContext(dispatcher) {
         val clamped = speed.coerceIn(UserPreferences.MIN_SPEECH_RATE, UserPreferences.MAX_SPEECH_RATE)
         if (clamped == _state.value.speed) return@withContext
-        val p = passage
-        val wasPlaying = _state.value.isPlaying
         _state.update { it.copy(speed = clamped) }
-        // La velocidad cambia el audio generado (y la clave de caché): regenerar desde la frase actual.
-        if (p != null && wasPlaying) startPipeline(p, _state.value.sentenceIndex) else invalidateQueue()
+        // Solo cambia la reproducción: el audio se genera siempre a 1.0× y la caché y la alineación se conservan.
+        player.setPlaybackSpeed(clamped)
     }
 
     override suspend fun speakSnippet(text: String, languageTag: String) = withContext(dispatcher) {
         pause()
         if (!_state.value.isAudioAvailable) return@withContext
         scope.launch {
-            val r = runCatching { synthesizer.synthesize(request(text, languageTag)) }.getOrNull()
+            val spoken = runCatching { normalizer.normalizeText(text, languageTag) }.getOrDefault(text)
+            val r = runCatching { synthesizer.synthesize(request(spoken, languageTag)) }.getOrNull()
             if (r is SpeechResult.Success) {
                 snippetPlayer.clear()
                 snippetPlayer.enqueue(0, r.audio.path)
@@ -296,38 +314,69 @@ class RenderedReaderAudioController(
     }
 
     /**
-     * La precarga del pasaje siguiente tiene **menos prioridad** que el actual: solo se lanza cuando el
-     * productor del pasaje que suena ya terminó (así no compite por la CPU con sus frases) y se
-     * cancela si hay que volver a sintetizar el actual. Si no se está reproduciendo, espera.
+     * La precarga de los pasajes siguientes (una ventana, ver [PREFETCH_PAGES_AHEAD]) tiene **menos prioridad** que
+     * el actual: solo se lanza cuando el productor del pasaje que suena ya terminó (así no compite por la CPU con sus
+     * frases) y se cancela si hay que volver a sintetizar el actual. Si no se está reproduciendo, espera.
+     * Una llamada con el mismo plan que ya se está ejecutando no lo reinicia (no se pierde la frase en curso).
      */
-    override suspend fun prefetch(passage: Passage, languageTag: String, voiceId: String?) = withContext(dispatcher) {
-        pendingPrefetch = Triple(passage, languageTag, voiceId)
-        if (synthJob?.isActive != true && _state.value.isPlaying) runPrefetch(passage, languageTag, voiceId)
+    override suspend fun prefetch(passages: List<Passage>, languageTag: String, voiceId: String?) = withContext(dispatcher) {
+        if (passages.isEmpty()) return@withContext
+        val plan = PrefetchPlan(passages, languageTag, voiceId)
+        if (plan == runningPrefetch && prefetchJob?.isActive == true) return@withContext
+        pendingPrefetch = plan
+        if (synthJob?.isActive != true && _state.value.isPlaying) runPrefetch(plan)
     }
 
     /**
      * Prepara en disco las primeras frases antes de empezar (TTS **y** alineación, ambas persistidas en la caché),
      * sin usar el reproductor. Al pulsar play esas frases ya están listas para sonar con todas sus palabras.
+     *
+     * Se prepara por **duración**: se genera frase a frase y se para en cuanto el audio acumulado llega a
+     * [WarmUpPolicy.targetDurationMs] (o al tope de frases). Una primera frase larga basta por sí sola: mientras
+     * suena hay tiempo de sobra para generar la siguiente, así que no se retrasa el arranque esperándola.
      */
-    override suspend fun warmUp(passage: Passage, languageTag: String, voiceId: String?, sentenceCount: Int, fromSentence: Int): Boolean {
-        for (sentence in passage.sentences.drop(fromSentence).take(sentenceCount)) {
-            val result = synthesizeSentence(sentence.text, languageTag, voiceId)
+    override suspend fun warmUp(passage: Passage, languageTag: String, voiceId: String?, policy: WarmUpPolicy, fromSentence: Int): Boolean {
+        var preparedMs = 0L
+        for (sentence in passage.sentences.drop(fromSentence).take(policy.maxSentences)) {
+            val result = synthesizeSentence(passage, sentence, languageTag, voiceId)
             if (result !is SpeechResult.Success) return false
             alignClip(passage, sentence.index, result.audio.path, languageTag)
+            // Duración real del audio generado; si el motor no la informa, se estima por número de palabras.
+            preparedMs += result.audio.durationMs?.takeIf { it > 0 }
+                ?: (passage.tokensOf(sentence).size * WarmUpPolicy.MS_PER_WORD)
+            if (preparedMs >= policy.targetDurationMs) break
         }
         return true
     }
 
-    private fun runPrefetch(p: Passage, lang: String, voice: String?) {
-        val request = Triple(p, lang, voice)
+    /**
+     * Genera (TTS y alineación, persistidos en la caché) todos los pasajes del plan, en orden y sin parar al final de
+     * cada uno. Igual que el pipeline de lectura, el TTS y la alineación van en paralelo: mientras se alinea una frase
+     * ya se está sintetizando la siguiente. Las frases ya en caché pasan sin coste.
+     */
+    private fun runPrefetch(plan: PrefetchPlan) {
         prefetchJob?.cancel()
+        runningPrefetch = plan
         prefetchJob = scope.launch {
-            for (s in p.sentences) {
-                if (!isActive) return@launch
-                val result = synthesizeSentence(s.text, lang, voice)
-                if (result is SpeechResult.Success) alignClip(p, s.index, result.audio.path, lang)
+            val ready = Channel<Triple<Passage, Int, String>>(PREFETCH_ALIGN_BUFFER)
+            val tts = launch {
+                try {
+                    for (p in plan.passages) {
+                        for (s in p.sentences) {
+                            when (val result = synthesizeSentence(p, s, plan.lang, plan.voice)) {
+                                is SpeechResult.Success -> ready.send(Triple(p, s.index, result.audio.path))
+                                // Motor sin modelo, sin memoria...: no tiene sentido insistir con el resto.
+                                is SpeechResult.Failure -> { if (pendingPrefetch == plan) pendingPrefetch = null; return@launch }
+                            }
+                        }
+                    }
+                } finally {
+                    ready.close()
+                }
             }
-            if (pendingPrefetch == request) pendingPrefetch = null
+            for ((p, index, path) in ready) alignClip(p, index, path, plan.lang)
+            tts.join()
+            if (pendingPrefetch == plan) pendingPrefetch = null
         }
     }
 
@@ -360,9 +409,20 @@ class RenderedReaderAudioController(
         }
     }
 
+    /**
+     * Forma hablada de una frase. Si el normalizador falla se usa el texto tal cual (nunca bloquea la lectura).
+     * La clave de caché del audio incluye el texto hablado, así que un cambio de reglas regenera solo lo que cambia.
+     */
+    private fun spokenOf(p: Passage, sentence: Sentence, lang: String): SpokenText =
+        try {
+            normalizer.normalize(p, sentence, lang)
+        } catch (e: Exception) {
+            IdentityNormalizer.normalize(p, sentence, lang)
+        }
+
     /** Etapa 1: texto → WAV en la caché de disco (acierto de caché = instantáneo). Nunca lanza salvo cancelación. */
-    private suspend fun synthesizeSentence(text: String, lang: String, voice: String?): SpeechResult = try {
-        synthesizer.synthesize(request(text, lang, voice))
+    private suspend fun synthesizeSentence(p: Passage, sentence: Sentence, lang: String, voice: String?): SpeechResult = try {
+        synthesizer.synthesize(request(spokenOf(p, sentence, lang).spoken, lang, voice))
     } catch (e: CancellationException) {
         throw e
     } catch (e: OutOfMemoryError) {
@@ -379,9 +439,15 @@ class RenderedReaderAudioController(
      */
     private suspend fun alignClip(p: Passage, index: Int, path: String, lang: String): ClipTiming? {
         val al = aligner ?: return null
-        val signature = al.signature(lang) ?: return null
-        val tokens = p.tokensOf(p.sentences[index])
+        val sentence = p.sentences[index]
+        val tokens = p.tokensOf(sentence)
         if (tokens.isEmpty()) return null
+        // Lo que el alineador busca en el audio es lo que se pronuncia: «cuarenta y dos» para el token «42».
+        val words = spokenOf(p, sentence, lang).tokenSpoken?.takeIf { it.size == tokens.size } ?: return null
+        val modelSignature = al.signature(lang) ?: return null
+        // Si el habla difiere del texto, el reparto palabra → token forma parte de la alineación persistida.
+        val signature = if (words == tokens.map { it.text }) modelSignature
+            else "$modelSignature|spoken=${Hashing.sha256Hex(words.joinToString("|")).take(16)}"
         val wav = java.io.File(path)
 
         AlignmentSidecar.read(wav, signature)?.let { saved ->
@@ -392,7 +458,7 @@ class RenderedReaderAudioController(
         val spans = alignMutex.withLock {
             withContext(alignDispatcher) {
                 try {
-                    al.align(path, tokens.map { it.text }, lang)
+                    al.align(path, words, lang)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -450,7 +516,7 @@ class RenderedReaderAudioController(
             anchorPositionMs = raw.positionMs
             anchorAtMs = now
         }
-        val pos = ClipPosition(raw.tag, anchorPositionMs + (now - anchorAtMs).coerceIn(0L, MAX_EXTRAPOLATION_MS))
+        val pos = ClipPosition(raw.tag, anchorPositionMs + ((now - anchorAtMs) * _state.value.speed).toLong().coerceIn(0L, MAX_EXTRAPOLATION_MS))
         val timing = timings[pos.tag]?.takeIf { it.path == clipPaths[pos.tag] } ?: return
         val token = timing.timeline.tokenAt(pos.positionMs)?.let { timing.tokens[it.tokenId] }
         _state.update {
@@ -473,7 +539,7 @@ class RenderedReaderAudioController(
     }
 
     private fun request(text: String, lang: String = languageTag, voice: String? = voiceId) =
-        SpeechRequest(text = text, languageTag = lang, voiceId = voice, speed = _state.value.speed, parameters = parameters())
+        SpeechRequest(text = text, languageTag = lang, voiceId = voice, speed = 1.0f, parameters = parameters())
 
     private fun sentenceFor(passage: Passage, offset: Int) =
         OffsetIndex.sentenceAt(passage.sentences, offset)
@@ -482,6 +548,9 @@ class RenderedReaderAudioController(
 
     private companion object {
         const val MIN_CONFIDENCE = 0.3f
+
+        /** Frases ya sintetizadas que esperan su alineación en la precarga: acota cuánto se adelanta el TTS. */
+        const val PREFETCH_ALIGN_BUFFER = 4
 
         /** Máximo que se extrapola la posición entre dos actualizaciones del reproductor. */
         const val MAX_EXTRAPOLATION_MS = 350L

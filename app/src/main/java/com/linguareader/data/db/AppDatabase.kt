@@ -1,5 +1,6 @@
 package com.linguareader.data.db
 
+import androidx.room.AutoMigration
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -94,13 +95,42 @@ interface VocabularyDao {
     suspend fun delete(id: Long)
 }
 
+/**
+ * Traducción automática ya calculada (ML Kit). La clave es el texto exacto, no el libro: una frase
+ * repetida se traduce una sola vez, y la pretraducción de un libro y la lectura comparten caché.
+ */
+@Entity(tableName = "machine_translations", primaryKeys = ["engineId", "source", "target", "textHash"])
+data class MachineTranslationEntity(
+    val engineId: String,
+    val source: String,
+    val target: String,
+    /** sha256 del texto original normalizado. */
+    val textHash: String,
+    val translation: String,
+    val createdAt: Long,
+)
+
+@Dao
+interface MachineTranslationDao {
+    @Query("SELECT translation FROM machine_translations WHERE engineId = :engine AND source = :source AND target = :target AND textHash = :hash")
+    suspend fun get(engine: String, source: String, target: String, hash: String): String?
+
+    @Upsert
+    suspend fun put(entry: MachineTranslationEntity)
+
+    @Query("DELETE FROM machine_translations WHERE source = :language OR target = :language")
+    suspend fun deleteLanguage(language: String)
+}
+
 @Database(
-    entities = [ReadingProgressEntity::class, BookmarkEntity::class, VocabularyEntity::class],
-    version = 1,
+    entities = [ReadingProgressEntity::class, BookmarkEntity::class, VocabularyEntity::class, MachineTranslationEntity::class],
+    version = 2,
     exportSchema = true,
+    autoMigrations = [AutoMigration(from = 1, to = 2)],
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun progressDao(): ProgressDao
     abstract fun bookmarkDao(): BookmarkDao
     abstract fun vocabularyDao(): VocabularyDao
+    abstract fun machineTranslationDao(): MachineTranslationDao
 }

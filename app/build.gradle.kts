@@ -25,11 +25,8 @@ android {
         versionName = "0.2.0"
         testInstrumentationRunner = "com.linguareader.HiltTestRunner"
 
-        // ONNX Runtime (Supertonic) aporta ~34 MB nativos por ABI: solo móviles de 64 bits y el emulador.
-        // Un modelo de ~400 MB en fp32 no es práctico en dispositivos de 32 bits.
-        ndk {
-            abiFilters += listOf("arm64-v8a", "x86_64")
-        }
+        // Arquitecturas: solo móviles de 64 bits y el emulador (ver `splits` más abajo). ONNX Runtime
+        // aporta ~34 MB nativos por ABI y un modelo de ~400 MB en fp32 no es práctico en 32 bits.
     }
 
     buildTypes {
@@ -52,6 +49,25 @@ android {
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
+
+    // Un APK por arquitectura: el móvil (arm64-v8a) no carga con las librerías nativas del emulador
+    // (x86_64) de ONNX Runtime y ML Kit, ~57 MB. installDebug elige el adecuado al dispositivo.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "x86_64")
+            isUniversalApk = false
+        }
+    }
+
+    packaging {
+        resources {
+            // Tablas de criptografía post-cuántica de BouncyCastle (dependencia de PdfBox para PDF
+            // cifrados). PdfBox no usa Picnic ni SIKE; son ~8 MB de datos.
+            excludes += setOf("org/bouncycastle/pqc/crypto/picnic/**", "org/bouncycastle/pqc/crypto/sike/**")
+        }
+    }
 }
 
 room {
@@ -62,6 +78,10 @@ dependencies {
     implementation(project(":core"))
     implementation(project(":engine:supertonic"))
     implementation(project(":engine:alignment"))
+    implementation(project(":importer"))
+    implementation(libs.jsoup) // páginas web compartidas (BookImportService.readUrl)
+    implementation(libs.pdfbox.android) // importación de PDF con capa de texto
+    implementation(libs.mlkit.translate) // traducción automática en el dispositivo
     implementation(libs.onnxruntime.android)
     implementation(libs.androidx.media3.exoplayer)
 

@@ -46,10 +46,8 @@ class PacksViewModel @Inject constructor(
     private val voicePacks: VoicePackManager,
     val source: GithubPackSource,
 ) : ViewModel() {
-    val token: StateFlow<String> = repo.packsToken.stateIn(viewModelScope, SharingStarted.Eagerly, "")
     val voicePack: StateFlow<ModelState> = voicePacks.state
 
-    fun saveToken(value: String) = viewModelScope.launch { repo.setPacksToken(value) }
     fun downloadVoices() = voicePacks.download()
     fun deleteVoices() = viewModelScope.launch { voicePacks.delete() }
 }
@@ -58,37 +56,20 @@ private fun mb(bytes: Long) = "%.1f MB".format(Locale.ROOT, bytes / 1_000_000.0)
 
 /**
  * Origen de los paquetes descargables (voces pregeneradas y modelos de alineación): una release de
- * GitHub. Si el repositorio es privado, hace falta un token de solo lectura que se guarda solo en el móvil.
+ * GitHub (público).
  */
 @Composable
 fun PacksSection(vm: PacksViewModel = hiltViewModel()) {
-    val token by vm.token.collectAsStateWithLifecycle()
     val voices by vm.voicePack.collectAsStateWithLifecycle()
-    var draft by remember(token) { mutableStateOf(token) }
     val scope = rememberCoroutineScope()
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Descarga de paquetes", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
         Text(
             "Voces pregeneradas y modelos de alineación se descargan de github.com/${vm.source.repo} (release ${vm.source.tag}). " +
-                "Si el repositorio es privado, pega un token de GitHub con permiso de solo lectura (Contents: read). " +
-                "Se guarda únicamente en este móvil y solo se envía a GitHub.",
+                "Es público: no hace falta ninguna cuenta ni token.",
             style = MaterialTheme.typography.bodySmall,
         )
-        OutlinedTextField(
-            value = draft,
-            onValueChange = { draft = it },
-            label = { Text("Token de GitHub (opcional)") },
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { vm.saveToken(draft) }, enabled = draft.trim() != token) { Text("Guardar token") }
-            if (token.isNotEmpty()) OutlinedButton(onClick = { draft = ""; vm.saveToken("") }) { Text("Borrar") }
-        }
-
         Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Paquete de voces (Supertonic)", style = MaterialTheme.typography.titleSmall)

@@ -40,6 +40,7 @@ import com.linguareader.core.model.Book
 import com.linguareader.core.model.LanguageTags
 import com.linguareader.core.model.UserPreferences
 import com.linguareader.data.db.BookmarkEntity
+import com.linguareader.engine.translation.MlKitTranslationEngine
 import com.linguareader.ui.common.Labels
 import com.linguareader.ui.settings.ReaderPreferencesPanel
 
@@ -154,6 +155,10 @@ private fun TranslationLine(result: TranslationResult, target: String, italic: B
                 fontStyle = if (italic) FontStyle.Italic else FontStyle.Normal,
             )
             result.partOfSpeech?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            // Distinguir lo revisado (incluido en el libro) de lo calculado por la máquina.
+            if (result.providerId == MlKitTranslationEngine.ID) {
+                Text("Traducción automática", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
         is TranslationResult.Unavailable -> Text(
             Labels.unavailable(result.reason, target),

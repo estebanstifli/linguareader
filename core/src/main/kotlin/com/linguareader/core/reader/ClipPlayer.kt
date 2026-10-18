@@ -30,5 +30,7 @@ interface ClipPlayer {
     fun seekToTag(tag: Int): Boolean
     /** Clip que suena ahora y su posición; null durante una pausa (silencio), en reposo o si el reproductor no lo informa. */
     fun position(): ClipPosition? = null
+    /** Velocidad de reproducción (sin cambiar el tono). El audio no se regenera. */
+    fun setPlaybackSpeed(speed: Float) {}
     fun release()
 }

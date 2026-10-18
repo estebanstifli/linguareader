@@ -102,7 +102,6 @@ class TtsSettingsViewModel @Inject constructor(
     fun selectEngine(id: String) = update { it.copy(ttsEngineId = id) }
     fun setVoice(voice: String) = update { it.copy(supertonicVoice = voice) }
     fun setSteps(steps: Int) = update { it.copy(supertonicSteps = steps) }
-    fun setSpeed(rate: Float) = update { it.copy(speechRate = rate) }
     fun setCacheLimit(mb: Int) = update { it.copy(audioCacheMb = mb) }.invokeOnCompletion { refreshCache() }
 
     fun acceptLicenseAndDownload() = viewModelScope.launch {
@@ -129,7 +128,7 @@ class TtsSettingsViewModel @Inject constructor(
     fun runTest(language: String) = viewModelScope.launch {
         val p = preferences.value
         // Muestra pregenerada: suena al instante, sin cargar el modelo.
-        voicePacks.clip(language, p.supertonicVoice, VoiceClip.SAMPLE)?.takeIf { p.speechRate == 1.0f }?.let { clip ->
+        voicePacks.clip(language, p.supertonicVoice, VoiceClip.SAMPLE)?.let { clip ->
             val pl = player ?: Media3ClipPlayer(context, handleAudioFocus = true).also { player = it }
             pl.clear(); pl.enqueue(0, clip.path); pl.play()
             test.value = VoiceTestState.Played(language)
@@ -138,7 +137,7 @@ class TtsSettingsViewModel @Inject constructor(
         test.value = VoiceTestState.Running(language)
         val out = File(context.cacheDir, "supertonic-test-$language.wav")
         val result = engine.synthesizeTo(
-            SpeechRequest(TEST_TEXT.getValue(language), language, p.supertonicVoice, p.speechRate, mapOf("steps" to "${p.supertonicSteps}")),
+            SpeechRequest(TEST_TEXT.getValue(language), language, p.supertonicVoice, 1.0f, mapOf("steps" to "${p.supertonicSteps}")),
             out,
         )
         when (result) {
@@ -240,7 +239,7 @@ fun TtsEngineSection(vm: TtsSettingsViewModel = hiltViewModel()) {
                 Text("F = voces femeninas, M = masculinas. Todas son multilingües (31 idiomas, incluidos inglés, francés y español).", style = MaterialTheme.typography.bodySmall)
 
                 Text("Calidad (pasos de síntesis)", style = MaterialTheme.typography.labelLarge)
-                val stepOptions = listOf(3 to "Rápida", 5 to "Normal", 8 to "Alta")
+                val stepOptions = listOf(5 to "Normal", 8 to "Alta")
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     stepOptions.forEachIndexed { i, (steps, label) ->
                         SegmentedButton(
@@ -248,13 +247,6 @@ fun TtsEngineSection(vm: TtsSettingsViewModel = hiltViewModel()) {
                             onClick = { vm.setSteps(steps) },
                             shape = SegmentedButtonDefaults.itemShape(i, stepOptions.size),
                         ) { Text("$label ($steps)") }
-                    }
-                }
-
-                Text("Velocidad (ambos motores)", style = MaterialTheme.typography.labelLarge)
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf(0.75f, 0.9f, 1.0f, 1.25f, 1.5f).forEach { r ->
-                        FilterChip(selected = prefs.speechRate == r, onClick = { vm.setSpeed(r) }, label = { Text("${r}×") })
                     }
                 }
 
@@ -272,7 +264,7 @@ fun TtsEngineSection(vm: TtsSettingsViewModel = hiltViewModel()) {
                     is VoiceTestState.Running -> Text("Sintetizando (${Languages.name(t.language)})… la primera vez carga el modelo.", style = MaterialTheme.typography.bodySmall)
                     is VoiceTestState.Failed -> Text(t.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     is VoiceTestState.Done -> MetricsText(t.metrics, stats)
-                    is VoiceTestState.Played -> Text("Muestra pregenerada de la voz (paquete de voces, sin cargar el modelo). Con otra velocidad se sintetiza en el momento.", style = MaterialTheme.typography.bodySmall)
+                    is VoiceTestState.Played -> Text("Muestra pregenerada de la voz (paquete de voces, sin cargar el modelo).", style = MaterialTheme.typography.bodySmall)
                 }
 
                 Text("Caché de audio y alineación: ${mb(cacheBytes)} de ${prefs.audioCacheMb} MB", style = MaterialTheme.typography.bodySmall)

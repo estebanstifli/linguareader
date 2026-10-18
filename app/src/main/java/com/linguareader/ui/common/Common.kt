@@ -15,7 +15,7 @@ import java.util.Locale
 
 object Languages {
     /** Idiomas de traducción ofrecidos en la UI (los datos pueden no existir para todos). */
-    val translationTargets = listOf("es", "en", "fr")
+    val translationTargets = listOf("es", "en", "fr", "de", "it", "pt", "nl", "ca")
     /** Opciones de idioma de lectura; null = todos. */
     val readingOptions: List<String?> = listOf(null, "en", "fr")
 
@@ -75,6 +75,7 @@ object Labels {
         TranslationResult.Reason.LANGUAGE_PAIR_UNSUPPORTED -> "Este par de idiomas no está soportado."
         TranslationResult.Reason.OFFLINE -> "Requiere conexión (no disponible sin red)."
         TranslationResult.Reason.ENGINE_ERROR -> "El traductor ha fallado."
+        TranslationResult.Reason.MODEL_MISSING -> "Falta descargar el traductor de este idioma (≈40 MB)."
     }
 
     fun audioUnavailable(reason: EngineUnavailableReason, languageTag: String): String {

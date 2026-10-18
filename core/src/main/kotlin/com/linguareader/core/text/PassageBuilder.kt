@@ -9,6 +9,7 @@ data class SentenceInput(
     val id: String,
     val text: String,
     val translations: Map<String, String>,
+    val speech: String? = null,
 )
 
 /**
@@ -26,6 +27,7 @@ object PassageBuilder {
         languageTag: String,
         sentences: List<SentenceInput>,
         image: MediaRef?,
+        pronunciations: Map<String, String> = emptyMap(),
     ): Passage {
         require(sentences.isNotEmpty()) { "El pasaje $passageId no tiene frases" }
         val text = StringBuilder()
@@ -46,6 +48,7 @@ object PassageBuilder {
                 rangeStart = start,
                 rangeEnd = end,
                 translations = input.translations.mapValues { Tokenizer.normalize(it.value) },
+                speech = input.speech?.let(Tokenizer::normalize)?.takeIf { it.isNotEmpty() },
             )
             Tokenizer.tokenize(normalized, languageTag).forEach { span ->
                 tokens += Token(
@@ -66,6 +69,7 @@ object PassageBuilder {
             sentences = builtSentences,
             tokens = tokens,
             image = image,
+            pronunciations = pronunciations,
         )
     }
 }

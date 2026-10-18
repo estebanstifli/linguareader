@@ -38,6 +38,8 @@ class FakeClipPlayer : ClipPlayer {
     override fun seekToTag(tag: Int): Boolean = queue.any { it.first == tag }.also { if (it) seeks += tag }
     var position: ClipPosition? = null
     override fun position() = position
+    var appliedSpeed = 1f
+    override fun setPlaybackSpeed(speed: Float) { appliedSpeed = speed }
     override fun release() {}
 }
 
@@ -49,12 +51,19 @@ class FakeSynthesizer(
     val requests = mutableListOf<SpeechRequest>()
     var gate: CompletableDeferred<Unit>? = null
     var failWith: EngineUnavailableReason? = null
+    /** Peticiones empezadas (incluye las que siguen bloqueadas en [gate] o se cancelan antes de terminar). */
+    var started = 0
+    /** El [gate] solo bloquea a partir de la petición número [gateAfter] (0 = desde la primera). */
+    var gateAfter = 0
+    /** Duración que declara cada audio generado; null = el motor no la informa. */
+    var durationMs: Long? = 1000
     var released = 0
     override suspend fun synthesize(request: SpeechRequest): SpeechResult {
-        gate?.await()
+        val order = started++
+        if (order >= gateAfter) gate?.await()
         requests += request
         failWith?.let { return SpeechResult.Failure(it, "fallo") }
-        return SpeechResult.Success(AudioAsset("/clips/${request.text.hashCode()}-${request.speed}.wav", "audio/wav", 1000, null), "v1")
+        return SpeechResult.Success(AudioAsset("/clips/${request.text.hashCode()}-${request.speed}.wav", "audio/wav", durationMs, null), "v1")
     }
     override suspend fun availability(languageTag: String, voiceId: String?) = readiness
     override suspend fun listVoices(languageTag: String) = emptyList<VoiceInfo>()
@@ -186,12 +195,16 @@ class RenderedReaderAudioControllerTest {
     }
 
     @Test
-    fun `speed change regenerates with new speed`() = runTest {
+    fun `speed change only changes playback and never regenerates`() = runTest {
         val c = controller()
         c.load(passage, "en", null)
         c.play(); advanceUntilIdle()
+        val before = synth.requests.size
         c.setSpeed(1.25f); advanceUntilIdle()
-        assertEquals(1.25f, synth.requests.last().speed)
+        assertEquals(before, synth.requests.size)
+        assertTrue(synth.requests.all { it.speed == 1.0f })
+        assertEquals(1.25f, player.appliedSpeed)
+        assertEquals(1.25f, c.state.speed)
         assertEquals(2, player.queue.size)
     }
 

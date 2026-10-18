@@ -43,7 +43,9 @@ usarán la misma estructura en almacenamiento interno, sin necesidad de actualiz
           "image": { "path": "images/ch1-p1.png", "alt": "…", "credit": "…", "sha256": "…" }, // opcional
           "sentences": [
             { "id": "s1", "text": "Tom is eight years old.",
-              "translations": { "es": "Tom tiene ocho años.", "fr": "Tom a huit ans." } }
+              "translations": { "es": "Tom tiene ocho años.", "fr": "Tom a huit ans." } },
+            { "id": "s2", "text": "He lives at No. 12.",
+              "speech": "He lives at number twelve." }   // opcional: lo que debe leer la voz
           ]
         }
       ]
@@ -54,7 +56,8 @@ usarán la misma estructura en almacenamiento interno, sin necesidad de actualiz
       "forms": ["wake up", "wakes up", "woke up"],
       "translations": { "es": "despertarse", "fr": "se réveiller" },
       "examples": [ { "text": "I wake up at seven.", "translations": { "es": "Me despierto a las siete." } } ] }
-  ]
+  ],
+  "pronunciations": { "Dr.": "doctor", "Ms.": "miz" }   // opcional: léxico para la voz
 }
 ```
 
@@ -73,11 +76,23 @@ usarán la misma estructura en almacenamiento interno, sin necesidad de actualiz
   En `fr`/`it`/`ca` se separan las elisiones (`l'école` → `l'` + `école`, `qu'est-ce` → `qu'` +
   `est-ce`). Una expresión como `qu'est-ce que` se reconoce igualmente porque se compara contra el
   texto original entre tokens.
+- **Forma hablada (`speech`, `pronunciations`).** Opcionales y solo para la voz: el texto mostrado,
+  sus tokens y offsets no cambian. `speech` sustituye a la frase entera ante el TTS (escríbela con las
+  mismas palabras que el texto donde coincidan: así el resaltado por palabra sigue funcionando).
+  `pronunciations` aplica en todo el libro (sin distinguir mayúsculas) y tiene prioridad sobre las
+  reglas automáticas. Ver [SPEECH_NORMALIZATION.md](SPEECH_NORMALIZATION.md).
 - **Media.** `path` relativo, sin `..`, sin `/` inicial ni `\`. Si hay `sha256` (hex, 64 caracteres),
   se verifica al cargar y una imagen alterada no se muestra. `alt` es obligatorio en la práctica (accesibilidad).
 - **Derechos.** Solo historias propias, dominio público verificado o contenidos con licencia que
   permita adaptación y distribución. Una adaptación moderna de una obra de dominio público **no** es
   libre automáticamente: declara `adaptationCredit` y la licencia de la adaptación.
+
+## Libros importados por el usuario
+
+La importación ([IMPORT.md](IMPORT.md)) genera manifiestos con este mismo formato, guardados en
+`filesDir/imported/<id>/`: `id` = `u-<16 hex del sha256 del fichero>` (el prefijo `u-` queda
+reservado), `license.id` = `user-import`, `sourceAttribution` = nombre del fichero o URL, frases
+segmentadas automáticamente, sin traducciones ni glosario, y media con `sha256`. No se distribuyen.
 
 ## Validación
 
