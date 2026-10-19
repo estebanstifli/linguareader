@@ -30,7 +30,12 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
+import kotlin.math.ceil
+import kotlin.math.roundToInt
 import com.linguareader.core.model.HighlightStyle
 import com.linguareader.core.model.Token
 import com.linguareader.core.text.OffsetIndex
@@ -66,6 +71,18 @@ class ActiveTokenAnchor {
 }
 
 /**
+ * Localiza el token bajo una posición de pantalla (coordenadas raíz) entre todos los [TokenText] visibles.
+ * La página lo usa para la pulsación larga sin que cada texto capture los toques (que pasan página).
+ */
+@Stable
+class TokenHitRegistry {
+    private val testers = LinkedHashMap<Any, (Offset) -> Token?>()
+    fun register(owner: Any, tester: (Offset) -> Token?) { testers[owner] = tester }
+    fun unregister(owner: Any) { testers.remove(owner) }
+    fun tokenAt(rootPosition: Offset): Token? = testers.values.firstNotNullOfOrNull { it(rootPosition) }
+}
+
+/**
  * Fragmento del texto del pasaje [segmentStart, segmentEnd) con tokens pulsables.
  * Los rangos de entrada son absolutos sobre el texto del pasaje.
  * El resaltado nunca cambia el ancho de los glifos (sin negrita) para que el texto no "baile".
@@ -87,6 +104,10 @@ fun TokenText(
     accessibilityActionLabel: String,
     onAccessibilityAction: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Si se da, el texto no captura toques: la página pregunta qué token hay bajo el dedo. */
+    hitRegistry: TokenHitRegistry? = null,
+    /** Solo se ven estas líneas del texto (paginación); el resto se maqueta igual pero queda recortado. */
+    visibleLines: IntRange? = null,
 ) {
     val segment = remember(passageText, segmentStart, segmentEnd) { passageText.substring(segmentStart, segmentEnd) }
     val localWord = activeWord?.toLocal(segmentStart, segmentEnd)
@@ -108,6 +129,7 @@ fun TokenText(
     }
 
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    val layoutNow = remember { arrayOfNulls<TextLayoutResult>(1) }
     val coordinates = remember { arrayOfNulls<LayoutCoordinates>(1) }
     val owner = remember { Any() }
     val slop = with(LocalDensity.current) { 6.dp.toPx() }
@@ -118,6 +140,10 @@ fun TokenText(
     fun boundsOf(range: IntRange, l: TextLayoutResult): Rect =
         l.getPathForRange(range.first, range.last + 1).getBounds()
 
+    /** El carácter [local] cae en una línea visible (siempre, si no se recorta). */
+    fun visible(local: Int, l: TextLayoutResult): Boolean =
+        visibleLines == null || l.getLineForOffset(local.coerceIn(0, maxOf(0, l.layoutInput.text.length - 1))) in visibleLines
+
     fun report() {
         val l = layout
         val c = coordinates[0]
@@ -127,8 +153,8 @@ fun TokenText(
             return
         }
         val origin = c.positionInRoot()
-        val token = localWord?.let { boundsOf(it, l).translate(origin) }
-        val focus = token ?: localSentence?.let { boundsOf(it, l).translate(origin) }
+        val token = localWord?.takeIf { visible(it.first, l) }?.let { boundsOf(it, l).translate(origin) }
+        val focus = token ?: localSentence?.takeIf { visible(it.first, l) }?.let { boundsOf(it, l).translate(origin) }
         anchor.report(owner, token, focus)
     }
 
@@ -140,6 +166,7 @@ fun TokenText(
             OffsetIndex.tokenAt(currentTokens, segmentStart + local - 1),
         )
         return candidates.firstOrNull { t ->
+            if (!visible(t.rangeStart - segmentStart, l)) return@firstOrNull false
             val box = l.getPathForRange(t.rangeStart - segmentStart, t.rangeEnd - segmentStart).getBounds()
             box.inflate(slop).contains(position)
         }
@@ -147,12 +174,20 @@ fun TokenText(
 
     LaunchedEffect(localWord, localSentence, layout) { report() }
     DisposableEffect(Unit) { onDispose { anchor.release(owner) } }
+    DisposableEffect(hitRegistry) {
+        hitRegistry?.register(owner) { root ->
+            val c = coordinates[0]
+            if (c == null || !c.isAttached) null else tokenAt(root - c.positionInRoot())
+        }
+        onDispose { hitRegistry?.unregister(owner) }
+    }
 
     Text(
         text = annotated,
         style = textStyle,
-        onTextLayout = { layout = it },
+        onTextLayout = { layoutNow[0] = it; layout = it },
         modifier = modifier
+            .then(if (visibleLines != null) Modifier.clipToLines(layoutNow, visibleLines) else Modifier)
             .onGloballyPositioned {
                 coordinates[0] = it
                 report()
@@ -172,12 +207,15 @@ fun TokenText(
                     )
                 }
             }
-            .pointerInput(segmentStart, segmentEnd) {
-                detectTapGestures(
-                    onTap = { pos -> tokenAt(pos)?.let(currentOnTap) },
-                    onLongPress = { pos -> tokenAt(pos)?.let(currentOnLongPress) },
-                )
-            }
+            .then(
+                if (hitRegistry != null) Modifier
+                else Modifier.pointerInput(segmentStart, segmentEnd) {
+                    detectTapGestures(
+                        onTap = { pos -> tokenAt(pos)?.let(currentOnTap) },
+                        onLongPress = { pos -> tokenAt(pos)?.let(currentOnLongPress) },
+                    )
+                },
+            )
             .semantics {
                 customActions = listOf(
                     CustomAccessibilityAction(accessibilityActionLabel) { onAccessibilityAction(); true },
@@ -185,6 +223,25 @@ fun TokenText(
             },
     )
 }
+
+/**
+ * Muestra solo las líneas [lines] de un texto maquetado entero: mide el texto sin límite de alto, se queda con la
+ * altura de esas líneas y lo desplaza hacia arriba; lo demás queda recortado. [layout] lo rellena `onTextLayout`
+ * durante la medida del propio texto, así que está listo al colocar.
+ */
+fun Modifier.clipToLines(layout: Array<TextLayoutResult?>, lines: IntRange): Modifier = this
+    .clipToBounds()
+    .layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
+        val l = layout[0]
+        if (l == null || lines.last >= l.lineCount) {
+            layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+        } else {
+            val top = l.getLineTop(lines.first)
+            val bottom = l.getLineBottom(lines.last)
+            layout(placeable.width, ceil(bottom - top).toInt()) { placeable.place(0, -top.roundToInt()) }
+        }
+    }
 
 private fun IntRange.toLocal(segmentStart: Int, segmentEnd: Int): IntRange? {
     val start = maxOf(first, segmentStart)

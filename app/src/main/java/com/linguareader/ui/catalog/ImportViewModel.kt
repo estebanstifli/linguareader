@@ -89,7 +89,7 @@ class ImportViewModel @Inject constructor(
                     title = draft.document.title.orEmpty(),
                     author = draft.document.authors.joinToString(", "),
                     language = language,
-                    level = CefrLevel.B1,
+                    level = draft.document.level ?: CefrLevel.B1,
                     languageOptions = (listOf(language) + COMMON_LANGUAGES).distinctBy { it.lowercase() },
                     translationTarget = prefs.translationLanguage,
                 )

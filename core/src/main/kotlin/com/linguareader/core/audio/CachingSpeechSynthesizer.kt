@@ -24,7 +24,8 @@ interface FileSpeechSynthesizer {
 }
 
 sealed interface SynthesisOutcome {
-    data class Written(val durationMs: Long) : SynthesisOutcome
+    /** [marks]: tiempos por palabra que da el propio motor al generar (offsets sobre el texto pedido), si los da. */
+    data class Written(val durationMs: Long, val marks: List<SpokenMark>? = null) : SynthesisOutcome
     data class Failed(val failure: SpeechResult.Failure) : SynthesisOutcome
 }
 
@@ -55,6 +56,7 @@ class CachingSpeechSynthesizer(
                 is SynthesisOutcome.Failed -> outcome.failure
                 is SynthesisOutcome.Written -> {
                     val file = cache.commit(key, tmp)
+                    outcome.marks?.takeIf { it.isNotEmpty() }?.let { SpokenMarksSidecar.write(file, it) }
                     SpeechResult.Success(
                         AudioAsset(file.path, "audio/wav", outcome.durationMs, Hashing.sha256Hex(file.readBytes())),
                         delegate.modelVersion,

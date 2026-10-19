@@ -4,6 +4,7 @@ import androidx.room.AutoMigration
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -122,15 +123,82 @@ interface MachineTranslationDao {
     suspend fun deleteLanguage(language: String)
 }
 
+/**
+ * Estantería de la biblioteca. [kind]: `favorites`, `to_read`, `read` (fijas, se crean solas) o `custom`
+ * (colecciones del usuario, que puede renombrar y borrar).
+ */
+@Entity(tableName = "collections", indices = [Index(value = ["kind"])])
+data class CollectionEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val kind: String,
+    val createdAt: Long,
+)
+
+@Entity(
+    tableName = "collection_books",
+    primaryKeys = ["collectionId", "bookId"],
+    foreignKeys = [ForeignKey(entity = CollectionEntity::class, parentColumns = ["id"], childColumns = ["collectionId"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index(value = ["bookId"])],
+)
+data class CollectionBookEntity(val collectionId: Long, val bookId: String, val addedAt: Long)
+
+/** Libro enviado a la papelera: desaparece de la biblioteca hasta restaurarlo o borrarlo del todo. */
+@Entity(tableName = "trash")
+data class TrashEntity(@PrimaryKey val bookId: String, val title: String, val trashedAt: Long)
+
+@Dao
+interface LibraryDao {
+    @Query("SELECT * FROM collections ORDER BY CASE kind WHEN 'favorites' THEN 0 WHEN 'to_read' THEN 1 WHEN 'read' THEN 2 ELSE 3 END, createdAt")
+    fun observeCollections(): Flow<List<CollectionEntity>>
+
+    @Query("SELECT * FROM collections WHERE kind = :kind LIMIT 1")
+    suspend fun collectionOfKind(kind: String): CollectionEntity?
+
+    @Insert
+    suspend fun insertCollection(collection: CollectionEntity): Long
+
+    @Query("UPDATE collections SET name = :name WHERE id = :id AND kind = 'custom'")
+    suspend fun renameCollection(id: Long, name: String)
+
+    @Query("DELETE FROM collections WHERE id = :id AND kind = 'custom'")
+    suspend fun deleteCollection(id: Long)
+
+    @Query("SELECT * FROM collection_books")
+    fun observeMemberships(): Flow<List<CollectionBookEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun addToCollection(entry: CollectionBookEntity)
+
+    @Query("DELETE FROM collection_books WHERE collectionId = :collectionId AND bookId = :bookId")
+    suspend fun removeFromCollection(collectionId: Long, bookId: String)
+
+    @Query("DELETE FROM collection_books WHERE bookId = :bookId")
+    suspend fun removeFromAllCollections(bookId: String)
+
+    @Query("SELECT * FROM trash ORDER BY trashedAt DESC")
+    fun observeTrash(): Flow<List<TrashEntity>>
+
+    @Upsert
+    suspend fun trash(entry: TrashEntity)
+
+    @Query("DELETE FROM trash WHERE bookId = :bookId")
+    suspend fun restore(bookId: String)
+}
+
 @Database(
-    entities = [ReadingProgressEntity::class, BookmarkEntity::class, VocabularyEntity::class, MachineTranslationEntity::class],
-    version = 2,
+    entities = [
+        ReadingProgressEntity::class, BookmarkEntity::class, VocabularyEntity::class, MachineTranslationEntity::class,
+        CollectionEntity::class, CollectionBookEntity::class, TrashEntity::class,
+    ],
+    version = 3,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun progressDao(): ProgressDao
     abstract fun bookmarkDao(): BookmarkDao
     abstract fun vocabularyDao(): VocabularyDao
     abstract fun machineTranslationDao(): MachineTranslationDao
+    abstract fun libraryDao(): LibraryDao
 }

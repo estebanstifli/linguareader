@@ -66,5 +66,6 @@ object InMemoryDatabaseModule {
     @Provides fun progressDao(db: AppDatabase): ProgressDao = db.progressDao()
     @Provides fun bookmarkDao(db: AppDatabase): BookmarkDao = db.bookmarkDao()
     @Provides fun vocabularyDao(db: AppDatabase): VocabularyDao = db.vocabularyDao()
+    @Provides fun libraryDao(db: AppDatabase): com.linguareader.data.db.LibraryDao = db.libraryDao()
     @Provides fun machineTranslationDao(db: AppDatabase): com.linguareader.data.db.MachineTranslationDao = db.machineTranslationDao()
 }

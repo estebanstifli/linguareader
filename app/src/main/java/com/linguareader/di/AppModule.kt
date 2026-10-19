@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.room.Room
 import com.linguareader.core.audio.CachingSpeechSynthesizer
 import com.linguareader.core.audio.FileAudioCache
+import com.linguareader.core.audio.FileSpeechSynthesizer
 import com.linguareader.core.engine.AlignmentEngine
 import com.linguareader.core.engine.BookRepository
 import com.linguareader.core.engine.StreamingSpeechEngine
@@ -23,6 +24,7 @@ import com.linguareader.core.translation.WordLookupService
 import com.linguareader.data.content.CompositeBookRepository
 import com.linguareader.data.db.AppDatabase
 import com.linguareader.data.db.BookmarkDao
+import com.linguareader.data.db.LibraryDao
 import com.linguareader.data.db.MachineTranslationDao
 import com.linguareader.data.db.ProgressDao
 import com.linguareader.data.db.VocabularyDao
@@ -155,8 +157,10 @@ object TtsEngineModule {
         registry: TtsEngineRegistry,
         settings: EngineSettingsHolder,
         aligner: Wav2Vec2ClipAligner,
+        cache: FileAudioCache,
     ): SwitchingReaderAudioController {
         val main = Dispatchers.Main.immediate
+        val normalizer = SwitchableNormalizer({ settings.normalizeSpeech }, RuleBasedSpeechNormalizer(AndroidIcuNumberSpeller))
         val rendered = RenderedReaderAudioController(
             synthesizer = supertonic,
             player = Media3ClipPlayer(context, handleAudioFocus = true),
@@ -165,11 +169,25 @@ object TtsEngineModule {
             parameters = { mapOf("steps" to settings.supertonicSteps.toString()) },
             pauses = { settings.pauses },
             aligner = aligner,
-            normalizer = SwitchableNormalizer({ settings.normalizeSpeech }, RuleBasedSpeechNormalizer(AndroidIcuNumberSpeller)),
+            normalizer = normalizer,
         )
+        // Android TTS lee con el mismo flujo que Supertonic (frase a frase a la caché de disco, con los tiempos por
+        // palabra que da el propio motor al generar). Un motor que solo sabe reproducir (el falso de los tests) sigue
+        // en streaming.
+        val system = (streaming as? FileSpeechSynthesizer)?.let { file ->
+            RenderedReaderAudioController(
+                synthesizer = CachingSpeechSynthesizer(file, cache),
+                player = Media3ClipPlayer(context, handleAudioFocus = true),
+                snippetPlayer = Media3ClipPlayer(context, handleAudioFocus = false),
+                dispatcher = main,
+                pauses = { settings.pauses },
+                aligner = aligner, // solo si el motor instalado no da marcas y hay modelo de alineación
+                normalizer = normalizer,
+            )
+        } ?: StreamingReaderAudioController(streaming, focus, main) { settings.pauses }
         return SwitchingReaderAudioController(
             controllers = mapOf(
-                streaming.id to StreamingReaderAudioController(streaming, focus, main) { settings.pauses },
+                streaming.id to system,
                 supertonic.id to rendered,
             ),
             engines = registry,
@@ -193,4 +211,5 @@ object DatabaseModule {
     @Provides fun bookmarkDao(db: AppDatabase): BookmarkDao = db.bookmarkDao()
     @Provides fun vocabularyDao(db: AppDatabase): VocabularyDao = db.vocabularyDao()
     @Provides fun machineTranslationDao(db: AppDatabase): MachineTranslationDao = db.machineTranslationDao()
+    @Provides fun libraryDao(db: AppDatabase): LibraryDao = db.libraryDao()
 }

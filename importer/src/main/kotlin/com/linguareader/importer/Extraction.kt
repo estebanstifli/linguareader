@@ -1,5 +1,6 @@
 package com.linguareader.importer
 
+import com.linguareader.core.model.CefrLevel
 import java.io.File
 
 /** Fichero a importar, ya copiado a almacenamiento local (los formatos ZIP necesitan acceso aleatorio). */
@@ -58,6 +59,8 @@ data class ExtractedDocument(
     val language: String? = null,
     val chapters: List<ExtractedChapter>,
     val cover: ExtractedImage? = null,
+    /** Nivel MCER si el documento lo declara (EPUB: meta schema:educationalLevel o dc:subject «CEFR A1»). */
+    val level: CefrLevel? = null,
 ) {
     val paragraphCount: Int get() = chapters.sumOf { c -> c.blocks.count { it is ExtractedBlock.Paragraph } }
 }

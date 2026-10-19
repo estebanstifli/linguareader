@@ -21,6 +21,9 @@ android {
         val packsTag = providers.gradleProperty("packsTag").getOrElse("packs-v1")
         buildConfigField("String", "PACKS_REPO", "\"$packsRepo\"")
         buildConfigField("String", "PACKS_TAG", "\"$packsTag\"")
+        // Bibliotecas EPUB por idioma (tools/build_library.py): otra release del mismo repositorio.
+        val libraryTag = providers.gradleProperty("libraryTag").getOrElse("library-v1")
+        buildConfigField("String", "LIBRARY_TAG", "\"$libraryTag\"")
         versionCode = 2
         versionName = "0.2.0"
         testInstrumentationRunner = "com.linguareader.HiltTestRunner"

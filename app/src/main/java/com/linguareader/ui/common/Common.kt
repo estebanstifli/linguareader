@@ -17,7 +17,7 @@ object Languages {
     /** Idiomas de traducción ofrecidos en la UI (los datos pueden no existir para todos). */
     val translationTargets = listOf("es", "en", "fr", "de", "it", "pt", "nl", "ca")
     /** Opciones de idioma de lectura; null = todos. */
-    val readingOptions: List<String?> = listOf(null, "en", "fr")
+    val readingOptions: List<String?> = listOf(null, "en", "es", "fr")
 
     fun name(tag: String?): String = when (tag?.let(LanguageTags::primary)) {
         null -> "Todos"
@@ -45,7 +45,7 @@ object Labels {
     fun displayModeHint(mode: DisplayMode) = when (mode) {
         DisplayMode.TEXT_ONLY -> "Solo el idioma que aprendes"
         DisplayMode.TRANSLATION_BELOW -> "Cada frase con su traducción debajo"
-        DisplayMode.TRANSLATION_ON_TAP -> "Toca una palabra para ver también su frase traducida"
+        DisplayMode.TRANSLATION_ON_TAP -> "Mantén pulsada una palabra para ver su traducción y la de su frase"
         DisplayMode.BILINGUAL_BLOCKS -> "Pasaje original y pasaje traducido"
         DisplayMode.ILLUSTRATED -> "Imagen grande al inicio de cada pasaje"
     }
@@ -60,6 +60,19 @@ object Labels {
         ThemeMode.SYSTEM -> "Sistema"
         ThemeMode.LIGHT -> "Claro"
         ThemeMode.DARK -> "Oscuro"
+        ThemeMode.SEPIA -> "Sepia"
+    }
+
+    fun justification(mode: com.linguareader.core.model.TextJustification) = when (mode) {
+        com.linguareader.core.model.TextJustification.LEFT -> "Izquierda"
+        com.linguareader.core.model.TextJustification.JUSTIFIED -> "Justificado"
+        com.linguareader.core.model.TextJustification.JUSTIFIED_HYPHENATED -> "Justif. + guiones"
+    }
+
+    fun orientation(mode: com.linguareader.core.model.ScreenOrientation) = when (mode) {
+        com.linguareader.core.model.ScreenOrientation.PORTRAIT -> "Vertical"
+        com.linguareader.core.model.ScreenOrientation.LANDSCAPE -> "Horizontal"
+        com.linguareader.core.model.ScreenOrientation.AUTO -> "Automática"
     }
 
     fun termKind(kind: TermKind) = when (kind) {

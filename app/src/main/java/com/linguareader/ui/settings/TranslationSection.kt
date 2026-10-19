@@ -74,6 +74,9 @@ class TranslationViewModel @Inject constructor(
 
     fun setWifiOnly(value: Boolean) = viewModelScope.launch { repo.update { it.copy(translationWifiOnly = value) } }
 
+    /** Primera apertura: con voz (aprender idiomas) o lector clásico. Se puede cambiar en Ajustes. */
+    fun chooseMode(tts: Boolean) = viewModelScope.launch { repo.update { it.copy(ttsMode = tts, ttsModeChosen = true) } }
+
     /** Cierra la configuración inicial; si [download], descarga el modelo del idioma elegido en segundo plano. */
     fun finishSetup(target: String, wifiOnly: Boolean, download: Boolean) = viewModelScope.launch {
         repo.update { it.copy(translationLanguage = target, translationWifiOnly = wifiOnly, translationSetupDone = true) }
@@ -118,7 +121,55 @@ fun TranslationSetupGate(content: @Composable () -> Unit, vm: TranslationViewMod
     Box(Modifier.fillMaxSize()) {
         content()
         val current = prefs ?: return@Box // aún cargando: no se muestra nada encima
-        if (!current.translationSetupDone) TranslationSetupScreen(vm, current)
+        when {
+            !current.ttsModeChosen -> ModeChoiceScreen(onChoose = vm::chooseMode)
+            // Solo dentro del primer arranque (antes de configurar la traducción): quien ya usaba la app
+            // no ve esta pantalla al actualizar; tiene las bibliotecas en Ajustes.
+            current.ttsMode && !current.learnLanguageChosen && !current.translationSetupDone -> LearnLanguageScreen()
+            !current.translationSetupDone -> TranslationSetupScreen(vm, current)
+        }
+    }
+}
+
+/** ¿Para qué se va a usar la app? Decide si el lector arranca con voz y controles de reproducción. */
+@Composable
+private fun ModeChoiceScreen(onChoose: (Boolean) -> Unit) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .systemBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text("¿Cómo vas a usar LinguaReader?", style = MaterialTheme.typography.headlineSmall)
+        Text(
+            "Puedes cambiarlo cuando quieras en Ajustes o con el altavoz de la barra superior del lector.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        ModeOption(
+            title = "Aprender idiomas",
+            body = "Lectura en voz alta con la palabra iluminada, controles de reproducción y traducción al mantener pulsada una palabra.",
+            primary = true,
+            onClick = { onChoose(true) },
+        )
+        ModeOption(
+            title = "Solo leer",
+            body = "Lector de libros clásico a pantalla completa, sin voz. La traducción al mantener pulsada una palabra sigue disponible.",
+            primary = false,
+            onClick = { onChoose(false) },
+        )
+    }
+}
+
+@Composable
+private fun ModeOption(title: String, body: String, primary: Boolean, onClick: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (primary) Button(onClick = onClick, modifier = Modifier.fillMaxWidth()) { Text(title) }
+        else OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) { Text(title) }
+        Text(body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

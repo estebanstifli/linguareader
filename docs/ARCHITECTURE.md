@@ -31,12 +31,12 @@ sentido cuando lleguen dependencias pesadas (ONNX Runtime).
 - `BookRepository`: catálogo filtrable, libro, pasaje y media verificada por sha256.
 - `TtsEngine`: base común de todos los motores (`id`, `info: TtsEngineInfo`, `listVoices`, `release`).
   `TtsEngineInfo.providesWordTimings` declara si el motor puede dar tiempos por palabra.
-- `TtsEngine`: base común de todos los motores (`id`, `info: TtsEngineInfo`, `listVoices`, `release`).
-  `TtsEngineInfo.providesWordTimings` declara si el motor puede dar tiempos por palabra.
 - `StreamingSpeechEngine`: motor que reproduce directamente con cola de enunciados y emite
   `SpeechEvent` (`Started`, `WordRange`, `Done`, `Stopped`, `Error`). Lo implementa Android TTS.
-- `SpeechSynthesizer`: síntesis a fichero (`AudioAsset` + hash), **sin tiempos**. Lo implementan
-  Supertonic (vía `CachingSpeechSynthesizer` + `FileAudioCache`) y Android TTS (`synthesizeToFile`).
+- `SpeechSynthesizer`: síntesis a fichero (`AudioAsset` + hash). Lo implementan Supertonic y Android TTS
+  (`synthesizeToFile`), los dos vía `CachingSpeechSynthesizer` + `FileAudioCache`. Un `FileSpeechSynthesizer`
+  puede devolver **marcas por palabra** del propio motor (`SynthesisOutcome.Written.marks`), que se guardan junto
+  al WAV (`<audio>.wav.marks.json`, `SpokenMarksSidecar`).
 - `AlignmentEngine`: texto + audio → `TimedToken` o `Unavailable`. Hoy: `UnavailableAlignmentEngine`.
 - `TranslationEngine`: `TranslationRequest(text, contextBefore, contextAfter, source, target, unit, ref)`
   → `Translated` o `Unavailable(reason)`. Hoy: `BundledTranslationEngine` (glosario + traducciones
@@ -68,15 +68,32 @@ palabra funciona. Otros motores pueden no emitirlos; entonces la barra muestra �
 
 ### Motores que generan audio (Supertonic 3, implementado)
 
-`SwitchingReaderAudioController` es el único `ReaderAudioController` que ve la UI. Delega en
-`StreamingReaderAudioController` (Android TTS) o en `RenderedReaderAudioController` (Supertonic)
-según la preferencia `ttsEngineId`, que aplica `TtsEngineCoordinator`. El controlador renderizado:
+`SwitchingReaderAudioController` es el único `ReaderAudioController` que ve la UI. Delega en un
+`RenderedReaderAudioController` por motor (Android TTS y Supertonic) según la preferencia `ttsEngineId`, que
+aplica `TtsEngineCoordinator`. `StreamingReaderAudioController` queda para motores que solo saben reproducir
+(el motor falso de los tests instrumentados). El controlador renderizado:
 
 - sintetiza **un clip por frase** y lo encola en Media3/ExoPlayer (`ClipPlayer`) según va estando listo;
 - **precarga** el pasaje siguiente;
 - resuelve el audio en caché por `AudioCacheKey` (texto normalizado + idioma + motor@versión de
   modelo + voz + velocidad + parámetros);
-- resalta **por frase** (límites exactos de clip). No hay tiempos por palabra y no se inventan.
+- resalta **por frase** (límites exactos de clip) y, si hay tiempos fiables, **por palabra**: primero las marcas
+  del propio motor (`MarkTimings`), si no el alineador forzado. Nunca se inventan.
+
+### Android TTS con caché en disco
+
+Antes Android TTS hablaba en streaming (`speak`) y cada frase larga se generaba justo cuando tocaba: había
+silencios entre frases. Ahora usa el mismo flujo que Supertonic:
+
+1. `AndroidTtsEngine.synthesizeTo` genera cada frase con `synthesizeToFile` (una a la vez; la voz se fija por
+   petición) mientras suena la anterior, y la publica en `FileAudioCache`: lo ya leído no se regenera.
+2. Durante la generación recoge `onRangeStart` con la posición en frames del audio (frecuencia de
+   `onBeginSynthesis`) → `SpokenMark(inicio, fin, ms)`. En el camino de `synthesizeToFile` Android entrega los
+   argumentos desordenados (frame, inicio, fin) en muchas versiones; se detecta por los valores.
+3. `WavSilenceTrim` recorta el silencio inicial y final (como Supertonic) y las marcas se desplazan.
+4. `MarkTimings` sitúa cada token en el texto hablado (por su forma hablada si se normalizó) y convierte las
+   marcas en tiempos; `GapFiller` completa lo que falte. Verificado en el emulador: «Sincronía por palabra».
+5. La clave de caché incluye el paquete y la versión del motor del sistema (`modelVersion`).
 
 Antes del TTS, `SpeechTextNormalizer` convierte cada frase en su forma hablada (números, abreviaturas,
 símbolos) con un mapa token → habla, sin tocar el texto ni los tokens: ver [SPEECH_NORMALIZATION.md](SPEECH_NORMALIZATION.md).
@@ -87,11 +104,15 @@ Detalles, métricas y limitaciones: [SUPERTONIC.md](SUPERTONIC.md).
 
 ## UI
 
+- **Lector paginado a pantalla completa** (`PagedReaderContent`, `ui/reader/paging/`): páginas exactas medidas
+  con `TextMeasurer`, carrusel horizontal, toques en los bordes para pasar página, toque central para las barras
+  y pulsación larga para la ficha de traducción. Detalles y decisiones en [READER.md](READER.md).
 - `TokenText` dibuja un fragmento del pasaje como un único `Text` con `AnnotatedString`. Los toques
   se resuelven con `getOffsetForPosition` y búsqueda binaria, y se valida que el toque cae dentro de
   la caja del token. El resaltado nunca cambia el ancho de los glifos (sin negrita) para que el texto no se mueva.
 - `ActiveTokenAnchor` publica la caja en pantalla del token/frase activos. El **dedo**
-  (`FingerPointerOverlay`) y el **auto-scroll** la consumen; ninguno depende del reproductor.
+  (`FingerPointerOverlay`) la consume; no depende del reproductor. En páginas, `TokenHitRegistry` localiza el
+  token bajo el dedo sin que el texto capture los toques.
   El dedo no tiene `pointerInput` (no intercepta toques) y está oculto para TalkBack.
 - Accesibilidad: descripciones en todos los botones, acción personalizada «Traducir frase» en cada
   bloque de texto (TalkBack), región viva con el estado de sincronía, título de pasaje como encabezado.

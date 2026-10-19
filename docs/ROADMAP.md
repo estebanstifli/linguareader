@@ -6,6 +6,8 @@ Leyenda: ✅ hecho y verificado · 🟡 parcial · ⬜ pendiente
 
 - ✅ Proyecto Android que compila (AGP 9.4.1, Kotlin 2.4.21, Compose, Hilt, Room, DataStore).
 - ✅ Catálogo local con 2 libros originales (en A1, fr A2), filtros de idioma y nivel, portadas y progreso.
+- ✅ Biblioteca con menú lateral (apartados = filtros: Leyendo ahora, Libros, Aprender inglés/francés/otros,
+  estanterías, colecciones, papelera) y vista de lista o cuadrícula de portadas adaptable.
 - ✅ Lector portrait: imagen opcional por pasaje con crédito y `alt`, barra fina de progreso, texto serif de alto contraste.
 - ✅ Cinco modos de visualización.
 - ✅ Tokens tocables; ficha con palabra, expresión, ejemplos y frase; guardar en vocabulario; pulsación larga = frase.
@@ -19,6 +21,9 @@ Leyenda: ✅ hecho y verificado · 🟡 parcial · ⬜ pendiente
 
 - ✅ Eventos de palabra (`onRangeStart`) validados → resaltado por palabra; fallback por frase.
   Verificado en emulador con Google TTS en inglés y francés.
+- ✅ Android TTS con el flujo de Supertonic: frase a frase a caché de disco, generación por delante (sin silencios
+  entre frases largas) y tiempos por palabra del propio motor guardados junto al audio. Elección de voz desde la
+  barra de reproducción.
 - ✅ Pausa y reanudación desde la última palabra oída; progreso persistente tras pausa y cierre.
 - ✅ Saltar/repetir frase, velocidad, continuación automática de pasaje, foco de audio.
 - ✅ Dedo indicador desacoplado (consume la caja del token visible), desactivable, con reducción de movimiento.
@@ -59,6 +64,14 @@ Leyenda: ✅ hecho y verificado · 🟡 parcial · ⬜ pendiente
 
 ## Fase 4 — Contenido e idiomas ⬜
 
+- ✅ Lector paginado a pantalla completa ([READER.md](READER.md)): páginas exactas, gestos (deslizar, bordes,
+  centro, pulsación larga), barras superior e inferior, búsqueda, índice, «Acerca del documento», compartir TXT,
+  orientación, tema sepia, modo con o sin voz (pregunta inicial), controles compactos y voz con pantalla apagada.
+- ✅ Estanterías (Favoritos, Para leer, Leídos, colecciones propias) y papelera con restaurar/borrar.
+- ✅ Justificado con guiones automáticos sin desbordes (dibujo del párrafo entero recortado por líneas) y ajuste de alineación.
+- ✅ Índice por capítulos (sin pasajes) con pestañas Capítulos, Marcadores y Vocabulario; EPUB con capítulos partidos entre archivos (Gutenberg) bien importados.
+- ⬜ Paginar primero el capítulo visible si algún libro muy largo tarda.
+
 - ✅ Importación de libros del usuario ([IMPORT.md](IMPORT.md)): EPUB, PDF con texto, MOBI/AZW3 sin
   DRM, DOCX, ODT, RTF, FB2, HTML, TXT, Markdown, SRT/VTT, páginas web y texto compartido/pegado.
   Parsers propios (sin Readium), segmentación de frases por locale, «Abrir con…»/«Compartir».
@@ -66,7 +79,9 @@ Leyenda: ✅ hecho y verificado · 🟡 parcial · ⬜ pendiente
 - ⬜ Detección automática del idioma de un libro importado sin metadatos.
 - ✅ Decisión: PdfBox-Android va siempre incluido en el APK (no como pack descargable). Pendiente
   opcional: activar R8 en release para reducir su código.
-- ⬜ Packs descargables con verificación de integridad (formato ya preparado: sha256 por media).
+- ✅ Bibliotecas descargables por idioma (zip de EPUB con portada en la release `library-v1`, sha256 por
+  libro, ids estables entre versiones): primera apertura «¿Qué idioma quieres aprender?» y Ajustes →
+  Bibliotecas. Ver [CONTENT_FORMAT.md](CONTENT_FORMAT.md#bibliotecas-por-idioma-packs-descargables).
 - ✅ Traducción automática en el dispositivo con ML Kit tras `FallbackTranslationEngine` (caché en Room,
   configuración inicial, modelos en Ajustes, pretraducción de libros importados). Ver [TRANSLATION.md](TRANSLATION.md).
 - ⬜ Pretraducción con WorkManager (hoy sigue mientras el proceso vive y se reanuda al reabrir la app).

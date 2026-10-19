@@ -1,5 +1,6 @@
 package com.linguareader.importer.extract
 
+import com.linguareader.core.model.CefrLevel
 import com.linguareader.importer.DocumentExtractor
 import com.linguareader.importer.DocumentSource
 import com.linguareader.importer.ExtractedBlock
@@ -9,6 +10,7 @@ import com.linguareader.importer.ExtractedImage
 import com.linguareader.importer.ImportException
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
+import org.jsoup.nodes.TextNode
 import org.jsoup.nodes.Element
 import org.jsoup.parser.Parser
 
@@ -49,7 +51,21 @@ class EpubExtractor : DocumentExtractor {
             val html = zip.text(item.path) ?: continue
             val document = Jsoup.parse(html, "")
             val walker = HtmlContentWalker(resolveImage = { src -> image(zip, ZipArchive.resolve(item.path, src)) })
-            chapters += walker.walk(document.body(), toc[item.path])
+            val entry = toc[item.path]
+            // Si el índice apunta a un ancla con texto delante, el título es de lo que empieza ahí, no del archivo.
+            val midFile = entry?.fragment?.let { hasTextBefore(document, it) } == true
+            val walked = walker.walk(document.body(), entry?.takeUnless { midFile }?.title)
+            // Archivo que empieza a mitad de capítulo (los conversores parten capítulos largos o con láminas): lo que
+            // hay antes del primer encabezado es la continuación del capítulo anterior, no un capítulo nuevo.
+            val continuation = walker.textBeforeFirstHeading && chapters.isNotEmpty() && toc.isNotEmpty() &&
+                (entry == null || midFile)
+            if (continuation && walked.isNotEmpty()) {
+                val previous = chapters.removeAt(chapters.lastIndex)
+                chapters += previous.copy(blocks = previous.blocks + walked.first().blocks)
+                chapters += walked.drop(1)
+            } else {
+                chapters += walked
+            }
         }
 
         val metadata = opf.byLocalName("metadata").firstOrNull()
@@ -65,7 +81,18 @@ class EpubExtractor : DocumentExtractor {
             language = meta("language").firstOrNull(),
             chapters = withoutFillerPages(chapters, cover),
             cover = cover,
+            level = level(metadata),
         )
+    }
+
+    /** Nivel MCER declarado: `<meta property="schema:educationalLevel">A1</meta>` o `<dc:subject>CEFR A1</dc:subject>`. */
+    private fun level(metadata: Element?): CefrLevel? {
+        metadata ?: return null
+        val declared = metadata.byLocalName("meta")
+            .filter { it.attr("property").substringAfter(':') == "educationalLevel" }
+            .map { it.text() } +
+            metadata.byLocalName("subject").mapNotNull { CEFR_SUBJECT.find(it.text())?.groupValues?.get(1) }
+        return declared.firstNotNullOfOrNull { CefrLevel.parse(it) }
     }
 
     /**
@@ -93,18 +120,34 @@ class EpubExtractor : DocumentExtractor {
         return result
     }
 
+    /** Hay texto del libro antes del elemento con id [fragment] (el ancla no está al principio del archivo). */
+    private fun hasTextBefore(document: Document, fragment: String): Boolean {
+        val target = document.getElementById(fragment) ?: return false
+        var reached = false
+        var text = false
+        document.body().traverse { node, _ ->
+            if (node === target) reached = true
+            if (!reached && !text && node is TextNode && node.text().any(Char::isLetter)) text = true
+        }
+        return text
+    }
+
     private data class ManifestItem(val path: String, val mediaType: String, val properties: Set<String>)
 
-    /** Ruta del XHTML → título del primer punto del índice que apunta a él. */
-    private fun tableOfContents(zip: ZipArchive, manifest: Map<String, ManifestItem>, ncxId: String): Map<String, String> {
-        val toc = linkedMapOf<String, String>()
+    /** Primer punto del índice que apunta a un XHTML: título y ancla (null = principio del archivo). */
+    private data class TocEntry(val title: String, val fragment: String?)
+
+    /** Ruta del XHTML → primer punto del índice que apunta a él. */
+    private fun tableOfContents(zip: ZipArchive, manifest: Map<String, ManifestItem>, ncxId: String): Map<String, TocEntry> {
+        val toc = linkedMapOf<String, TocEntry>()
+        fun entry(title: String, href: String) = TocEntry(title, href.substringAfter('#', "").takeIf { it.isNotEmpty() })
         val nav = manifest.values.firstOrNull { "nav" in it.properties }
         if (nav != null) {
             val document = Jsoup.parse(zip.text(nav.path) ?: "", "")
             val tocNav = document.select("nav").firstOrNull { it.attr("epub:type") == "toc" || it.attr("role") == "doc-toc" }
                 ?: document.selectFirst("nav")
             tocNav?.select("a[href]")?.forEach { a ->
-                toc.putIfAbsent(ZipArchive.resolve(nav.path, a.attr("href")), HtmlContentWalker.clean(a.text()))
+                toc.putIfAbsent(ZipArchive.resolve(nav.path, a.attr("href")), entry(HtmlContentWalker.clean(a.text()), a.attr("href")))
             }
         }
         if (toc.isEmpty()) {
@@ -113,11 +156,11 @@ class EpubExtractor : DocumentExtractor {
                 xml(zip.text(ncx.path) ?: "").byLocalName("navPoint").forEach { point ->
                     val label = point.byLocalName("text").firstOrNull()?.text()?.trim().orEmpty()
                     val src = point.byLocalName("content").firstOrNull()?.attr("src").orEmpty()
-                    if (label.isNotEmpty() && src.isNotEmpty()) toc.putIfAbsent(ZipArchive.resolve(ncx.path, src), label)
+                    if (label.isNotEmpty() && src.isNotEmpty()) toc.putIfAbsent(ZipArchive.resolve(ncx.path, src), entry(label, src))
                 }
             }
         }
-        return toc.filterValues { it.isNotEmpty() }
+        return toc.filterValues { it.title.isNotEmpty() }
     }
 
     private fun image(zip: ZipArchive, path: String): ExtractedImage? =
@@ -151,6 +194,7 @@ class EpubExtractor : DocumentExtractor {
         private const val MIN_WORDS = 3
         private val FONT_OBFUSCATION = setOf("http://www.idpf.org/2008/embedding", "http://ns.adobe.com/pdf/enc#RC")
         private val FONT_FILE = Regex("\\.(otf|ttf|woff2?)$")
+        private val CEFR_SUBJECT = Regex("\\b(?:CEFR|MCER|CECR)\\s+([ABC][12])\\b", RegexOption.IGNORE_CASE)
 
         internal fun xml(text: String): Document = Jsoup.parse(text, "", Parser.xmlParser())
     }

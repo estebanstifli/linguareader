@@ -13,7 +13,8 @@ books/
     images/…                       rutas relativas a la carpeta del libro
 ```
 
-Los libros empaquetados viven en `app/src/main/assets/books/`. Los packs descargables (Fase 4)
+Los libros empaquetados viven en `app/src/main/assets/books/`. Las bibliotecas por idioma se
+descargan como EPUB (ver «Bibliotecas por idioma» más abajo). Los packs descargables (Fase 4)
 usarán la misma estructura en almacenamiento interno, sin necesidad de actualizar el APK.
 
 ## Manifiesto
@@ -93,6 +94,31 @@ La importación ([IMPORT.md](IMPORT.md)) genera manifiestos con este mismo forma
 `filesDir/imported/<id>/`: `id` = `u-<16 hex del sha256 del fichero>` (el prefijo `u-` queda
 reservado), `license.id` = `user-import`, `sourceAttribution` = nombre del fichero o URL, frases
 segmentadas automáticamente, sin traducciones ni glosario, y media con `sha256`. No se distribuyen.
+
+## Bibliotecas por idioma (packs descargables)
+
+Los libros graduados de `content/graded-books/` se distribuyen como **un zip por idioma** en la release
+`library-v1` (lo genera `tools/build_library.py`):
+
+```
+libraries.json                    catálogo: {formatVersion, libraries: {<idioma>: {version, asset, sizeBytes, sha256, books, words}}}
+library-<idioma>-v<N>.zip
+  library.json                    {formatVersion, language, version, books: [{id, file, title, authors, level, words, sizeBytes, sha256}]}
+  books/<NIVEL>/<slug>.epub
+```
+
+- El catálogo también va en el APK (`assets/packs/libraries.json`); la app lo refresca desde la
+  release para ver bibliotecas nuevas sin actualizarse.
+- Cada EPUB 3 (`tools/build_epub.py`) declara `dc:language`, `dc:title`, `dc:creator`,
+  `<meta property="schema:educationalLevel">A1</meta>` y `dc:subject` «CEFR A1» (el importador lee el
+  nivel de cualquiera de los dos), portada con `properties="cover-image"`, `nav.xhtml` y `toc.ncx`, y un
+  XHTML por capítulo con su título en `<h2>`.
+- Al instalar, `LibraryPackManager` verifica el sha256 del zip y de cada EPUB y los importa con un id
+  **estable** `u-<id>` (`u-lib-es-el-sastrecillo-valiente`): una versión nueva de la biblioteca
+  conserva progreso, marcadores y vocabulario, reimporta solo los EPUB cambiados y borra los retirados.
+- Portadas: ilustración por obra (`content/graded-books/covers/<slug>.webp`, `tools/make_covers.py`,
+  OpenAI `gpt-image-2.5-flare`) compartida por todas las traducciones; el título y el nivel se
+  componen por idioma (600×900, JPEG ≈ 90 KB).
 
 ## Validación
 

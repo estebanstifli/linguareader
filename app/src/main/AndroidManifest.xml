@@ -6,6 +6,12 @@
          funcionan sin conexión. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Seguir leyendo en voz alta con la pantalla bloqueada (ajuste del lector, desactivable). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- Visibilidad de paquetes (Android 11+) para encontrar motores TTS instalados. -->
     <queries>
         <intent>
@@ -94,6 +100,21 @@
                 <data android:mimeType="application/epub" />
             </intent-filter>
         </activity>
+        <service
+            android:name=".engine.audio.ReadingService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
+        <!-- «Compartir archivo»: el TXT generado del libro en cache/shared. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/shared_files" />
+        </provider>
     </application>
 
 </manifest>

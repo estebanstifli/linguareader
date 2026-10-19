@@ -1,11 +1,14 @@
 package com.linguareader
 
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import com.linguareader.core.model.ScreenOrientation
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.linguareader.core.model.UserPreferences
 import com.linguareader.data.content.PendingImports
@@ -29,6 +32,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val prefs by preferences.preferences.collectAsStateWithLifecycle(initialValue = UserPreferences())
+            LaunchedEffect(prefs.orientation) {
+                requestedOrientation = when (prefs.orientation) {
+                    ScreenOrientation.PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    ScreenOrientation.LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                    ScreenOrientation.AUTO -> ActivityInfo.SCREEN_ORIENTATION_FULL_USER
+                }
+            }
             LinguaReaderTheme(theme = prefs.theme) {
                 TranslationSetupGate(content = { AppNavHost(pendingImports) })
             }

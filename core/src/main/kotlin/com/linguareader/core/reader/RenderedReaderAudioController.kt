@@ -4,7 +4,9 @@ import com.linguareader.core.alignment.AlignmentQuality
 import com.linguareader.core.alignment.AlignmentTimeline
 import com.linguareader.core.alignment.AlignmentValidator
 import com.linguareader.core.alignment.ClipAligner
+import com.linguareader.core.alignment.MarkTimings
 import com.linguareader.core.audio.AlignmentSidecar
+import com.linguareader.core.audio.SpokenMarksSidecar
 import com.linguareader.core.audio.SidecarData
 import com.linguareader.core.audio.SidecarEntry
 import com.linguareader.core.content.Hashing
@@ -41,7 +43,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
- * [ReaderAudioController] para motores que generan audio (Supertonic y futuros motores ONNX).
+ * [ReaderAudioController] para motores que generan audio a fichero (Supertonic, Android TTS y futuros motores ONNX).
  *
  * - Productor/consumidor: la síntesis genera **un clip por frase**, en orden y sin esperar al
  *   reproductor, y los encola en [player] según van estando listos. La reproducción empieza en
@@ -49,7 +51,8 @@ import kotlinx.coroutines.withContext
  * - Las pausas entre frases y al final del párrafo ([pauses]) las inserta el reproductor como
  *   silencio; el audio generado viene recortado (sin silencios iniciales/finales del modelo).
  * - Al terminar el pasaje actual, precarga el siguiente ([prefetch]) en la caché.
- * - Resaltado: **por frase** (los límites son exactos: un clip = una frase). Si hay un [aligner]
+ * - Resaltado: **por frase** (los límites son exactos: un clip = una frase). Si el motor dio marcas de tiempo al
+ *   generar el clip ([SpokenMarksSidecar], Android TTS), esa frase se resalta por palabra con ellas. Si no, y hay un [aligner]
  *   con modelo para el idioma, cada clip se alinea en segundo plano **después** de encolarse (no
  *   retrasa el audio); cuando sus tiempos están listos y pasan la validación, esa frase se resalta
  *   **por palabra** siguiendo la posición del reproductor. Sin alineación fiable → por frase.
@@ -438,10 +441,12 @@ class RenderedReaderAudioController(
      * señal) se reparten entre sus vecinas ([GapFiller]).
      */
     private suspend fun alignClip(p: Passage, index: Int, path: String, lang: String): ClipTiming? {
-        val al = aligner ?: return null
         val sentence = p.sentences[index]
         val tokens = p.tokensOf(sentence)
         if (tokens.isEmpty()) return null
+        // Los tiempos del propio motor, si los dio, mandan: son exactos y no cuestan nada.
+        timingFromMarks(p, sentence, tokens, path, lang)?.let { return it }
+        val al = aligner ?: return null
         // Lo que el alineador busca en el audio es lo que se pronuncia: «cuarenta y dos» para el token «42».
         val words = spokenOf(p, sentence, lang).tokenSpoken?.takeIf { it.size == tokens.size } ?: return null
         val modelSignature = al.signature(lang) ?: return null
@@ -484,13 +489,27 @@ class RenderedReaderAudioController(
         return timingOf(path, tokens, timed.map { it.tokenId to SidecarEntry(0, it.startMs, it.endMs, it.confidence, it.estimated) })
     }
 
+    /** Tiempos por palabra a partir de las marcas que el motor guardó junto al clip; null si no hay. */
+    private fun timingFromMarks(p: Passage, sentence: Sentence, tokens: List<com.linguareader.core.model.Token>, path: String, lang: String): ClipTiming? {
+        val wav = java.io.File(path)
+        val marks = SpokenMarksSidecar.read(wav)?.takeIf { it.isNotEmpty() } ?: return null
+        val duration = GapFiller.wavDurationMs(wav) ?: return null
+        val spoken = spokenOf(p, sentence, lang)
+        val words = spoken.tokenSpoken?.takeIf { it.size == tokens.size } ?: tokens.map { it.text }
+        val real = MarkTimings.toTimed(tokens, MarkTimings.spokenSpans(spoken.spoken, words), marks, duration)
+        if (real.isEmpty()) return null
+        val timed = GapFiller.fill(tokens, real, duration)
+        return timingOf(path, tokens, timed.map { it.tokenId to SidecarEntry(0, it.startMs, it.endMs, it.confidence, it.estimated) })
+    }
+
     private fun timingOf(path: String, tokens: List<com.linguareader.core.model.Token>, items: List<Pair<String, SidecarEntry>>): ClipTiming {
         val timed = items.map { (id, e) -> TimedToken(id, e.s, e.e, e.c, e.est) }
         return ClipTiming(path, AlignmentTimeline(timed), tokens.associateBy { it.id })
     }
 
     private fun ensureTicker() {
-        if (aligner == null || tickerJob?.isActive == true) return
+        // Sin alineador ni marcas del motor no puede haber tiempos por palabra: no hace falta seguir al reproductor.
+        if ((aligner == null && !synthesizer.info.providesWordTimings) || tickerJob?.isActive == true) return
         tickerJob = scope.launch {
             anchorTag = -1
             while (isActive && _state.value.isPlaying) {

@@ -16,15 +16,24 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,20 +43,28 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -55,10 +72,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.linguareader.R
@@ -66,8 +86,12 @@ import com.linguareader.core.model.CefrLevel
 import com.linguareader.core.model.LanguageTags
 import com.linguareader.data.content.ImportRequest
 import com.linguareader.data.content.ImportedBookRepository
+import com.linguareader.data.library.LibraryRepository
+import com.linguareader.data.library.Shelf
 import com.linguareader.engine.translation.BookTranslationState
 import com.linguareader.ui.common.Languages
+import com.linguareader.ui.settings.LibraryDownloadBanner
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,6 +106,8 @@ fun CatalogScreen(
     val covers by vm.covers.collectAsStateWithLifecycle()
     val importState by importVm.state.collectAsStateWithLifecycle()
     var pendingDelete by remember { mutableStateOf<CatalogItem?>(null) }
+    val drawer = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
     // "*/*": muchos gestores de ficheros etiquetan .fb2, .srt o .md como application/octet-stream.
     // El formato real se detecta por el contenido al importar.
@@ -119,7 +145,7 @@ fun CatalogScreen(
 
     LaunchedEffect(importState) {
         val done = importState as? ImportUiState.Done ?: return@LaunchedEffect
-        vm.setReadingLanguage(done.language)
+        vm.showSection(LibrarySection.Books) // el libro nuevo se ve al volver, sea cual sea su idioma
         importVm.dismiss()
         onOpenBook(done.bookId)
     }
@@ -128,112 +154,440 @@ fun CatalogScreen(
     pendingDelete?.let { item ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
-            title = { Text("Borrar libro importado") },
+            title = { Text("Borrar definitivamente") },
             text = { Text("«${item.summary.title}» se eliminará del dispositivo. Puedes volver a importarlo cuando quieras.") },
             confirmButton = {
-                TextButton(onClick = { vm.deleteImported(item.summary.id); pendingDelete = null }) { Text("Borrar") }
+                TextButton(onClick = { vm.deleteForever(item.summary.id); pendingDelete = null }) { Text("Borrar") }
             },
             dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancelar") } },
         )
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Biblioteca") },
-                actions = {
-                    Box {
-                        IconButton(onClick = { importMenu = true }) {
-                            Icon(painterResource(R.drawable.ic_add), contentDescription = "Importar libro")
-                        }
-                        DropdownMenu(expanded = importMenu, onDismissRequest = { importMenu = false }) {
-                            DropdownMenuItem(
-                                text = { Text("Desde un fichero…") },
-                                onClick = { importMenu = false; pick(PickerStart.ANY) },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Recibido por WhatsApp…") },
-                                onClick = { importMenu = false; whatsAppHelp = true },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Recibido por Telegram…") },
-                                onClick = { importMenu = false; pick(PickerStart.TELEGRAM) },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Desde una página web…") },
-                                onClick = { importMenu = false; askUrl = true },
-                            )
-                            // El portapapeles se lee solo al pulsar: leerlo al abrir el menú hace que
-                            // Android avise de que la app ha accedido a él.
-                            DropdownMenuItem(
-                                text = { Text("Pegar texto copiado") },
-                                onClick = {
-                                    importMenu = false
-                                    importVm.start(ImportRequest.Text(clipboard.getText()?.text.orEmpty(), null))
-                                },
-                            )
-                            HorizontalDivider()
-                            Text(
-                                "También: abre el archivo en WhatsApp, Telegram o el correo y elige " +
-                                    "«Abrir con» o «Compartir» › LinguaReader.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).width(240.dp),
-                            )
-                        }
-                    }
-                    IconButton(onClick = onOpenVocabulary) {
-                        Icon(painterResource(R.drawable.ic_star), contentDescription = "Vocabulario")
-                    }
-                    IconButton(onClick = onOpenSettings) {
-                        Icon(painterResource(R.drawable.ic_tune), contentDescription = "Ajustes")
-                    }
-                },
+    ModalNavigationDrawer(
+        drawerState = drawer,
+        drawerContent = {
+            LibraryDrawer(
+                state = state,
+                onSelect = { section -> vm.showSection(section); scope.launch { drawer.close() } },
+                onVocabulary = { scope.launch { drawer.close() }; onOpenVocabulary() },
+                onSettings = { scope.launch { drawer.close() }; onOpenSettings() },
             )
         },
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            item(key = "filters") {
-                Filters(
-                    readingOptions = state.readingOptions,
-                    readingLanguage = state.readingLanguage,
-                    translationLanguage = state.translationLanguage,
-                    levels = state.levels,
-                    onReadingLanguage = vm::setReadingLanguage,
-                    onTranslationLanguage = vm::setTranslationLanguage,
-                    onToggleLevel = vm::toggleLevel,
+    ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    navigationIcon = {
+                        IconButton(onClick = { scope.launch { drawer.open() } }) {
+                            Icon(painterResource(R.drawable.ic_menu), contentDescription = "Menú")
+                        }
+                    },
+                    title = { Text(sectionTitle(state.section, state.shelves), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    actions = {
+                        IconButton(onClick = { vm.setGrid(!state.grid) }) {
+                            Icon(
+                                painterResource(if (state.grid) R.drawable.ic_view_list else R.drawable.ic_grid_view),
+                                contentDescription = if (state.grid) "Ver como lista" else "Ver portadas",
+                            )
+                        }
+                        Box {
+                            IconButton(onClick = { importMenu = true }) {
+                                Icon(painterResource(R.drawable.ic_add), contentDescription = "Importar libro")
+                            }
+                            DropdownMenu(expanded = importMenu, onDismissRequest = { importMenu = false }) {
+                                DropdownMenuItem(
+                                    text = { Text("Desde un fichero…") },
+                                    onClick = { importMenu = false; pick(PickerStart.ANY) },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Recibido por WhatsApp…") },
+                                    onClick = { importMenu = false; whatsAppHelp = true },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Recibido por Telegram…") },
+                                    onClick = { importMenu = false; pick(PickerStart.TELEGRAM) },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Desde una página web…") },
+                                    onClick = { importMenu = false; askUrl = true },
+                                )
+                                // El portapapeles se lee solo al pulsar: leerlo al abrir el menú hace que
+                                // Android avise de que la app ha accedido a él.
+                                DropdownMenuItem(
+                                    text = { Text("Pegar texto copiado") },
+                                    onClick = {
+                                        importMenu = false
+                                        importVm.start(ImportRequest.Text(clipboard.getText()?.text.orEmpty(), null))
+                                    },
+                                )
+                                HorizontalDivider()
+                                Text(
+                                    "También: abre el archivo en WhatsApp, Telegram o el correo y elige " +
+                                        "«Abrir con» o «Compartir» › LinguaReader.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).width(240.dp),
+                                )
+                            }
+                        }
+                    },
+                )
+            },
+        ) { padding ->
+            Column(Modifier.fillMaxSize().padding(padding)) {
+                SubFilterBar(state, vm)
+                val onOpen = { item: CatalogItem -> if (!item.trashed) onOpenBook(item.summary.id) }
+                val onTranslation = { action: TranslationAction ->
+                    when (action) {
+                        is TranslationAction.Cancel -> vm.cancelTranslation(action.bookId)
+                        is TranslationAction.Retry -> vm.retryTranslation(action.bookId, action.target)
+                        is TranslationAction.Dismiss -> vm.dismissTranslationError(action.bookId)
+                    }
+                }
+                LibraryDownloadBanner()
+                when {
+                    state.error != null -> Text(state.error!!, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp))
+                    !state.loading && state.items.isEmpty() -> Text(
+                        emptyMessage(state.section),
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp),
+                    )
+                    state.grid -> LazyVerticalGrid(
+                        // Tantas columnas como quepan: 3 en un móvil en vertical, más en horizontal o en una tablet.
+                        columns = GridCells.Adaptive(minSize = 104.dp),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(state.items, key = { it.summary.id }) { item ->
+                            BookCover(
+                                item = item,
+                                cover = covers[item.summary.id],
+                                shelves = state.systemShelves,
+                                translationTarget = state.translationLanguage,
+                                onClick = { onOpen(item) },
+                                onShelf = { shelf, inShelf -> vm.setInShelf(shelf.id, item.summary.id, inShelf) },
+                                onTrash = { vm.moveToTrash(item) },
+                                onRestore = { vm.restore(item.summary.id) },
+                                onDeleteForever = if (item.trashed && vm.canDeleteForever(item.summary.id)) ({ pendingDelete = item }) else null,
+                                onAction = onTranslation,
+                            )
+                        }
+                    }
+                    else -> LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(state.items, key = { it.summary.id }) { item ->
+                            BookCard(
+                                item,
+                                covers[item.summary.id],
+                                onClick = { onOpen(item) },
+                                onDelete = if (item.trashed) null else ({ vm.moveToTrash(item) }),
+                                onRestore = if (item.trashed) ({ vm.restore(item.summary.id) }) else null,
+                                onDeleteForever = if (item.trashed && vm.canDeleteForever(item.summary.id)) ({ pendingDelete = item }) else null,
+                                translationTarget = state.translationLanguage,
+                                onAction = onTranslation,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun sectionTitle(section: LibrarySection, shelves: List<Shelf>): String = when (section) {
+    LibrarySection.Reading -> "Leyendo ahora"
+    LibrarySection.Books -> "Libros"
+    is LibrarySection.Learn -> "Aprender ${Languages.nameInSpanish(section.language)}"
+    LibrarySection.LearnOther -> "Aprender otros idiomas"
+    is LibrarySection.OnShelf -> shelves.firstOrNull { it.id == section.id }?.name ?: "Libros"
+    LibrarySection.Collections -> "Colecciones"
+    LibrarySection.Trash -> "Papelera"
+}
+
+private fun emptyMessage(section: LibrarySection): String = when (section) {
+    LibrarySection.Reading -> "Aún no has empezado ningún libro. Los que abras aparecerán aquí, el último primero."
+    LibrarySection.Trash -> "La papelera está vacía."
+    is LibrarySection.OnShelf -> "No hay libros en esta estantería. Añádelos desde el ⋮ de una portada o desde el lector: menú ⋮ › Agregar a…"
+    LibrarySection.Collections -> "No hay libros en colecciones. Crea una desde el lector: menú ⋮ › Agregar a… › Nueva colección."
+    else -> "No hay libros con estos filtros. Usa + para importar un EPUB, TXT, FB2, HTML, Markdown o subtítulos."
+}
+
+/** Menú lateral: apartados de la biblioteca (la mayoría son filtros de los mismos libros), vocabulario y ajustes. */
+@Composable
+private fun LibraryDrawer(
+    state: CatalogUiState,
+    onSelect: (LibrarySection) -> Unit,
+    onVocabulary: () -> Unit,
+    onSettings: () -> Unit,
+) {
+    ModalDrawerSheet {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp)) {
+                Image(
+                    painterResource(R.drawable.ic_launcher_foreground),
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
+                )
+                Spacer(Modifier.width(12.dp))
+                Text("LinguaReader", style = MaterialTheme.typography.titleLarge)
+            }
+            @Composable
+            fun item(section: LibrarySection, label: String, icon: @Composable () -> Unit) = NavigationDrawerItem(
+                label = { Text(label) },
+                icon = icon,
+                badge = { state.counts[section]?.takeIf { it > 0 }?.let { Text("$it") } },
+                selected = state.section == section,
+                onClick = { onSelect(section) },
+                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+            )
+            fun res(id: Int): @Composable () -> Unit = { Icon(painterResource(id), contentDescription = null) }
+            item(LibrarySection.Reading, "Leyendo ahora", res(R.drawable.ic_history))
+            item(LibrarySection.Books, "Libros", res(R.drawable.ic_library_books))
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            LibrarySection.LEARN_LANGUAGES.forEach { tag ->
+                item(LibrarySection.Learn(tag), "Aprender ${Languages.nameInSpanish(tag)}") { LanguageBadge(tag) }
+            }
+            item(LibrarySection.LearnOther, "Aprender otros idiomas", res(R.drawable.ic_language))
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            state.systemShelves.forEach { shelf ->
+                val icon = when (shelf.kind) {
+                    LibraryRepository.FAVORITES -> R.drawable.ic_star
+                    LibraryRepository.TO_READ -> R.drawable.ic_schedule
+                    else -> R.drawable.ic_done_all
+                }
+                item(LibrarySection.OnShelf(shelf.id), shelf.name, res(icon))
+            }
+            item(LibrarySection.Collections, "Colecciones", res(R.drawable.ic_folder))
+            item(LibrarySection.Trash, "Papelera", res(R.drawable.ic_delete))
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            NavigationDrawerItem(
+                label = { Text("Vocabulario") }, icon = res(R.drawable.ic_translate), selected = false, onClick = onVocabulary,
+                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+            )
+            NavigationDrawerItem(
+                label = { Text("Ajustes") }, icon = res(R.drawable.ic_settings), selected = false, onClick = onSettings,
+                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+            )
+            Spacer(Modifier.height(12.dp))
+        }
+    }
+}
+
+/** Código del idioma en un círculo, como icono de «Aprender inglés/francés». */
+@Composable
+private fun LanguageBadge(tag: String) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier.size(24.dp).clip(CircleShape).background(MaterialTheme.colorScheme.onSurfaceVariant),
+    ) {
+        Text(tag.uppercase(), color = MaterialTheme.colorScheme.surface, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+/** Subfiltros del apartado: niveles en «Aprender…», procedencia en «Libros», idioma y colección donde aplica. */
+@Composable
+private fun SubFilterBar(state: CatalogUiState, vm: CatalogViewModel) {
+    val f = state.filters
+    @Composable
+    fun chips(content: @Composable () -> Unit) = Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) { content() }
+    @Composable
+    fun levels() = chips {
+        FilterChip(selected = f.levels.isEmpty(), onClick = vm::clearLevels, label = { Text("Todos los niveles") })
+        CefrLevel.entries.forEach { level ->
+            FilterChip(selected = level in f.levels, onClick = { vm.toggleLevel(level) }, label = { Text(level.name) })
+        }
+    }
+    @Composable
+    fun translateTo() = chips {
+        Text("Traducir al", style = MaterialTheme.typography.labelLarge)
+        var open by remember { mutableStateOf(false) }
+        Box {
+            AssistChip(onClick = { open = true }, label = { Text(Languages.name(state.translationLanguage)) })
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                (Languages.translationTargets + state.translationLanguage).distinct().forEach { tag ->
+                    DropdownMenuItem(text = { Text(Languages.name(tag)) }, onClick = { vm.setTranslationLanguage(tag); open = false })
+                }
+            }
+        }
+    }
+    when (state.section) {
+        LibrarySection.Books -> chips {
+            listOf(BookOrigin.ALL to "Todos", BookOrigin.BUNDLED to "De la app", BookOrigin.IMPORTED to "Importados").forEach { (o, label) ->
+                FilterChip(selected = f.origin == o, onClick = { vm.setOrigin(o) }, label = { Text(label) })
+            }
+        }
+        is LibrarySection.Learn -> { levels(); translateTo() }
+        LibrarySection.LearnOther -> {
+            if (state.otherLanguages.size > 1) chips {
+                FilterChip(selected = f.language == null, onClick = { vm.setOtherLanguage(null) }, label = { Text("Todos los idiomas") })
+                state.otherLanguages.forEach { tag ->
+                    FilterChip(selected = f.language == tag, onClick = { vm.setOtherLanguage(tag) }, label = { Text(Languages.name(tag)) })
+                }
+            }
+            levels()
+            translateTo()
+        }
+        LibrarySection.Collections -> if (state.collections.isNotEmpty()) {
+            chips {
+                FilterChip(selected = f.collectionId == null, onClick = { vm.setCollection(null) }, label = { Text("Todas") })
+                state.collections.forEach { c ->
+                    FilterChip(
+                        selected = f.collectionId == c.id,
+                        onClick = { vm.setCollection(c.id) },
+                        label = { Text("${c.name} (${c.bookIds.size})") },
+                    )
+                }
+            }
+            state.collections.firstOrNull { it.id == f.collectionId }?.let { c ->
+                TextButton(onClick = { vm.deleteCollection(c.id) }, modifier = Modifier.padding(horizontal = 8.dp)) {
+                    Text("Borrar la colección «${c.name}» (los libros no se borran)")
+                }
+            }
+        }
+        LibrarySection.Reading, is LibrarySection.OnShelf, LibrarySection.Trash -> Unit
+    }
+}
+
+/**
+ * Portada en la cuadrícula: imagen del libro (o una portada generada con el título si no tiene), nivel, progreso y un
+ * menú ⋮ con estanterías, papelera y traducción.
+ */
+@Composable
+private fun BookCover(
+    item: CatalogItem,
+    cover: ImageBitmap?,
+    shelves: List<Shelf>,
+    translationTarget: String,
+    onClick: () -> Unit,
+    onShelf: (Shelf, Boolean) -> Unit,
+    onTrash: () -> Unit,
+    onRestore: () -> Unit,
+    onDeleteForever: (() -> Unit)?,
+    onAction: (TranslationAction) -> Unit,
+) {
+    val s = item.summary
+    var menu by remember { mutableStateOf(false) }
+    Column(
+        Modifier.clickable(onClick = onClick).semantics(mergeDescendants = true) {
+            contentDescription = "${s.title}, ${Languages.name(s.learningLanguage)}, nivel ${s.cefrLevel.name}"
+        },
+    ) {
+        Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(6.dp))) {
+            if (cover != null) {
+                Image(bitmap = cover, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            } else {
+                GeneratedCover(s.title, s.learningLanguage)
+            }
+            Text(
+                "${s.learningLanguage.uppercase()} · ${s.cefrLevel.name}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier
+                    .padding(6.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(MaterialTheme.colorScheme.primary)
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
+            )
+            Box(Modifier.align(Alignment.BottomEnd)) {
+                // Botón pequeño sobre la portada (un IconButton impone 48 dp y taparía la ilustración).
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .padding(end = 4.dp, bottom = 8.dp)
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.35f))
+                        .clickable { menu = true }
+                        .semantics { contentDescription = "Opciones de «${s.title}»" },
+                ) {
+                    Icon(painterResource(R.drawable.ic_more_vert), contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    if (item.trashed) {
+                        DropdownMenuItem(text = { Text("Restaurar") }, onClick = { menu = false; onRestore() })
+                        onDeleteForever?.let { DropdownMenuItem(text = { Text("Borrar definitivamente") }, onClick = { menu = false; it() }) }
+                    } else {
+                        shelves.forEach { shelf ->
+                            val inShelf = s.id in shelf.bookIds
+                            DropdownMenuItem(
+                                text = { Text(shelf.name) },
+                                leadingIcon = { Checkbox(checked = inShelf, onCheckedChange = null) },
+                                onClick = { onShelf(shelf, !inShelf) },
+                            )
+                        }
+                        if (item.imported && translationTarget !in item.machineTranslations && item.translationJob == null &&
+                            !LanguageTags.sameLanguage(s.learningLanguage, translationTarget)
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Traducir entero al ${Languages.nameInSpanish(translationTarget)}") },
+                                onClick = { menu = false; onAction(TranslationAction.Retry(s.id, translationTarget)) },
+                            )
+                        }
+                        HorizontalDivider()
+                        DropdownMenuItem(text = { Text("Enviar a la papelera") }, onClick = { menu = false; onTrash() })
+                    }
+                }
+            }
+            if (item.progress != null) {
+                LinearProgressIndicator(
+                    progress = { item.progress },
+                    modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth().height(4.dp),
                 )
             }
-            when {
-                state.error != null -> item(key = "error") { Text(state.error!!, color = MaterialTheme.colorScheme.error) }
-                !state.loading && state.items.isEmpty() -> item(key = "empty") {
-                    Text(
-                        "No hay libros con estos filtros. Usa + para importar un EPUB, TXT, FB2, HTML, Markdown o subtítulos.",
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(vertical = 24.dp),
-                    )
-                }
-                else -> items(state.items, key = { it.summary.id }) { item ->
-                    BookCard(
-                        item,
-                        covers[item.summary.id],
-                        onClick = { onOpenBook(item.summary.id) },
-                        onDelete = if (item.imported) ({ pendingDelete = item }) else null,
-                        translationTarget = state.translationLanguage,
-                        onAction = { action ->
-                            when (action) {
-                                is TranslationAction.Cancel -> vm.cancelTranslation(action.bookId)
-                                is TranslationAction.Retry -> vm.retryTranslation(action.bookId, action.target)
-                                is TranslationAction.Dismiss -> vm.dismissTranslationError(action.bookId)
-                            }
-                        },
-                    )
-                }
+        }
+        Text(
+            s.title,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 4.dp, start = 2.dp, end = 2.dp),
+        )
+        item.translationJob?.let { job ->
+            if (job is BookTranslationState.Running && job.total > 0) {
+                LinearProgressIndicator(progress = { job.done.toFloat() / job.total }, modifier = Modifier.fillMaxWidth().padding(top = 2.dp))
             }
+        }
+    }
+}
+
+/** Portada para libros sin imagen: color estable por título y el título en grande, como una cubierta de tela. */
+@Composable
+private fun GeneratedCover(title: String, language: String) {
+    val palette = listOf(
+        Color(0xFF2E5E6E), Color(0xFF7A3E3E), Color(0xFF4F6B3A), Color(0xFF5B4A7A),
+        Color(0xFF8A6A2F), Color(0xFF3D4F7A), Color(0xFF6E3F5E), Color(0xFF2F6B5B),
+    )
+    val base = palette[Math.floorMod(title.hashCode(), palette.size)]
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(base, base.copy(alpha = 0.82f)))),
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(10.dp)) {
+            Box(Modifier.width(36.dp).height(1.dp).background(Color.White.copy(alpha = 0.6f)))
+            Text(
+                title,
+                color = Color.White,
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp,
+                lineHeight = 18.sp,
+                textAlign = TextAlign.Center,
+                maxLines = 5,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(vertical = 8.dp),
+            )
+            Box(Modifier.width(36.dp).height(1.dp).background(Color.White.copy(alpha = 0.6f)))
+            Text(Languages.name(language), color = Color.White.copy(alpha = 0.8f), fontSize = 10.sp, modifier = Modifier.padding(top = 6.dp))
         }
     }
 }
@@ -304,49 +658,6 @@ private fun UrlDialog(initial: String, onConfirm: (String) -> Unit, onDismiss: (
     )
 }
 
-@Composable
-private fun Filters(
-    readingOptions: List<String?>,
-    readingLanguage: String?,
-    translationLanguage: String,
-    levels: Set<CefrLevel>,
-    onReadingLanguage: (String?) -> Unit,
-    onTranslationLanguage: (String) -> Unit,
-    onToggleLevel: (CefrLevel) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("Idioma del texto", style = MaterialTheme.typography.labelLarge)
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            readingOptions.forEach { tag ->
-                FilterChip(
-                    selected = readingLanguage == tag,
-                    onClick = { onReadingLanguage(tag) },
-                    label = { Text(Languages.name(tag)) },
-                )
-            }
-        }
-        Text("Nivel", style = MaterialTheme.typography.labelLarge)
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            CefrLevel.entries.forEach { level ->
-                FilterChip(selected = level in levels, onClick = { onToggleLevel(level) }, label = { Text(level.name) })
-            }
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Traducir al", style = MaterialTheme.typography.labelLarge)
-            Spacer(Modifier.width(8.dp))
-            var open by remember { mutableStateOf(false) }
-            Box {
-                AssistChip(onClick = { open = true }, label = { Text(Languages.name(translationLanguage)) })
-                DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-                    (Languages.translationTargets + translationLanguage).distinct().forEach { tag ->
-                        DropdownMenuItem(text = { Text(Languages.name(tag)) }, onClick = { onTranslationLanguage(tag); open = false })
-                    }
-                }
-            }
-        }
-    }
-}
-
 /** Acciones sobre la pretraducción de un libro desde su tarjeta. */
 sealed interface TranslationAction {
     data class Cancel(val bookId: String) : TranslationAction
@@ -407,6 +718,8 @@ private fun BookCard(
     cover: ImageBitmap?,
     onClick: () -> Unit,
     onDelete: (() -> Unit)?,
+    onRestore: (() -> Unit)? = null,
+    onDeleteForever: (() -> Unit)? = null,
     translationTarget: String,
     onAction: (TranslationAction) -> Unit,
 ) {
@@ -449,7 +762,7 @@ private fun BookCard(
                     )
                     if (onDelete != null) {
                         IconButton(onClick = onDelete) {
-                            Icon(painterResource(R.drawable.ic_delete), contentDescription = "Borrar «${s.title}»")
+                            Icon(painterResource(R.drawable.ic_delete), contentDescription = "Enviar «${s.title}» a la papelera")
                         }
                     }
                 }
@@ -488,6 +801,24 @@ private fun BookCard(
                         TextButton(onClick = { onAction(TranslationAction.Retry(s.id, translationTarget)) }) {
                             Text("Traducir el libro entero al ${Languages.nameInSpanish(translationTarget)}")
                         }
+                }
+                if (onRestore != null) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = onRestore) {
+                            Icon(painterResource(R.drawable.ic_restore), contentDescription = null)
+                            Text(" Restaurar")
+                        }
+                        if (onDeleteForever != null) {
+                            TextButton(onClick = onDeleteForever) { Text("Borrar definitivamente") }
+                        } else {
+                            Text(
+                                "Incluido en la app: solo se puede restaurar.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.align(Alignment.CenterVertically),
+                            )
+                        }
+                    }
                 }
                 if (item.progress != null) {
                     Spacer(Modifier.height(4.dp))

@@ -22,15 +22,23 @@ class HtmlContentWalker(
     private var title: String? = null
     private var blocks = mutableListOf<ExtractedBlock>()
     private val paragraph = StringBuilder()
+    private var sawHeading = false
+
+    /** Tras [walk]: hubo texto antes del primer encabezado (en EPUB, posible continuación del archivo anterior). */
+    var textBeforeFirstHeading = false
+        private set
 
     /** Recorre [root] y devuelve los capítulos; [initialTitle] titula el primero (p. ej. desde el índice del EPUB). */
     fun walk(root: Element, initialTitle: String? = null): List<ExtractedChapter> {
         chapters.clear()
         blocks = mutableListOf()
         paragraph.clear()
+        sawHeading = false
+        textBeforeFirstHeading = false
         title = initialTitle?.let(::clean)?.takeIf { it.isNotEmpty() }
         visit(root)
         flushParagraph()
+        if (!sawHeading) textBeforeFirstHeading = blocks.any { it is ExtractedBlock.Paragraph }
         closeChapter()
         return chapters.toList()
     }
@@ -77,6 +85,10 @@ class HtmlContentWalker(
 
     private fun heading(text: String) {
         if (text.isEmpty()) return
+        if (!sawHeading) {
+            sawHeading = true
+            textBeforeFirstHeading = blocks.any { it is ExtractedBlock.Paragraph }
+        }
         if (blocks.isEmpty()) {
             val current = title
             title = when {
@@ -93,9 +105,9 @@ class HtmlContentWalker(
     }
 
     private fun image(element: Element) {
-        // Letra capital dibujada («M» de «MR. BENNET»): es texto, no ilustración.
+        // Letra capital dibujada («M» de «MR. BENNET», «“I» de «“I hope»): es texto, no ilustración.
         val alt = element.attr("alt").trim()
-        if (alt.length in 1..3 && alt.all(Char::isLetter)) {
+        if (alt.length in 1..4 && alt.any(Char::isLetter) && alt.all { it.isLetter() || it in DROP_CAP_PUNCTUATION }) {
             paragraph.append(alt)
             return
         }
@@ -148,6 +160,7 @@ class HtmlContentWalker(
 
     companion object {
         private const val MIN_IMAGE_BYTES = 2_048 // separadores y adornos
+        private const val DROP_CAP_PUNCTUATION = "\"'“”‘’«»¡¿—-("
 
         private val HEADINGS = setOf("h1", "h2", "h3")
         private const val CAPTIONS = ".caption, figcaption"

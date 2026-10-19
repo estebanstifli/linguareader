@@ -6,11 +6,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -23,10 +25,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -191,57 +197,112 @@ fun ReaderSettingsSheet(
     }
 }
 
+/**
+ * Índice con tres pestañas: capítulos (solo títulos, con su página), marcadores del usuario y vocabulario guardado
+ * de este libro.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChaptersSheet(
+fun IndexSheet(
     book: Book,
-    currentPassageId: String?,
+    currentChapter: Int?,
+    chapterPages: Map<Int, Int>,
+    pageOf: (passageIndex: Int, offset: Int) -> Int?,
     bookmarks: List<BookmarkEntity>,
+    vocabulary: List<com.linguareader.data.db.VocabularyEntity>,
     translationLanguage: String,
-    onSelectPassage: (String) -> Unit,
+    onSelectChapter: (Int) -> Unit,
     onSelectBookmark: (BookmarkEntity) -> Unit,
     onDeleteBookmark: (Long) -> Unit,
+    onSelectWord: (com.linguareader.data.db.VocabularyEntity) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        LazyColumn(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp)) {
-            if (bookmarks.isNotEmpty()) {
-                item { Text("Marcadores", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 8.dp)) }
-                items(bookmarks, key = { "b${it.id}" }) { b ->
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onSelectBookmark(b) }) {
-                        Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
-                            Text("Pasaje ${b.passageIndex + 1}", style = MaterialTheme.typography.labelMedium)
-                            Text(b.excerpt, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
-                        }
-                        IconButton(onClick = { onDeleteBookmark(b.id) }) {
-                            Icon(painterResource(R.drawable.ic_delete), contentDescription = "Borrar marcador")
+    var tab by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableIntStateOf(0) }
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(Modifier.fillMaxWidth().fillMaxHeight(0.88f).navigationBarsPadding()) {
+            PrimaryTabRow(selectedTabIndex = tab) {
+                listOf("Capítulos", "Marcadores (${bookmarks.size})", "Vocabulario (${vocabulary.size})").forEachIndexed { i, label ->
+                    Tab(selected = tab == i, onClick = { tab = i }, text = { Text(label, maxLines = 1) })
+                }
+            }
+            when (tab) {
+                0 -> {
+                    val list = androidx.compose.foundation.lazy.rememberLazyListState(initialFirstVisibleItemIndex = maxOf(0, (currentChapter ?: 0) - 2))
+                    LazyColumn(Modifier.fillMaxWidth().padding(horizontal = 20.dp), state = list) {
+                        itemsIndexed(book.chapters, key = { _, c -> c.id }) { i, chapter ->
+                            val current = i == currentChapter
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth().clickable { onSelectChapter(i) }.padding(vertical = 12.dp),
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        chapter.title,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = if (current) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 2,
+                                    )
+                                    LanguageTags.lookup(chapter.titleTranslations, translationLanguage)?.let {
+                                        Text(it, style = MaterialTheme.typography.bodySmall, fontStyle = FontStyle.Italic)
+                                    }
+                                }
+                                chapterPages[i]?.let { page ->
+                                    Text("${page + 1}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                            HorizontalDivider()
                         }
                     }
                 }
-                item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
-            }
-            book.chapters.forEach { chapter ->
-                item(key = "c-${chapter.id}") {
-                    Column(Modifier.padding(top = 12.dp, bottom = 4.dp)) {
-                        Text(chapter.title, style = MaterialTheme.typography.titleMedium)
-                        LanguageTags.lookup(chapter.titleTranslations, translationLanguage)?.let {
-                            Text(it, style = MaterialTheme.typography.bodySmall, fontStyle = FontStyle.Italic)
+                1 -> if (bookmarks.isEmpty()) {
+                    EmptyTab("Aún no hay marcadores. Mientras lees, toca el centro de la página y pulsa el marcador de la barra inferior para marcar la página.")
+                } else {
+                    LazyColumn(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+                        items(bookmarks, key = { it.id }) { b ->
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onSelectBookmark(b) }) {
+                                Column(Modifier.weight(1f).padding(vertical = 10.dp)) {
+                                    val chapter = book.passages.getOrNull(b.passageIndex)?.let(book::chapterOf)?.title.orEmpty()
+                                    val page = pageOf(b.passageIndex, b.charOffset)?.let { "Página ${it + 1}" }
+                                    Text(listOfNotNull(page, chapter.takeIf { it.isNotBlank() }).joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                                    Text(b.excerpt, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
+                                }
+                                IconButton(onClick = { onDeleteBookmark(b.id) }) {
+                                    Icon(painterResource(R.drawable.ic_delete), contentDescription = "Borrar marcador")
+                                }
+                            }
+                            HorizontalDivider()
                         }
                     }
                 }
-                items(chapter.passages, key = { "p-${it.id}" }) { p ->
-                    val current = p.id == currentPassageId
-                    Text(
-                        "${p.index + 1}. ${p.sentences.first().text}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = if (current) FontWeight.Bold else FontWeight.Normal,
-                        color = if (current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        modifier = Modifier.fillMaxWidth().clickable { onSelectPassage(p.id) }.padding(vertical = 10.dp),
-                    )
+                else -> if (vocabulary.isEmpty()) {
+                    EmptyTab("Aún no has guardado palabras de este libro. Mantén pulsada una palabra y pulsa «Guardar».")
+                } else {
+                    LazyColumn(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+                        items(vocabulary, key = { it.id }) { v ->
+                            Column(Modifier.fillMaxWidth().clickable { onSelectWord(v) }.padding(vertical = 10.dp)) {
+                                Text(
+                                    listOfNotNull(v.term, v.translation).joinToString(" — "),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(v.context, style = MaterialTheme.typography.bodySmall, fontStyle = FontStyle.Italic, maxLines = 2)
+                            }
+                            HorizontalDivider()
+                        }
+                    }
                 }
             }
-            item { Spacer(Modifier.height(16.dp)) }
         }
     }
+}
+
+@Composable
+private fun EmptyTab(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(24.dp),
+    )
 }

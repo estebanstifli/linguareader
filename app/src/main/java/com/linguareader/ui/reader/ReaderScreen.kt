@@ -1,156 +1,265 @@
 package com.linguareader.ui.reader
 
+import android.Manifest
+import android.app.Activity
 import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.speech.tts.TextToSpeech
-import androidx.compose.foundation.Image
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.animateScrollBy
-import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.boundsInRoot
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.linguareader.R
-import com.linguareader.engine.translation.ModelDownload
 import com.linguareader.core.engine.EngineReadiness
-import com.linguareader.core.engine.TranslationResult
-import com.linguareader.core.model.DisplayMode
-import com.linguareader.core.model.LanguageTags
-import com.linguareader.core.model.Passage
-import com.linguareader.core.model.Sentence
+import com.linguareader.core.model.Book
+import com.linguareader.core.model.ScreenOrientation
 import com.linguareader.core.model.UserPreferences
-import com.linguareader.core.reader.HighlightGranularity
 import com.linguareader.core.reader.PlaybackState
 import com.linguareader.core.reader.PlaybackStatus
+import com.linguareader.data.library.LibraryState
+import com.linguareader.engine.audio.ReadingService
+import com.linguareader.engine.translation.ModelDownload
 import com.linguareader.ui.common.Labels
 import com.linguareader.ui.common.Languages
-import com.linguareader.ui.theme.LocalReaderColors
-import kotlinx.coroutines.flow.filterNotNull
+import com.linguareader.ui.reader.paging.PagedBook
+import com.linguareader.ui.reader.paging.TextPos
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ReaderScreen(onBack: () -> Unit, onOpenSettings: () -> Unit = {}, vm: ReaderViewModel = hiltViewModel()) {
     val ui by vm.state.collectAsStateWithLifecycle()
     val prefs by vm.preferences.collectAsStateWithLifecycle()
     val playback by vm.playback.collectAsStateWithLifecycle()
-    var showSettings by remember { mutableStateOf(false) }
-    var showChapters by remember { mutableStateOf(false) }
+    val anchor by vm.anchor.collectAsStateWithLifecycle()
+    val translations by vm.translations.collectAsStateWithLifecycle()
+    val images by vm.images.collectAsStateWithLifecycle()
+    val library by vm.library.collectAsStateWithLifecycle()
+    val vocabulary by vm.bookVocabulary.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Volver") }
-                },
-                title = {
-                    Column {
-                        Text(ui.book?.title.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        ui.chapter?.let {
-                            Text(it.title, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-                        }
-                    }
-                },
-                actions = {
-                    val bookmarked = ui.bookmarks.isNotEmpty() && vm.currentBookmark() != null
-                    IconButton(onClick = vm::toggleBookmark) {
-                        Icon(
-                            painterResource(if (bookmarked) R.drawable.ic_bookmark else R.drawable.ic_bookmark_border),
-                            contentDescription = if (bookmarked) "Quitar marcador" else "Añadir marcador",
+    // Pantalla completa por defecto: los controles salen al tocar el centro del texto.
+    var controlsVisible by rememberSaveable { mutableStateOf(false) }
+    var sheet by rememberSaveable { mutableStateOf(ReaderSheet.NONE) }
+    var paged by remember { mutableStateOf<PagedBook?>(null) }
+    val pager = rememberPagerState { paged?.size ?: 0 }
+    val navigator = remember(pager) { PageNavigator(pager) { prefs.reduceMotion } }
+    val currentPage = paged?.pages?.getOrNull(pager.currentPage)
+
+    ImmersiveMode(showSystemBars = controlsVisible)
+    ReadingServiceEffect(playback, prefs, ui.book?.title.orEmpty())
+
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Column(Modifier.fillMaxSize()) {
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                val book = ui.book
+                when {
+                    ui.error != null -> Text(ui.error!!, Modifier.padding(24.dp), color = MaterialTheme.colorScheme.error)
+                    // Sin la posición guardada aún no se pagina: se abriría en la página 1 y se perdería el punto de lectura.
+                    book == null || anchor == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                    else -> PagedReaderContent(
+                        book = book,
+                        prefs = prefs,
+                        playback = playback,
+                        anchor = anchor,
+                        translations = translations,
+                        images = images,
+                        jumps = vm.jumps,
+                        navigator = navigator,
+                        paged = paged,
+                        onPaged = { paged = it },
+                        onSettled = { page, user ->
+                            vm.onPageSettled(page.start, page.items.map { it.passage }.toSet(), user)
+                        },
+                        onToggleControls = { controlsVisible = !controlsVisible },
+                        onLongPressToken = { vm.onTokenTap(it.id) },
+                        onSentenceAction = vm::onSentenceAction,
+                        // Márgenes estables: no cambian al mostrar u ocultar las barras del sistema (no se re-pagina).
+                        modifier = Modifier
+                            .windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility)
+                            .padding(horizontal = 24.dp)
+                            .padding(top = 16.dp, bottom = 12.dp)
+                            .then(if (prefs.ttsMode) Modifier else Modifier.windowInsetsPadding(WindowInsets.navigationBarsIgnoringVisibility)),
+                    )
+                }
+                // Barra inferior (sobre el texto, encima del reproductor si lo hay).
+                SlideFromEdge(visible = controlsVisible && paged != null, fromBottom = true, modifier = Modifier.align(Alignment.BottomCenter)) {
+                    val book = paged
+                    if (book != null) {
+                        ReaderBottomBar(
+                            paged = book,
+                            page = pager.currentPage,
+                            orientation = prefs.orientation,
+                            bookmarked = currentPage != null && ui.bookmarks.any { b ->
+                                val pos = TextPos(b.passageIndex, b.charOffset)
+                                pos >= currentPage.start && pos < book.endOf(pager.currentPage)
+                            },
+                            withNavigationInset = !prefs.ttsMode,
+                            onSeek = { target -> scope.launch { navigator.goTo(target, user = true, animate = false) } },
+                            onOrientation = { vm.updatePreferences { it.copy(orientation = it.orientation.next()) } },
+                            onBookmark = {
+                                val page = currentPage ?: return@ReaderBottomBar
+                                val end = book.endOf(pager.currentPage)
+                                val existing = ui.bookmarks.firstOrNull { b ->
+                                    val pos = TextPos(b.passageIndex, b.charOffset)
+                                    pos >= page.start && pos < end
+                                }
+                                if (existing != null) vm.deleteBookmark(existing.id) else vm.addBookmark(page.start)
+                            },
                         )
                     }
-                    IconButton(onClick = { showChapters = true }) {
-                        Icon(painterResource(R.drawable.ic_list), contentDescription = "Capítulos y marcadores")
-                    }
-                    IconButton(onClick = { showSettings = true }) {
-                        Icon(painterResource(R.drawable.ic_tune), contentDescription = "Ajustes de lectura")
-                    }
-                },
-            )
-        },
-        bottomBar = {
-            PlayerControls(
-                playback = playback,
-                sentenceCount = ui.passage?.sentences?.size ?: 0,
-                speed = prefs.speechRate,
-                onPlayPause = vm::togglePlay,
-                onPrevious = vm::previousSentence,
-                onRepeat = vm::repeatSentence,
-                onNext = vm::nextSentence,
-                onSpeed = { rate -> vm.updatePreferences { it.copy(speechRate = rate) } },
-            )
-        },
-    ) { padding ->
-      Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().padding(padding)) {
-            LinearProgressIndicator(
-                progress = { if (ui.totalPassages == 0) 0f else (ui.passageIndex + 1f) / ui.totalPassages },
-                modifier = Modifier.fillMaxWidth().height(3.dp),
-                drawStopIndicator = {},
-            )
-            AudioBanner(playback, languageTag = ui.book?.learningLanguage, onRetry = vm::retryAudio, onOpenSettings = onOpenSettings)
-            val translationDownloads by vm.translationDownloads.collectAsStateWithLifecycle()
-            TranslationModelBanner(ui.missingTranslationModels, translationDownloads, onDownload = vm::downloadTranslationModels)
-            when {
-                ui.error != null -> Text(ui.error!!, Modifier.padding(24.dp), color = MaterialTheme.colorScheme.error)
-                ui.passage == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-                else -> PassageContent(ui, prefs, playback, vm)
+                }
+            }
+            if (prefs.ttsMode) {
+                PlayerControls(
+                    playback = playback,
+                    sentenceCount = ui.passage?.sentences?.size ?: 0,
+                    speed = prefs.speechRate,
+                    onPlayPause = vm::togglePlay,
+                    onPrevious = vm::previousSentence,
+                    onRepeat = vm::repeatSentence,
+                    onNext = vm::nextSentence,
+                    onSpeed = { rate -> vm.updatePreferences { it.copy(speechRate = rate) } },
+                    compact = true,
+                    voices = ui.voices,
+                    selectedVoice = vm.selectedVoice(),
+                    automaticVoice = !vm.isSupertonicActive(),
+                    onVoice = vm::setVoice,
+                )
             }
         }
+
+        AnimatedVisibility(
+            visible = controlsVisible,
+            enter = slideInVertically { -it } + fadeIn(),
+            exit = slideOutVertically { -it } + fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter),
+        ) {
+            Column {
+                ReaderTopBar(
+                    book = ui.book,
+                    chapterTitle = currentPage?.let { p -> ui.book?.chapters?.getOrNull(p.chapter)?.title },
+                    chapterPage = paged?.let { pb ->
+                        val range = pb.chapterRange(pager.currentPage)
+                        if (range.isEmpty()) null else (pager.currentPage - range.first + 1) to (range.last - range.first + 1)
+                    },
+                    ttsMode = prefs.ttsMode,
+                    library = library,
+                    hasIndex = true,
+                    onBack = onBack,
+                    onToggleTts = {
+                        val enable = !prefs.ttsMode
+                        vm.updatePreferences { it.copy(ttsMode = enable, ttsModeChosen = true) }
+                        if (enable) currentPage?.let { vm.playFrom(it.start) } else vm.pause()
+                    },
+                    onSearch = { sheet = ReaderSheet.SEARCH },
+                    onIndex = { sheet = ReaderSheet.INDEX },
+                    onSettings = { sheet = ReaderSheet.SETTINGS },
+                    onShare = {
+                        scope.launch {
+                            val uri = vm.exportForSharing() ?: return@launch
+                            val send = Intent(Intent.ACTION_SEND)
+                                .setType("text/plain")
+                                .putExtra(Intent.EXTRA_STREAM, uri)
+                                .putExtra(Intent.EXTRA_SUBJECT, ui.book?.title)
+                                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            context.startActivity(Intent.createChooser(send, "Compartir libro"))
+                        }
+                    },
+                    onShelf = vm::setInShelf,
+                    onNewCollection = { sheet = ReaderSheet.NEW_COLLECTION },
+                    onTrash = { sheet = ReaderSheet.TRASH },
+                    onAbout = { sheet = ReaderSheet.ABOUT },
+                )
+                AudioBanner(playback, onRetry = vm::retryAudio, onOpenSettings = onOpenSettings, ttsMode = prefs.ttsMode)
+                val translationDownloads by vm.translationDownloads.collectAsStateWithLifecycle()
+                TranslationModelBanner(ui.missingTranslationModels, translationDownloads, onDownload = vm::downloadTranslationModels)
+            }
+        }
+
         if (ui.preparing) PreparingOverlay(reduceMotion = prefs.reduceMotion, title = ui.book?.title.orEmpty())
-      }
     }
 
     ui.wordCard?.let { card ->
@@ -166,31 +275,448 @@ fun ReaderScreen(onBack: () -> Unit, onOpenSettings: () -> Unit = {}, vm: Reader
     ui.sentenceCard?.let { card ->
         SentenceCardSheet(card = card, onDismiss = vm::dismissCards, onSpeak = vm::speak, onResume = vm::resumeAfterCard)
     }
-    if (showSettings) {
-        ReaderSettingsSheet(
+    val book = ui.book
+    when (sheet) {
+        ReaderSheet.NONE -> Unit
+        ReaderSheet.SETTINGS -> ReaderSettingsSheet(
             prefs = prefs,
             voices = ui.voices,
             selectedVoice = vm.selectedVoice(),
             onUpdate = vm::updatePreferences,
             onVoice = vm::setVoice,
-            onDismiss = { showSettings = false },
+            onDismiss = { sheet = ReaderSheet.NONE },
         )
-    }
-    if (showChapters) {
-        val book = ui.book
-        if (book != null) {
-            ChaptersSheet(
+        ReaderSheet.INDEX -> if (book != null) {
+            val pb = paged
+            IndexSheet(
                 book = book,
-                currentPassageId = ui.passage?.id,
+                currentChapter = currentPage?.chapter,
+                chapterPages = pb?.pages?.withIndex()?.groupBy { it.value.chapter }?.mapValues { it.value.first().index }.orEmpty(),
+                pageOf = { passage, offset -> pb?.pageOf(TextPos(passage, offset)) },
                 bookmarks = ui.bookmarks,
+                vocabulary = vocabulary,
                 translationLanguage = prefs.translationLanguage,
-                onSelectPassage = { id -> vm.goToPassage(id); showChapters = false },
-                onSelectBookmark = { b -> vm.goToPassage(b.passageId, b.charOffset); showChapters = false },
+                onSelectChapter = { c ->
+                    book.chapters.getOrNull(c)?.passages?.firstOrNull()?.let { vm.goToPassage(it.id) }
+                    sheet = ReaderSheet.NONE
+                },
+                onSelectBookmark = { b -> vm.goToBookmark(b); sheet = ReaderSheet.NONE },
                 onDeleteBookmark = vm::deleteBookmark,
-                onDismiss = { showChapters = false },
+                onSelectWord = { w -> vm.goToContext(w); sheet = ReaderSheet.NONE },
+                onDismiss = { sheet = ReaderSheet.NONE },
             )
         }
+        ReaderSheet.SEARCH -> SearchSheet(
+            hits = ui.searchHits,
+            searching = ui.searching,
+            onQuery = vm::search,
+            onSelect = { hit -> vm.goToSearchHit(hit); sheet = ReaderSheet.NONE },
+            onDismiss = { vm.clearSearch(); sheet = ReaderSheet.NONE },
+        )
+        ReaderSheet.ABOUT -> if (book != null) {
+            AboutSheet(
+                book = book,
+                imported = vm.isImported,
+                progress = paged?.let { (pager.currentPage + 1f) / it.size.coerceAtLeast(1) },
+                pageCount = paged?.size,
+                shelves = library.shelves.filter { book.id in it.bookIds }.map { it.name },
+                onDismiss = { sheet = ReaderSheet.NONE },
+            )
+        }
+        ReaderSheet.NEW_COLLECTION -> NewCollectionDialog(
+            onCreate = { name -> vm.createCollection(name); sheet = ReaderSheet.NONE },
+            onDismiss = { sheet = ReaderSheet.NONE },
+        )
+        ReaderSheet.TRASH -> AlertDialog(
+            onDismissRequest = { sheet = ReaderSheet.NONE },
+            title = { Text("Enviar a la papelera") },
+            text = { Text("«${book?.title.orEmpty()}» saldrá de la biblioteca. Puedes restaurarlo desde la Papelera de la biblioteca.") },
+            confirmButton = {
+                TextButton(onClick = { sheet = ReaderSheet.NONE; vm.moveToTrash(onBack) }) { Text("Enviar a la papelera") }
+            },
+            dismissButton = { TextButton(onClick = { sheet = ReaderSheet.NONE }) { Text("Cancelar") } },
+        )
     }
+}
+
+@Composable
+private fun SlideFromEdge(visible: Boolean, fromBottom: Boolean, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = slideInVertically { if (fromBottom) it else -it } + fadeIn(),
+        exit = slideOutVertically { if (fromBottom) it else -it } + fadeOut(),
+        modifier = modifier,
+    ) { content() }
+}
+
+private enum class ReaderSheet { NONE, SETTINGS, INDEX, SEARCH, ABOUT, NEW_COLLECTION, TRASH }
+
+private fun ScreenOrientation.next() = when (this) {
+    ScreenOrientation.PORTRAIT -> ScreenOrientation.LANDSCAPE
+    ScreenOrientation.LANDSCAPE -> ScreenOrientation.AUTO
+    ScreenOrientation.AUTO -> ScreenOrientation.PORTRAIT
+}
+
+/** Oculta las barras del sistema mientras se lee; reaparecen con los controles (o deslizando desde el borde). */
+@Composable
+private fun ImmersiveMode(showSystemBars: Boolean) {
+    val view = LocalView.current
+    DisposableEffect(showSystemBars) {
+        val window = view.context.findActivity()?.window
+        val controller = window?.let { WindowCompat.getInsetsController(it, view) }
+        controller?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        if (showSystemBars) controller?.show(WindowInsetsCompat.Type.systemBars())
+        else controller?.hide(WindowInsetsCompat.Type.systemBars())
+        onDispose { }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            view.context.findActivity()?.window?.let { WindowCompat.getInsetsController(it, view).show(WindowInsetsCompat.Type.systemBars()) }
+        }
+    }
+}
+
+private fun Context.findActivity(): Activity? {
+    var c: Context? = this
+    while (c is ContextWrapper) {
+        if (c is Activity) return c
+        c = c.baseContext
+    }
+    return null
+}
+
+/**
+ * Lectura con la pantalla apagada: mientras suena (modo TTS y ajuste activado) corre el servicio en primer plano.
+ * La primera vez pide el permiso de notificaciones (Android 13+); sin él el servicio funciona igual, sin aviso visible.
+ */
+@Composable
+private fun ReadingServiceEffect(playback: PlaybackState, prefs: UserPreferences, title: String) {
+    val context = LocalContext.current
+    var asked by rememberSaveable { mutableStateOf(false) }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    val active = playback.isPlaying && prefs.ttsMode && prefs.readWithScreenOff
+    LaunchedEffect(active) {
+        if (!active) return@LaunchedEffect
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !asked &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            asked = true
+            permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        ReadingService.start(context, title)
+    }
+    LaunchedEffect(prefs.readWithScreenOff, prefs.ttsMode) {
+        if (!prefs.readWithScreenOff || !prefs.ttsMode) ReadingService.stop(context)
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ReaderTopBar(
+    book: Book?,
+    chapterTitle: String?,
+    chapterPage: Pair<Int, Int>?,
+    ttsMode: Boolean,
+    library: LibraryState,
+    hasIndex: Boolean,
+    onBack: () -> Unit,
+    onToggleTts: () -> Unit,
+    onSearch: () -> Unit,
+    onIndex: () -> Unit,
+    onSettings: () -> Unit,
+    onShare: () -> Unit,
+    onShelf: (Long, Boolean) -> Unit,
+    onNewCollection: () -> Unit,
+    onTrash: () -> Unit,
+    onAbout: () -> Unit,
+) {
+    Surface(color = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, shadowElevation = 4.dp) {
+        Column(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility).padding(bottom = 10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Volver") }
+                Spacer(Modifier.weight(1f))
+                // Orden: navegar (índice, buscar), escuchar, ajustar, más.
+                if (hasIndex) {
+                    IconButton(onClick = onIndex) { Icon(painterResource(R.drawable.ic_list), contentDescription = "Índice, marcadores y vocabulario") }
+                }
+                IconButton(onClick = onSearch) { Icon(painterResource(R.drawable.ic_search), contentDescription = "Buscar en el libro") }
+                IconButton(onClick = onToggleTts) {
+                    Icon(
+                        painterResource(if (ttsMode) R.drawable.ic_volume_up else R.drawable.ic_volume_off),
+                        contentDescription = if (ttsMode) "Desactivar lectura en voz alta" else "Activar lectura en voz alta",
+                    )
+                }
+                IconButton(onClick = onSettings) { Icon(painterResource(R.drawable.ic_settings), contentDescription = "Ajustes de lectura") }
+                OverflowMenu(
+                    ttsMode = ttsMode,
+                    library = library,
+                    bookId = book?.id,
+                    onShare = onShare,
+                    onShelf = onShelf,
+                    onNewCollection = onNewCollection,
+                    onTrash = onTrash,
+                    onAbout = onAbout,
+                )
+            }
+            Column(Modifier.padding(horizontal = 16.dp)) {
+                Text(book?.title.orEmpty(), style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (!book?.authors.isNullOrEmpty()) {
+                    Text(book!!.authors.joinToString(), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                val chapterLine = listOfNotNull(
+                    chapterTitle?.takeIf { it.isNotBlank() },
+                    chapterPage?.let { (n, total) -> "página $n/$total" },
+                ).joinToString(" - ")
+                if (chapterLine.isNotEmpty()) {
+                    Text(chapterLine, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+    }
+}
+
+/** Menú ⋮: compartir, Agregar ▸ (estanterías y colecciones), papelera y detalles. */
+@Composable
+private fun OverflowMenu(
+    ttsMode: Boolean,
+    library: LibraryState,
+    bookId: String?,
+    onShare: () -> Unit,
+    onShelf: (Long, Boolean) -> Unit,
+    onNewCollection: () -> Unit,
+    onTrash: () -> Unit,
+    onAbout: () -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    var addMenu by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true; addMenu = false }) { Icon(painterResource(R.drawable.ic_more_vert), contentDescription = "Más opciones") }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            if (!addMenu) {
+                DropdownMenuItem(
+                    text = { Text("Compartir archivo") },
+                    leadingIcon = { Icon(painterResource(R.drawable.ic_share), contentDescription = null) },
+                    onClick = { open = false; onShare() },
+                )
+                DropdownMenuItem(
+                    text = { Text("Agregar a…") },
+                    leadingIcon = { Icon(painterResource(R.drawable.ic_folder), contentDescription = null) },
+                    trailingIcon = { Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null) },
+                    onClick = { addMenu = true },
+                )
+                DropdownMenuItem(
+                    text = { Text("Enviar a la papelera") },
+                    leadingIcon = { Icon(painterResource(R.drawable.ic_delete), contentDescription = null) },
+                    onClick = { open = false; onTrash() },
+                )
+                DropdownMenuItem(
+                    text = { Text("Acerca del documento") },
+                    leadingIcon = { Icon(painterResource(R.drawable.ic_info), contentDescription = null) },
+                    onClick = { open = false; onAbout() },
+                )
+            } else {
+                DropdownMenuItem(
+                    text = { Text("Agregar a…", fontWeight = FontWeight.SemiBold) },
+                    leadingIcon = { Icon(painterResource(R.drawable.ic_chevron_left), contentDescription = "Volver al menú") },
+                    onClick = { addMenu = false },
+                )
+                HorizontalDivider()
+                library.shelves.forEach { shelf ->
+                    val member = bookId != null && bookId in shelf.bookIds
+                    DropdownMenuItem(
+                        text = { Text(shelf.name) },
+                        leadingIcon = { Checkbox(checked = member, onCheckedChange = null) },
+                        onClick = { onShelf(shelf.id, !member) },
+                    )
+                }
+                HorizontalDivider()
+                DropdownMenuItem(
+                    text = { Text("Nueva colección…") },
+                    leadingIcon = { Icon(painterResource(R.drawable.ic_add), contentDescription = null) },
+                    onClick = { open = false; onNewCollection() },
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ReaderBottomBar(
+    paged: PagedBook,
+    page: Int,
+    orientation: ScreenOrientation,
+    bookmarked: Boolean,
+    withNavigationInset: Boolean,
+    onSeek: (Int) -> Unit,
+    onOrientation: () -> Unit,
+    onBookmark: () -> Unit,
+) {
+    // Mientras se arrastra se muestra la página de destino; al soltar se salta.
+    var dragging by remember { mutableStateOf(false) }
+    var value by remember { mutableFloatStateOf(page.toFloat()) }
+    if (!dragging) value = page.toFloat()
+    val shown = value.toInt() + 1
+    Surface(color = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, shadowElevation = 4.dp) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .then(if (withNavigationInset) Modifier.windowInsetsPadding(WindowInsets.navigationBarsIgnoringVisibility) else Modifier)
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Spacer(Modifier.width(48.dp))
+                Text(
+                    "$shown de ${paged.size}",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f).semantics { contentDescription = "Página $shown de ${paged.size}" },
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+                IconButton(onClick = onOrientation) {
+                    Icon(painterResource(R.drawable.ic_screen_rotation), contentDescription = "Orientación: ${Labels.orientation(orientation)}")
+                }
+                IconButton(onClick = onBookmark) {
+                    Icon(
+                        painterResource(if (bookmarked) R.drawable.ic_bookmark else R.drawable.ic_bookmark_border),
+                        contentDescription = if (bookmarked) "Quitar marcador de esta página" else "Marcar esta página",
+                    )
+                }
+            }
+            if (paged.size > 1) {
+                Slider(
+                    colors = SliderDefaults.colors(
+                        thumbColor = MaterialTheme.colorScheme.onPrimary,
+                        activeTrackColor = MaterialTheme.colorScheme.onPrimary,
+                        inactiveTrackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.35f),
+                    ),
+                    value = value,
+                    onValueChange = { dragging = true; value = it },
+                    onValueChangeFinished = { dragging = false; onSeek(value.toInt()) },
+                    valueRange = 0f..(paged.size - 1).toFloat(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SearchSheet(
+    hits: List<SearchHit>?,
+    searching: Boolean,
+    onQuery: (String) -> Unit,
+    onSelect: (SearchHit) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var query by rememberSaveable { mutableStateOf("") }
+    LaunchedEffect(query) {
+        delay(300)
+        onQuery(query)
+    }
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 16.dp)) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                label = { Text("Buscar en el libro") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { onQuery(query) }),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(8.dp))
+            when {
+                searching -> LinearProgressIndicator(Modifier.fillMaxWidth())
+                hits == null -> Text("Escribe al menos dos letras. No distingue mayúsculas ni acentos.", style = MaterialTheme.typography.bodySmall)
+                hits.isEmpty() -> Text("Sin resultados.", style = MaterialTheme.typography.bodyMedium)
+                else -> {
+                    Text(
+                        if (hits.size >= 200) "Más de 200 resultados (se muestran los primeros)" else "${hits.size} resultados",
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                    LazyColumn(Modifier.fillMaxWidth().height(420.dp)) {
+                        items(hits) { hit ->
+                            Column(Modifier.fillMaxWidth().clickable { onSelect(hit) }.padding(vertical = 8.dp)) {
+                                if (hit.chapterTitle.isNotBlank()) Text(hit.chapterTitle, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                                Text(
+                                    buildAnnotatedString {
+                                        append("…" + hit.before)
+                                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, background = MaterialTheme.colorScheme.secondaryContainer)) { append(hit.match) }
+                                        append(hit.after + "…")
+                                    },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    maxLines = 3,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            HorizontalDivider()
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** «Acerca del documento»: todos los datos del libro. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AboutSheet(book: Book, imported: Boolean, progress: Float?, pageCount: Int?, shelves: List<String>, onDismiss: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(book.title, style = MaterialTheme.typography.headlineSmall)
+            book.description?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+            HorizontalDivider()
+            Detail("Autoría", book.authors.joinToString().ifBlank { "—" })
+            Detail("Idioma", Languages.name(book.learningLanguage))
+            Detail("Nivel", book.cefrLevel.name)
+            book.genre?.let { Detail("Género", it) }
+            Detail("Origen", if (imported) "Importado por ti" else "Incluido en la app")
+            Detail("Capítulos", book.chapters.size.toString())
+            Detail("Pasajes", book.passages.size.toString())
+            pageCount?.let { Detail("Páginas (con el tamaño de letra actual)", it.toString()) }
+            Detail("Palabras", "%,d".format(book.wordCount).replace(',', '.'))
+            Detail("Tiempo estimado de lectura en voz alta", "≈ ${Book.estimateMinutes(book.wordCount, book.cefrLevel)} min")
+            progress?.let { Detail("Progreso", "${(it * 100).toInt()} %") }
+            if (book.fullyTranslatedLanguages.isNotEmpty()) {
+                Detail("Traducciones incluidas", book.fullyTranslatedLanguages.sorted().joinToString { Languages.name(it) })
+            }
+            if (book.glossary.isNotEmpty()) Detail("Entradas de glosario", book.glossary.size.toString())
+            if (shelves.isNotEmpty()) Detail("En", shelves.joinToString())
+            HorizontalDivider()
+            book.adaptationCredit?.let { Detail("Adaptación", it) }
+            Detail("Licencia", book.license.name ?: book.license.id)
+            book.license.url?.let { Detail("Licencia (enlace)", it) }
+            Detail("Procedencia", book.sourceAttribution)
+            Detail("Identificador", book.id)
+        }
+    }
+}
+
+@Composable
+private fun Detail(label: String, value: String) {
+    Column {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+@Composable
+private fun NewCollectionDialog(onCreate: (String) -> Unit, onDismiss: () -> Unit) {
+    var name by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Nueva colección") },
+        text = {
+            OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nombre") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        },
+        confirmButton = { TextButton(onClick = { onCreate(name) }, enabled = name.isNotBlank()) { Text("Crear y agregar") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+    )
 }
 
 /** Falta el modelo de traducción de algún idioma: se ofrece descargarlo (nunca se descarga sin avisar). */
@@ -219,7 +745,8 @@ private fun TranslationModelBanner(missing: List<String>, downloads: Map<String,
 }
 
 @Composable
-private fun AudioBanner(playback: PlaybackState, languageTag: String?, onRetry: () -> Unit, onOpenSettings: () -> Unit) {
+private fun AudioBanner(playback: PlaybackState, onRetry: () -> Unit, onOpenSettings: () -> Unit, ttsMode: Boolean) {
+    if (!ttsMode) return
     val context = LocalContext.current
     val readiness = playback.readiness
     val message = when {
@@ -248,245 +775,6 @@ private fun AudioBanner(playback: PlaybackState, languageTag: String?, onRetry: 
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun PassageContent(ui: ReaderUiState, prefs: UserPreferences, playback: PlaybackState, vm: ReaderViewModel) {
-    val passage = ui.passage ?: return
-    val colors = LocalReaderColors.current
-    val anchor = remember { ActiveTokenAnchor() }
-    val listState = rememberLazyListState()
-    var container by remember { mutableStateOf<Rect?>(null) }
-
-    val textStyle = MaterialTheme.typography.bodyLarge.copy(
-        fontFamily = FontFamily.Serif,
-        fontSize = (20 * prefs.fontScale).sp,
-        lineHeight = (20 * prefs.fontScale * prefs.lineHeight).sp,
-        color = MaterialTheme.colorScheme.onBackground,
-    )
-    val translationStyle = MaterialTheme.typography.bodyMedium.copy(
-        fontSize = (16 * prefs.fontScale).sp,
-        lineHeight = (16 * prefs.fontScale * prefs.lineHeight).sp,
-        color = colors.translation,
-        fontStyle = FontStyle.Italic,
-    )
-
-    // Resaltado honesto: palabra solo con eventos fiables; frase si no; nada si no hay audio activo.
-    val isCurrent = playback.passageId == passage.id &&
-        (playback.status == PlaybackStatus.PLAYING || playback.status == PlaybackStatus.PAUSED)
-    val activeSentence = passage.sentences.getOrNull(playback.sentenceIndex)
-        ?.takeIf { isCurrent && playback.granularity != HighlightGranularity.NONE }
-        ?.let { it.rangeStart until it.rangeEnd }
-    val activeWord = playback.activeTokenId
-        ?.takeIf { isCurrent && playback.granularity == HighlightGranularity.WORD }
-        ?.let(passage::tokenById)
-        ?.let { it.rangeStart until it.rangeEnd }
-
-    val showImage = passage.image != null && (prefs.showIllustrations || prefs.displayMode == DisplayMode.ILLUSTRATED)
-    val perSentence = prefs.displayMode == DisplayMode.TRANSLATION_BELOW || prefs.displayMode == DisplayMode.TRANSLATION_ON_TAP
-    val firstSentenceItem = 1 + if (showImage) 1 else 0
-
-    // Auto-scroll guiado por la posición visible del token/frase (no por el reproductor).
-    LaunchedEffect(listState, prefs.autoScroll, prefs.reduceMotion) {
-        if (!prefs.autoScroll) return@LaunchedEffect
-        snapshotFlow { anchor.focusBounds }.filterNotNull().collect { focus ->
-            val c = container ?: return@collect
-            if (listState.isScrollInProgress) return@collect
-            val margin = c.height * 0.15f
-            if (focus.top < c.top + margin || focus.bottom > c.bottom - margin) {
-                val delta = focus.top - (c.top + c.height * 0.3f)
-                if (prefs.reduceMotion) listState.scrollBy(delta) else listState.animateScrollBy(delta)
-            }
-        }
-    }
-    // En modos por frase, la frase activa puede no estar compuesta todavía: desplazar al ítem.
-    LaunchedEffect(playback.sentenceIndex, playback.passageId, perSentence, prefs.autoScroll) {
-        if (!perSentence || !prefs.autoScroll || !isCurrent) return@LaunchedEffect
-        val index = firstSentenceItem + playback.sentenceIndex
-        if (listState.layoutInfo.visibleItemsInfo.none { it.index == index }) {
-            if (prefs.reduceMotion) listState.scrollToItem(index) else listState.animateScrollToItem(index)
-        }
-    }
-    LaunchedEffect(passage.id) { listState.scrollToItem(0) }
-
-    fun tokenText(start: Int, end: Int, sentenceIdForAction: String, modifier: Modifier = Modifier): @Composable () -> Unit = {
-        TokenText(
-            passageText = passage.text,
-            segmentStart = start,
-            segmentEnd = end,
-            tokens = passage.tokens.filter { it.rangeStart >= start && it.rangeEnd <= end },
-            activeWord = activeWord,
-            activeSentence = activeSentence,
-            highlightStyle = prefs.highlightStyle,
-            colors = colors,
-            textStyle = textStyle,
-            anchor = anchor,
-            onTap = { vm.onTokenTap(it.id) },
-            onLongPress = { vm.onTokenLongPress(it.id) },
-            accessibilityActionLabel = "Traducir frase",
-            onAccessibilityAction = { vm.onSentenceAction(sentenceIdForAction) },
-            modifier = modifier,
-        )
-    }
-
-    Box(Modifier.fillMaxSize().onGloballyPositioned { container = it.boundsInRoot() }) {
-        LazyColumn(
-            state = listState,
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            item(key = "header") {
-                val chapterTranslation = ui.chapter?.titleTranslations?.let { LanguageTags.lookup(it, prefs.translationLanguage) }
-                Column {
-                    Text(
-                        "Pasaje ${ui.passageIndex + 1} de ${ui.totalPassages}",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.semantics { heading() },
-                    )
-                    if (chapterTranslation != null && prefs.displayMode != DisplayMode.TEXT_ONLY) {
-                        Text(chapterTranslation, style = translationStyle)
-                    }
-                }
-            }
-            if (showImage) {
-                item(key = "image-${passage.id}") {
-                    PassageImage(ui.image, passage, large = prefs.displayMode == DisplayMode.ILLUSTRATED)
-                }
-            }
-            when (prefs.displayMode) {
-                DisplayMode.TEXT_ONLY, DisplayMode.ILLUSTRATED -> item(key = "text-${passage.id}") {
-                    tokenText(0, passage.text.length, passage.sentences.first().id)()
-                }
-                DisplayMode.TRANSLATION_BELOW, DisplayMode.TRANSLATION_ON_TAP -> sentenceItems(
-                    passage = passage,
-                    showTranslation = { s -> prefs.displayMode == DisplayMode.TRANSLATION_BELOW || s.id in ui.revealedSentences },
-                    translations = ui.sentenceTranslations,
-                    target = prefs.translationLanguage,
-                    translationStyle = translationStyle,
-                    onToggle = vm::toggleRevealed,
-                    tapMode = prefs.displayMode == DisplayMode.TRANSLATION_ON_TAP,
-                    content = { s -> tokenText(s.rangeStart, s.rangeEnd, s.id)() },
-                )
-                DisplayMode.BILINGUAL_BLOCKS -> {
-                    item(key = "orig-${passage.id}") {
-                        BlockCard { tokenText(0, passage.text.length, passage.sentences.first().id)() }
-                    }
-                    item(key = "trans-${passage.id}") {
-                        BlockCard(tinted = true) {
-                            val block = passage.sentences.map { ui.sentenceTranslations[it.id] }
-                            if (block.all { it is TranslationResult.Translated }) {
-                                Text(block.joinToString(" ") { (it as TranslationResult.Translated).text }, style = translationStyle.copy(fontStyle = FontStyle.Normal))
-                            } else {
-                                val reason = block.firstNotNullOfOrNull { it as? TranslationResult.Unavailable }?.reason
-                                    ?: TranslationResult.Reason.NO_ENTRY
-                                Text(Labels.unavailable(reason, prefs.translationLanguage), style = translationStyle)
-                            }
-                        }
-                    }
-                }
-            }
-            item(key = "nav") {
-                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                    OutlinedButton(onClick = vm::previousPassage, enabled = ui.hasPrevious) {
-                        Icon(painterResource(R.drawable.ic_chevron_left), contentDescription = null)
-                        Text("Anterior")
-                    }
-                    OutlinedButton(onClick = vm::nextPassage, enabled = ui.hasNext) {
-                        Text("Siguiente")
-                        Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null)
-                    }
-                }
-            }
-            if (!ui.hasNext) {
-                item(key = "credits") { Credits(ui) }
-            }
-        }
-        if (prefs.fingerPointerEnabled) {
-            FingerPointerOverlay(
-                target = anchor.tokenBounds,
-                container = container,
-                reduceMotion = prefs.reduceMotion,
-                fill = colors.pointer,
-                outline = colors.pointerOutline,
-            )
-        }
-    }
-}
-
-private fun LazyListScope.sentenceItems(
-    passage: Passage,
-    showTranslation: (Sentence) -> Boolean,
-    translations: Map<String, TranslationResult>,
-    target: String,
-    translationStyle: TextStyle,
-    onToggle: (String) -> Unit,
-    tapMode: Boolean,
-    content: @Composable (Sentence) -> Unit,
-) {
-    itemsIndexed(passage.sentences, key = { _, s -> "${passage.id}-${s.id}" }) { _, s ->
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            content(s)
-            if (showTranslation(s)) {
-                val text = when (val t = translations[s.id]) {
-                    is TranslationResult.Translated -> t.text
-                    is TranslationResult.Unavailable -> Labels.unavailable(t.reason, target)
-                    null -> "…"
-                }
-                Text(
-                    text,
-                    style = translationStyle,
-                    modifier = if (tapMode) Modifier.clickable { onToggle(s.id) } else Modifier,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun PassageImage(image: ImageBitmap?, passage: Passage, large: Boolean) {
-    val media = passage.image ?: return
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .aspectRatio(if (large) 4f / 3f else 16f / 9f)
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-        ) {
-            if (image != null) {
-                Image(bitmap = image, contentDescription = media.alt, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-            }
-        }
-        media.credit?.let {
-            Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable
-private fun BlockCard(tinted: Boolean = false, content: @Composable () -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = if (tinted) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Box(Modifier.padding(16.dp)) { content() }
-    }
-}
-
-@Composable
-private fun Credits(ui: ReaderUiState) {
-    val book = ui.book ?: return
-    Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Spacer(Modifier.height(8.dp))
-        Text("Créditos", style = MaterialTheme.typography.titleSmall)
-        Text(book.sourceAttribution, style = MaterialTheme.typography.bodySmall)
-        if (book.authors.isNotEmpty()) Text("Autoría: ${book.authors.joinToString()}", style = MaterialTheme.typography.bodySmall)
-        book.adaptationCredit?.let { Text("Adaptación: $it", style = MaterialTheme.typography.bodySmall) }
-        Text("Licencia: ${book.license.name ?: book.license.id}", style = MaterialTheme.typography.bodySmall)
     }
 }
 

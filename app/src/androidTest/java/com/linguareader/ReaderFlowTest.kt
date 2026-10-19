@@ -2,7 +2,7 @@ package com.linguareader
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.click
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.hasScrollToNodeAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performScrollToNode
@@ -38,8 +38,8 @@ class ReaderFlowTest {
     @Before
     fun setUp() {
         hilt.inject()
-        // Sin la pantalla inicial de traducción, que taparía la biblioteca.
-        runBlocking { preferences.update { UserPreferences(translationSetupDone = true) } }
+        // Sin las pantallas iniciales (modo y traducción), que taparían la biblioteca.
+        runBlocking { preferences.update { UserPreferences(translationSetupDone = true, ttsModeChosen = true) } }
     }
 
     /** Los libros importados van primero: el incluido puede estar fuera de pantalla. */
@@ -77,12 +77,12 @@ class ReaderFlowTest {
     }
 
     @Test
-    fun tappingAWordWithoutGlossaryEntryFallsBackToMachineTranslation() {
+    fun longPressingAWordWithoutGlossaryEntryFallsBackToMachineTranslation() {
         openRedKite()
         // Primera palabra del pasaje: "Tom" (nombre propio, sin entrada en el glosario). Sin dato
         // incluido, se usa el traductor del dispositivo: o traduce (y lo indica) o pide el modelo.
         compose.onNodeWithText("Tom is eight years old.", substring = true).performTouchInput {
-            click(Offset(15f, 30f)) // dentro de la primera línea, sobre la primera palabra
+            longClick(Offset(15f, 30f)) // pulsación larga sobre la primera palabra (el toque pasa página / muestra controles)
         }
         compose.waitUntilAtLeastOneExists(
             hasText("Traducción automática", substring = true) or hasText("Falta descargar el traductor", substring = true),

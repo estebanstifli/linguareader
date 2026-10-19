@@ -93,18 +93,7 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) 
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             TranslationSection()
-
-            HorizontalDivider()
-            SectionTitle("Apariencia")
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                ThemeMode.entries.forEachIndexed { i, mode ->
-                    SegmentedButton(
-                        selected = prefs.theme == mode,
-                        onClick = { vm.update { it.copy(theme = mode) } },
-                        shape = SegmentedButtonDefaults.itemShape(i, ThemeMode.entries.size),
-                    ) { Text(Labels.theme(mode)) }
-                }
-            }
+            LibrarySection()
 
             HorizontalDivider()
             ReaderPreferencesPanel(prefs = prefs, onUpdate = { t -> vm.update(t) }, voices = emptyList(), selectedVoice = null, onVoice = {})
@@ -145,6 +134,19 @@ fun ReaderPreferencesPanel(
     onVoice: (String?) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        SwitchRow("Modo aprendizaje con voz (TTS)", prefs.ttsMode) { v -> onUpdate { it.copy(ttsMode = v, ttsModeChosen = true) } }
+
+        SectionTitle("Tema")
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            ThemeMode.entries.forEachIndexed { i, mode ->
+                SegmentedButton(
+                    selected = prefs.theme == mode,
+                    onClick = { onUpdate { it.copy(theme = mode) } },
+                    shape = SegmentedButtonDefaults.itemShape(i, ThemeMode.entries.size),
+                ) { Text(Labels.theme(mode)) }
+            }
+        }
+
         SectionTitle("Modo de visualización")
         DisplayMode.entries.forEach { mode ->
             Row(
@@ -175,9 +177,10 @@ fun ReaderPreferencesPanel(
         }
 
         SwitchRow("Dedo indicador sobre la palabra", prefs.fingerPointerEnabled) { v -> onUpdate { it.copy(fingerPointerEnabled = v) } }
-        SwitchRow("Desplazamiento automático", prefs.autoScroll) { v -> onUpdate { it.copy(autoScroll = v) } }
+        SwitchRow("Pasar página automáticamente al leer en voz alta", prefs.autoScroll) { v -> onUpdate { it.copy(autoScroll = v) } }
         SwitchRow("Mostrar ilustraciones", prefs.showIllustrations) { v -> onUpdate { it.copy(showIllustrations = v) } }
-        SwitchRow("Pausar al tocar una palabra", prefs.pauseOnWordTap) { v -> onUpdate { it.copy(pauseOnWordTap = v) } }
+        SwitchRow("Seguir leyendo con la pantalla apagada", prefs.readWithScreenOff) { v -> onUpdate { it.copy(readWithScreenOff = v) } }
+        SwitchRow("Pausar al consultar una palabra", prefs.pauseOnWordTap) { v -> onUpdate { it.copy(pauseOnWordTap = v) } }
         SwitchRow("Continuar con el siguiente pasaje", prefs.autoContinue) { v -> onUpdate { it.copy(autoContinue = v) } }
         SwitchRow("Reducir movimiento", prefs.reduceMotion) { v -> onUpdate { it.copy(reduceMotion = v) } }
 
@@ -196,6 +199,16 @@ fun ReaderPreferencesPanel(
         }
         LabeledSlider("Interlineado", prefs.lineHeight, 1.2f..2.2f, "%.1f".format(Locale.ROOT, prefs.lineHeight)) { v ->
             onUpdate { it.copy(lineHeight = v) }
+        }
+        Text("Alineación", style = MaterialTheme.typography.labelLarge)
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            com.linguareader.core.model.TextJustification.entries.forEachIndexed { i, mode ->
+                SegmentedButton(
+                    selected = prefs.textJustification == mode,
+                    onClick = { onUpdate { it.copy(textJustification = mode) } },
+                    shape = SegmentedButtonDefaults.itemShape(i, com.linguareader.core.model.TextJustification.entries.size),
+                ) { Text(Labels.justification(mode), maxLines = 1) }
+            }
         }
 
         SectionTitle("Traducir al")

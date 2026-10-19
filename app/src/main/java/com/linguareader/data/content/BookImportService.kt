@@ -64,6 +64,13 @@ class BookImportService @Inject constructor(
         }
     }
 
+    /** Fichero local de la app (EPUB de una biblioteca descargada). */
+    suspend fun readFile(file: File): ImportDraft = withContext(Dispatchers.IO) {
+        withTempCopy(file.inputStream(), MAX_FILE_BYTES) { copy, hash ->
+            draft(hash, file.name, registry.extract(DocumentSource(copy, file.name, null)))
+        }
+    }
+
     /** Página web: única operación con red, siempre iniciada por el usuario. Las imágenes remotas no se descargan. */
     suspend fun readUrl(url: String): ImportDraft = withContext(Dispatchers.IO) {
         val parsed = runCatching { URL(url) }.getOrNull()
@@ -108,12 +115,24 @@ class BookImportService @Inject constructor(
         draft(Hashing.sha256Hex(text), name, document)
     }
 
-    suspend fun commit(draft: ImportDraft, title: String, author: String, language: String, level: CefrLevel): String =
+    /**
+     * @param stableId id fijo (sin prefijo) en lugar del derivado del contenido: los libros de una
+     *   biblioteca conservan progreso, marcadores y vocabulario cuando se actualiza su texto.
+     */
+    suspend fun commit(
+        draft: ImportDraft,
+        title: String,
+        author: String,
+        language: String,
+        level: CefrLevel,
+        stableId: String? = null,
+    ): String =
         withContext(Dispatchers.Default) {
+            val bookId = stableId?.let { ImportedBookRepository.ID_PREFIX + it } ?: draft.bookId
             val book = builder.build(
                 draft.document,
                 ImportOptions(
-                    bookId = draft.bookId,
+                    bookId = bookId,
                     title = title.ifBlank { draft.document.title ?: draft.sourceName },
                     authors = author.split(',').map(String::trim).filter(String::isNotEmpty),
                     language = language,
@@ -122,7 +141,7 @@ class BookImportService @Inject constructor(
                 ),
             )
             repository.save(book, draft.document.format)
-            draft.bookId
+            bookId
         }
 
     suspend fun delete(bookId: String) = repository.delete(bookId)

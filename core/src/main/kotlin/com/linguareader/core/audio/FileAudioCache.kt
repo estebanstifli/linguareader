@@ -9,7 +9,7 @@ import java.io.File
  *
  * - Escritura atómica: se escribe en `.part` y se renombra.
  * - LRU por fecha de último acceso; al superar el límite se borran los más antiguos. Cada entrada
- *   incluye su alineación ([AlignmentSidecar]): cuenta en el tamaño y se borra junto al audio, de modo
+ *   incluye su alineación ([AlignmentSidecar]) y las marcas del motor si las hay ([SpokenMarksSidecar]): cuenta en el tamaño y se borra junto al audio, de modo
  *   que un segmento ya generado y alineado no se rehace hasta que el LRU lo expulse.
  * - Hilo-seguro a nivel de proceso (métodos sincronizados); el contenido es inmutable por clave.
  */
@@ -53,7 +53,7 @@ class FileAudioCache(
     fun commit(key: String, tmp: File): File {
         val target = fileFor(key)
         if (target.exists()) target.delete()
-        AlignmentSidecar.fileFor(target).delete() // audio nuevo: la alineación anterior ya no vale
+        sidecarsOf(target).forEach { it.delete() } // audio nuevo: la alineación y las marcas anteriores ya no valen
         check(tmp.renameTo(target)) { "No se pudo publicar $target" }
         target.setLastModified(clock())
         trim()
@@ -96,17 +96,22 @@ class FileAudioCache(
         }
     }
 
-    private fun sizeOf(audio: File) = audio.length() + AlignmentSidecar.fileFor(audio).length()
+    /** Ficheros que acompañan a un audio: alineación ([AlignmentSidecar]) y marcas del motor ([SpokenMarksSidecar]). */
+    private fun sidecarsOf(audio: File) = listOf(AlignmentSidecar.fileFor(audio), SpokenMarksSidecar.fileFor(audio))
+
+    private fun sizeOf(audio: File) = audio.length() + sidecarsOf(audio).sumOf { it.length() }
 
     private fun delete(audio: File) {
         audio.delete()
-        AlignmentSidecar.fileFor(audio).delete()
+        sidecarsOf(audio).forEach { it.delete() }
     }
 
     private fun removeOrphanSidecars() {
-        directory.listFiles { f -> f.name.endsWith(AlignmentSidecar.SUFFIX) }
-            ?.filter { !File(it.path.removeSuffix(AlignmentSidecar.SUFFIX)).exists() }
-            ?.forEach { it.delete() }
+        for (suffix in listOf(AlignmentSidecar.SUFFIX, SpokenMarksSidecar.SUFFIX)) {
+            directory.listFiles { f -> f.name.endsWith(suffix) }
+                ?.filter { !File(it.path.removeSuffix(suffix)).exists() }
+                ?.forEach { it.delete() }
+        }
     }
 
     private fun entries(): List<File> =

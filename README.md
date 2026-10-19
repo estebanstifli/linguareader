@@ -125,3 +125,13 @@ Los textos de demostración son originales y se escribieron para este proyecto. 
 genera `tools/generate_demo_images.py` (CC0-1.0). Los iconos de UI usan trazados de Material
 Icons (Apache-2.0). El resumen de licencias está en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#licencias).
 No hay claves de API ni modelos binarios en el repositorio.
+
+Las **bibliotecas de lecturas graduadas** (inglés, español, francés) son adaptaciones propias de obras
+de dominio público (`content/graded-books/`). Se publican como zip de EPUB por idioma en la release
+`library-v1`:
+
+```
+python -I tools/make_covers.py        # ilustraciones (OpenAI; OPENAI_API_KEY en .env), solo las que falten
+python -I tools/build_library.py      # EPUB + zips + catálogo (dist/library/ y assets/packs/libraries.json)
+python -I tools/build_library.py --upload   # sube a la release library-v1 (gh)
+```

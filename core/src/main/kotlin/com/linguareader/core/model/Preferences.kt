@@ -15,7 +15,13 @@ enum class DisplayMode {
 
 enum class HighlightStyle { BACKGROUND, UNDERLINE, MARKER }
 
-enum class ThemeMode { SYSTEM, LIGHT, DARK }
+enum class ThemeMode { SYSTEM, LIGHT, DARK, SEPIA }
+
+/** Alineación del texto en el lector paginado. */
+enum class TextJustification { LEFT, JUSTIFIED, JUSTIFIED_HYPHENATED }
+
+/** Orientación de la pantalla (se aplica a toda la app). */
+enum class ScreenOrientation { PORTRAIT, LANDSCAPE, AUTO }
 
 data class UserPreferences(
     /** Idioma de lectura (filtro del catálogo). null = todos. */
@@ -56,6 +62,21 @@ data class UserPreferences(
     val translationSetupDone: Boolean = false,
     /** Descargar modelos de traducción solo con Wi-Fi. */
     val translationWifiOnly: Boolean = true,
+    /**
+     * Modo aprendizaje con voz (TTS, resaltado, controles de reproducción). Desactivado = lector clásico:
+     * no se genera audio ni se muestran los controles de reproducción.
+     */
+    val ttsMode: Boolean = true,
+    /** Ya se preguntó al usuario, en la primera apertura, si quiere el modo con voz. */
+    val ttsModeChosen: Boolean = false,
+    /** Ya se preguntó, en la primera apertura del modo aprendizaje, qué idioma aprender (y se ofreció su biblioteca). */
+    val learnLanguageChosen: Boolean = false,
+    val orientation: ScreenOrientation = ScreenOrientation.PORTRAIT,
+    val textJustification: TextJustification = TextJustification.JUSTIFIED_HYPHENATED,
+    /** Seguir leyendo en voz alta con la pantalla bloqueada (servicio en primer plano con notificación). */
+    val readWithScreenOff: Boolean = true,
+    /** Biblioteca en cuadrícula de portadas (true) o en lista de fichas (false). */
+    val libraryGrid: Boolean = false,
 ) {
     companion object {
         const val MIN_SPEECH_RATE = 0.5f
