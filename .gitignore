@@ -20,3 +20,15 @@ secrets.properties
 
 # Modelos descargados para pruebas en el PC (Supertonic: ~398 MB)
 .models/
+
+# Biblioteca EPUB: artefactos generados con tools/build_library.py (se publican en la release library-v1)
+/dist/
+content/graded-books/**/*.epub
+# Fuente de las portadas: la descarga tools/make_covers.py (licencia en tools/fonts/OFL.txt)
+tools/fonts/*.ttf
+
+# Claves locales (OPENAI_API_KEY): nunca en git
+.env
+__pycache__/
+# Descargas temporales de los agentes de libros
+.claude/scratch*/

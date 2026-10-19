@@ -1,0 +1,230 @@
+{
+  "the-brave-little-tailor": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Warm painted storybook illustration, gouache and ink, soft textures, rich but gentle colours, friendly characters, suitable for teenage and adult language learners. Scene from \"The Brave Little Tailor\" by Brothers Grimm: a tiny cheerful tailor with a needle on his hat and a belt, standing proudly in front of a huge friendly-looking giant on a mountain top, a little bird flying free above them. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "hansel-and-gretel": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Warm painted storybook illustration, gouache and ink, soft textures, rich but gentle colours, friendly characters, suitable for teenage and adult language learners. Scene from \"Hansel and Gretel\" by Brothers Grimm: a brother and sister holding hands in a dark forest, looking at a small cottage made of bread, cake and sugar windows, warm light from the windows. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "puss-in-boots": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Warm painted storybook illustration, gouache and ink, soft textures, rich but gentle colours, friendly characters, suitable for teenage and adult language learners. Scene from \"Puss in Boots\" by Charles Perrault: a clever cat wearing tall leather boots and carrying a sack, bowing in a sunny wheat field beside a country road, a royal carriage far away. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "the-steadfast-tin-soldier": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Warm painted storybook illustration, gouache and ink, soft textures, rich but gentle colours, friendly characters, suitable for teenage and adult language learners. Scene from \"The Steadfast Tin Soldier\" by Hans Christian Andersen: a one-legged tin soldier standing very straight in a small paper boat on a stream, a paper ballerina in a castle window in the background. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "little-red-riding-hood": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Warm painted storybook illustration, gouache and ink, soft textures, rich but gentle colours, friendly characters, suitable for teenage and adult language learners. Scene from \"Little Red Riding Hood\" by Brothers Grimm: a little girl in a red velvet hood carrying a basket along a forest path among flowers, a grey wolf watching from behind an oak tree. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "the-emperors-new-clothes": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Warm painted storybook illustration, gouache and ink, soft textures, rich but gentle colours, friendly characters, suitable for teenage and adult language learners. Scene from \"The Emperor's New Clothes\" by Hans Christian Andersen: a royal procession in a medieval town square, the emperor walking proudly under a canopy in only his underwear, courtiers pretending to admire, a small child pointing and laughing. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "jack-and-the-beanstalk": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Warm painted storybook illustration, gouache and ink, soft textures, rich but gentle colours, friendly characters, suitable for teenage and adult language learners. Scene from \"Jack and the Beanstalk\" by English folk tale: a boy climbing an enormous twisting beanstalk up through the clouds, a giant's castle on the clouds above, a small cottage far below. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "beauty-and-the-beast": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Warm painted storybook illustration, gouache and ink, soft textures, rich but gentle colours, friendly characters, suitable for teenage and adult language learners. Scene from \"Beauty and the Beast\" by Jeanne-Marie Leprince de Beaumont: a young woman in an eighteenth-century dress holding a single red rose in a moonlit garden of an old palace, a large gentle furry beast in a cloak standing at a distance. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "rumpelstiltskin": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Warm painted storybook illustration, gouache and ink, soft textures, rich but gentle colours, friendly characters, suitable for teenage and adult language learners. Scene from \"Rumpelstiltskin\" by Brothers Grimm: a young woman at a spinning wheel in a stone tower room full of straw, golden thread glowing on the spool, a small strange man with a long beard dancing by a fire outside the window. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "the-little-mermaid": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Warm painted storybook illustration, gouache and ink, soft textures, rich but gentle colours, friendly characters, suitable for teenage and adult language learners. Scene from \"The Little Mermaid\" by Hans Christian Andersen: a young mermaid sitting on a rock in the open sea at sunset, looking at a tall sailing ship with lanterns, coral and fish below the waves. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "the-three-little-pigs": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Warm painted storybook illustration, gouache and ink, soft textures, rich but gentle colours, friendly characters, suitable for teenage and adult language learners. Scene from \"The Three Little Pigs\" by English folk tale: three little pigs in front of three houses of straw, sticks and bricks on a green hillside, a wolf peeking from behind a hill. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "the-jungle-book": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Warm painted storybook illustration, gouache and ink, soft textures, rich but gentle colours, friendly characters, suitable for teenage and adult language learners. Scene from \"The Jungle Book\" by Rudyard Kipling: a young Indian boy sitting on a rock in the jungle with a black panther and a big brown bear, a wolf pack in the shadows, warm evening light. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "snow-white": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Warm painted storybook illustration, gouache and ink, soft textures, rich but gentle colours, friendly characters, suitable for teenage and adult language learners. Scene from \"Snow White\" by Brothers Grimm: a girl with black hair and red lips in a forest clearing in front of a tiny cottage with seven small beds visible through the window, an old pedlar woman offering a red apple. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "rapunzel": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Warm painted storybook illustration, gouache and ink, soft textures, rich but gentle colours, friendly characters, suitable for teenage and adult language learners. Scene from \"Rapunzel\" by Brothers Grimm: a tall stone tower without doors in a forest, a girl with very long golden braided hair letting it fall from the only window, a prince on horseback below. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "cinderella": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Warm painted storybook illustration, gouache and ink, soft textures, rich but gentle colours, friendly characters, suitable for teenage and adult language learners. Scene from \"Cinderella\" by Charles Perrault: a young woman in a shining ball gown running down the wide palace steps at midnight, one glass slipper left on a step, a pumpkin coach waiting below. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "the-gingerbread-man": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Warm painted storybook illustration, gouache and ink, soft textures, rich but gentle colours, friendly characters, suitable for teenage and adult language learners. Scene from \"The Gingerbread Man\" by American folk tale: a little gingerbread man with raisin eyes and cherry buttons running along a country road, an old woman, a cow and a pig chasing him, a river and a fox far ahead. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "peter-pan": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Warm painted storybook illustration, gouache and ink, soft textures, rich but gentle colours, friendly characters, suitable for teenage and adult language learners. Scene from \"Peter Pan\" by J. M. Barrie: a boy dressed in leaves and a tiny glowing fairy flying with three children over the rooftops of Edwardian London at night, a big clock tower and the moon. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "treasure-island": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Painted illustration in the manner of classic early twentieth-century book illustration, atmospheric light, detailed period setting, rich colours. Scene from \"Treasure Island\" by Robert Louis Stevenson: a boy and a one-legged sailor with a crutch and a parrot on his shoulder standing on the deck of an eighteenth-century schooner, a tropical island with three hills on the horizon. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "a-christmas-carol": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Painted illustration in the manner of classic early twentieth-century book illustration, atmospheric light, detailed period setting, rich colours. Scene from \"A Christmas Carol\" by Charles Dickens: an old miser in a nightgown and nightcap holding a candle in a dark Victorian bedroom, a pale chained ghost appearing at the bed curtains, snow at the window. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "the-call-of-the-wild": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Painted illustration in the manner of classic early twentieth-century book illustration, atmospheric light, detailed period setting, rich colours. Scene from \"The Call of the Wild\" by Jack London: a big strong dog, half St Bernard and half shepherd, standing on a snowy ridge under the northern lights, a sled team and a log cabin far below in the Yukon. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "around-the-world-in-eighty-days": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Painted illustration in the manner of classic early twentieth-century book illustration, atmospheric light, detailed period setting, rich colours. Scene from \"Around the World in Eighty Days\" by Jules Verne: a calm Victorian gentleman in a top hat and his French servant riding an elephant through an Indian forest, a steamship and a train in the distance, a pocket watch motif in the sky. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "the-canterville-ghost": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Painted illustration in the manner of classic early twentieth-century book illustration, atmospheric light, detailed period setting, rich colours. Scene from \"The Canterville Ghost\" by Oscar Wilde: an old English manor library at night, a comic medieval ghost in rusty chains looking annoyed at a red stain on the floor, a girl with a lantern on the stairs. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "the-adventures-of-tom-sawyer": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Painted illustration in the manner of classic early twentieth-century book illustration, atmospheric light, detailed period setting, rich colours. Scene from \"The Adventures of Tom Sawyer\" by Mark Twain: a barefoot boy in a straw hat painting a long white wooden fence on a sunny summer day, a Mississippi steamboat on the river behind. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "the-secret-garden": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Painted illustration in the manner of classic early twentieth-century book illustration, atmospheric light, detailed period setting, rich colours. Scene from \"The Secret Garden\" by Frances Hodgson Burnett: a girl in a Victorian coat pushing open a wooden door hidden under ivy in an old brick wall, a robin on a branch, a wild garden of roses beyond. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "the-hound-of-the-baskervilles": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Painted illustration in the manner of classic early twentieth-century book illustration, atmospheric light, detailed period setting, rich colours. Scene from \"The Hound of the Baskervilles\" by Arthur Conan Doyle: a huge dark hound with glowing eyes on a foggy moor at night, a granite tor and a lonely Victorian manor house with lit windows in the distance. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "robinson-crusoe": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Painted illustration in the manner of classic early twentieth-century book illustration, atmospheric light, detailed period setting, rich colours. Scene from \"Robinson Crusoe\" by Daniel Defoe: a castaway in goatskin clothes and a goatskin umbrella standing on a tropical beach, looking at a single human footprint in the sand, a wooden fence and a cave behind. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "anne-of-green-gables": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Painted illustration in the manner of classic early twentieth-century book illustration, atmospheric light, detailed period setting, rich colours. Scene from \"Anne of Green Gables\" by L. M. Montgomery: a red-haired orphan girl with a straw hat and a carpet bag sitting on a bench at a small country station, a horse and buggy arriving, cherry trees in white blossom. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "the-strange-case-of-dr-jekyll-and-mr-hyde": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Painted illustration in the manner of classic early twentieth-century book illustration, atmospheric light, detailed period setting, rich colours. Scene from \"The Strange Case of Dr Jekyll and Mr Hyde\" by Robert Louis Stevenson: a foggy Victorian London street at night under a gas lamp, a respectable gentleman's shadow on the wall turning into a crooked sinister figure, a laboratory door. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "the-time-machine": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Painted illustration in the manner of classic early twentieth-century book illustration, atmospheric light, detailed period setting, rich colours. Scene from \"The Time Machine\" by H. G. Wells: a Victorian inventor seated in a brass and ivory time machine with glowing quartz rods, far-future ruins and a giant white sphinx statue under a strange sky. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "the-invisible-man": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Painted illustration in the manner of classic early twentieth-century book illustration, atmospheric light, detailed period setting, rich colours. Scene from \"The Invisible Man\" by H. G. Wells: an empty suit of clothes with gloves, bandaged head, dark goggles and a hat, standing in a snowy English village street, frightened villagers in the background. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "the-wonderful-wizard-of-oz": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Painted illustration in the manner of classic early twentieth-century book illustration, atmospheric light, detailed period setting, rich colours. Scene from \"The Wonderful Wizard of Oz\" by L. Frank Baum: a girl in a blue and white gingham dress and silver shoes with a little black dog, a scarecrow, a tin woodman and a lion on a yellow brick road, a green city on the horizon. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "the-happy-prince-and-other-stories": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Painted illustration in the manner of classic early twentieth-century book illustration, atmospheric light, detailed period setting, rich colours. Scene from \"The Happy Prince and Other Stories\" by Oscar Wilde: a tall golden statue of a prince covered in gold leaf with sapphire eyes on a column above a winter city, a small swallow resting at his feet. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "sherlock-holmes-four-adventures": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Painted illustration in the manner of classic early twentieth-century book illustration, atmospheric light, detailed period setting, rich colours. Scene from \"Sherlock Holmes: Four Adventures\" by Arthur Conan Doyle: a tall detective in a cape coat with a magnifying glass and his friend with a moustache, in a Victorian sitting room at Baker Street, a violin and a fireplace, gaslight. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "pride-and-prejudice": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Painted illustration in the manner of classic early twentieth-century book illustration, atmospheric light, detailed period setting, rich colours. Scene from \"Pride and Prejudice\" by Jane Austen: a young woman in a Regency empire-waist dress walking across green English fields with muddy hems, a grand country house and a reserved gentleman on the path ahead. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "frankenstein": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Painted illustration in the manner of classic early twentieth-century book illustration, atmospheric light, detailed period setting, rich colours. Scene from \"Frankenstein\" by Mary Shelley: a young scientist with a candle in a stormy attic laboratory with glass jars and electrical apparatus, lightning through the window, an enormous figure lying under a sheet. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "dracula": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Painted illustration in the manner of classic early twentieth-century book illustration, atmospheric light, detailed period setting, rich colours. Scene from \"Dracula\" by Bram Stoker: a gloomy castle on a cliff in the Carpathian mountains at night with a full moon, a horse-drawn carriage on a winding road, wolves on the rocks, bats in the sky. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "the-great-gatsby": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Painted illustration in the manner of classic early twentieth-century book illustration, atmospheric light, detailed period setting, rich colours. Scene from \"The Great Gatsby\" by F. Scott Fitzgerald: a 1920s Long Island mansion lit up for a party on the shore at night, a man in a white suit on a dock looking at a small green light across the bay. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  },
+  "the-adventures-of-pinocchio": {
+    "model": "gpt-image-2.5-flare",
+    "size": "1024x1536",
+    "quality": "medium",
+    "prompt": "Warm painted storybook illustration, gouache and ink, soft textures, rich but gentle colours, friendly characters, suitable for teenage and adult language learners. Scene from a classic Italian children's novel of 1883: a poor old Italian woodcarver with a yellow wig in a tiny bare workshop, holding up a rough log of pine wood with chisel and mallet, a fireplace with a pot merely painted on the wall, a little green cricket on the floor, warm afternoon light. Vertical book cover composition. Main subject in the upper two thirds; keep the bottom third simple and uncluttered (sky, ground or shadow) because a title will be added there later. Absolutely no text, no letters, no numbers, no title, no signature, no watermark, no frame, no border. Original character designs based on the public-domain book, not on any film, animation or later adaptation."
+  }
+}
