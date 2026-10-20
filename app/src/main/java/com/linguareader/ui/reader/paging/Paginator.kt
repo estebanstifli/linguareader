@@ -90,7 +90,16 @@ data class PageStyles(
 
 /** Geometría de la página en px. */
 @Immutable
-data class PageGeometry(val widthPx: Int, val heightPx: Int, val blockSpacingPx: Float, val titleSpacingPx: Float)
+data class PageGeometry(
+    val widthPx: Int,
+    val heightPx: Int,
+    val blockSpacingPx: Float,
+    val titleSpacingPx: Float,
+    /** Doble página: [widthPx] es el ancho de cada cara y las páginas se juntan de dos en dos ([spreads]). */
+    val spread: Boolean = false,
+    /** Separación entre las dos caras (solo en doble página). */
+    val gutterPx: Int = 0,
+)
 
 private class LayoutMetrics(private val r: TextLayoutResult) : MeasuredText {
     override val lineCount: Int get() = r.lineCount
@@ -126,5 +135,5 @@ suspend fun paginate(
         blockSpacing = geometry.blockSpacingPx,
         titleSpacing = geometry.titleSpacingPx,
     )
-    PagedBook(pages)
+    PagedBook(if (geometry.spread) spreads(pages) else pages)
 }

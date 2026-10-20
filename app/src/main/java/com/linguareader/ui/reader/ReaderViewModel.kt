@@ -200,6 +200,12 @@ class ReaderViewModel @Inject constructor(
 
     /** Posición de la página visible (o de la última leída). La pantalla pagina alrededor de ella. */
     private val _anchor = MutableStateFlow<TextPos?>(null)
+
+    /**
+     * Punto exacto elegido al abrir el libro, pasar página o saltar. El audio se coloca al principio de la frase (que
+     * puede estar en la página anterior): mientras no suene ni cambie de frase, la posición de lectura es este punto.
+     */
+    private var pinned: TextPos? = null
     val anchor: StateFlow<TextPos?> = _anchor.asStateFlow()
 
     /** Saltos explícitos (índice, marcadores, búsqueda): la pantalla va a la página de esa posición. */
@@ -234,6 +240,7 @@ class ReaderViewModel @Inject constructor(
         val index = saved?.passageIndex?.coerceIn(0, book.passages.lastIndex) ?: 0
         val offset = saved?.takeIf { book.passages[index].id == it.passageId }?.charOffset ?: 0
         _anchor.value = TextPos(index, offset)
+        pinned = _anchor.value
         seedTranslations(book, prefs.translationLanguage)
         showPassage(index, offset, autoplay = false, immediate = true)
 
@@ -364,13 +371,16 @@ class ReaderViewModel @Inject constructor(
      */
     fun onPageSettled(pos: TextPos, passagesOnPage: Set<Int>, user: Boolean) = viewModelScope.launch {
         val book = _state.value.book ?: return@launch
-        _anchor.value = pos
         requestImages(book, passagesOnPage)
+        // Si la página la puso el programa (abrir, girar, seguir la voz), el punto de lectura no cambia: con el inicio
+        // de la página retrocedería un poco en cada nueva paginación.
         if (!user) {
             ensureTranslations(book, passagesOnPage)
             return@launch
         }
         val passage = book.passages.getOrNull(pos.passage) ?: return@launch
+        _anchor.value = pos
+        pinned = pos
         if (playback.value.isPlaying) audio.pause()
         if (passage.index != _state.value.passageIndex) {
             showPassage(passage.index, pos.offset, autoplay = false)
@@ -383,6 +393,7 @@ class ReaderViewModel @Inject constructor(
 
     private fun jumpTo(pos: TextPos, autoplay: Boolean = false) {
         _anchor.value = pos
+        pinned = pos
         _jumps.tryEmit(pos)
         if (pos.passage != _state.value.passageIndex) showPassage(pos.passage, pos.offset, autoplay = autoplay)
         else viewModelScope.launch { audio.seekToOffset(pos.offset) }
@@ -495,7 +506,12 @@ class ReaderViewModel @Inject constructor(
     private fun onPlayback(st: PlaybackState) {
         val current = _state.value
         val passage = current.passage ?: return
-        if (st.passageId != passage.id || st.status != PlaybackStatus.COMPLETED) return
+        if (st.passageId != passage.id) return
+        if (st.status != PlaybackStatus.COMPLETED) {
+            // El punto de lectura sigue a la voz (para volver a paginar en el mismo sitio, p. ej. al girar).
+            _anchor.value = TextPos(passage.index, readingOffset(passage, st))
+            return
+        }
         if (completionHandledFor == passage.id) return
         completionHandledFor = passage.id
         if (preferences.value.autoContinue && current.hasNext) {
@@ -731,7 +747,16 @@ class ReaderViewModel @Inject constructor(
     private suspend fun saveProgress(st: PlaybackState) {
         val passage = _state.value.passage ?: return
         if (st.passageId != passage.id) return
-        persist(passage, if (st.status == PlaybackStatus.COMPLETED) 0 else st.resumeOffset)
+        persist(passage, if (st.status == PlaybackStatus.COMPLETED) 0 else readingOffset(passage, st))
+    }
+
+    /** Dónde se va leyendo: el punto elegido ([pinned]) si el audio sigue parado en su frase; si no, el del audio. */
+    private fun readingOffset(passage: Passage, st: PlaybackState): Int {
+        val pin = pinned?.takeIf { it.passage == passage.index } ?: return st.resumeOffset
+        val pinSentence = passage.sentences.lastOrNull { it.rangeStart <= pin.offset }?.index ?: 0
+        if (st.status != PlaybackStatus.PLAYING && st.sentenceIndex == pinSentence) return pin.offset
+        pinned = null
+        return st.resumeOffset
     }
 
     private suspend fun persist(passage: Passage, offset: Int) {
@@ -748,7 +773,7 @@ class ReaderViewModel @Inject constructor(
         val passage = _state.value.passage
         appScope.launch {
             audio.stop()
-            if (passage != null && playback.value.passageId == passage.id) persist(passage, playback.value.resumeOffset)
+            if (passage != null && playback.value.passageId == passage.id) persist(passage, readingOffset(passage, playback.value))
         }
     }
 }

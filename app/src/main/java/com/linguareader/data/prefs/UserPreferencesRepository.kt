@@ -66,6 +66,7 @@ class UserPreferencesRepository @Inject constructor(
         val textJustification = stringPreferencesKey("text_justification")
         val readWithScreenOff = booleanPreferencesKey("read_with_screen_off")
         val keepScreenOn = booleanPreferencesKey("keep_screen_on")
+        val doublePage = booleanPreferencesKey("double_page")
         val libraryGrid = booleanPreferencesKey("library_grid")
         val audioCacheMb = intPreferencesKey("audio_cache_mb")
         val translationSetupDone = booleanPreferencesKey("translation_setup_done")
@@ -113,6 +114,7 @@ class UserPreferencesRepository @Inject constructor(
             stored[Keys.textJustification] = next.textJustification.name
             stored[Keys.readWithScreenOff] = next.readWithScreenOff
             stored[Keys.keepScreenOn] = next.keepScreenOn
+            stored[Keys.doublePage] = next.doublePage
             stored[Keys.libraryGrid] = next.libraryGrid
             stored[Keys.audioCacheMb] = next.audioCacheMb
             stored[Keys.translationSetupDone] = next.translationSetupDone
@@ -157,6 +159,7 @@ class UserPreferencesRepository @Inject constructor(
             textJustification = enumOr(p[Keys.textJustification], d.textJustification),
             readWithScreenOff = p[Keys.readWithScreenOff] ?: d.readWithScreenOff,
             keepScreenOn = p[Keys.keepScreenOn] ?: d.keepScreenOn,
+            doublePage = p[Keys.doublePage] ?: d.doublePage,
             libraryGrid = p[Keys.libraryGrid] ?: d.libraryGrid,
             audioCacheMb = p[Keys.audioCacheMb] ?: d.audioCacheMb,
             translationSetupDone = p[Keys.translationSetupDone] ?: d.translationSetupDone,

@@ -82,6 +82,8 @@ data class UserPreferences(
     val readWithScreenOff: Boolean = true,
     /** Impedir que la pantalla se apague sola mientras el lector está abierto (el botón de encendido sigue funcionando). */
     val keepScreenOn: Boolean = true,
+    /** En horizontal, en pantallas anchas (tablet), dos páginas una junto a otra como un libro abierto. */
+    val doublePage: Boolean = true,
     /** Biblioteca en cuadrícula de portadas (true) o en lista de fichas (false). */
     val libraryGrid: Boolean = false,
 ) {

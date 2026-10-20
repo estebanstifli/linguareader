@@ -83,6 +83,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -324,8 +325,8 @@ fun CatalogScreen(
                     )
                     state.grid -> LazyVerticalGrid(
                         state = gridState,
-                        // Tantas columnas como quepan: 3 en un móvil en vertical, más en horizontal o en una tablet.
-                        columns = GridCells.Adaptive(minSize = 104.dp),
+                        // 3 columnas en un móvil en vertical, más en horizontal o en una tablet, hasta 5.
+                        columns = CoverColumns,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -563,6 +564,18 @@ private fun SubFilterBar(state: CatalogUiState, vm: CatalogViewModel) {
  * Portada en la cuadrícula: imagen del libro (o una portada generada con el título si no tiene), nivel, progreso y un
  * menú ⋮ con estanterías, papelera y traducción.
  */
+/** Máximo de columnas de la cuadrícula: en pantallas grandes las portadas crecen en vez de multiplicarse. */
+private const val MAX_GRID_COLUMNS = 5
+
+/** Como `GridCells.Adaptive(104.dp)` (tantas columnas de al menos 104 dp como quepan), pero sin pasar de [MAX_GRID_COLUMNS]. */
+private object CoverColumns : GridCells {
+    override fun Density.calculateCrossAxisCellSizes(availableSize: Int, spacing: Int): List<Int> {
+        val count = ((availableSize + spacing) / (104.dp.roundToPx() + spacing)).coerceIn(1, MAX_GRID_COLUMNS)
+        val cells = availableSize - spacing * (count - 1)
+        return List(count) { cells / count + if (it < cells % count) 1 else 0 }
+    }
+}
+
 @Composable
 private fun BookCover(
     item: CatalogItem,

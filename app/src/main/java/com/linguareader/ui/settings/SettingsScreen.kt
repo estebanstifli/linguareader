@@ -341,6 +341,9 @@ private fun AppearanceOptions(prefs: UserPreferences, onUpdate: ((UserPreference
             ) { Text(Labels.justification(mode), maxLines = 1) }
         }
     }
+
+    SectionTitle("Pantallas grandes")
+    SwitchRow("Doble página en horizontal", prefs.doublePage) { v -> onUpdate { it.copy(doublePage = v) } }
 }
 
 /** Voz y audio: lectura en voz alta, pantalla apagada, pausas y normalización del texto. */

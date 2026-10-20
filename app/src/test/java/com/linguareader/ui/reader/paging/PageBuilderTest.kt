@@ -101,4 +101,27 @@ class PageBuilderTest {
         assertEquals(2, pages.size)
         assertEquals(TextPos(0, 100), pages[1].start)
     }
+
+    @Test
+    fun `spreads pair pages two by two and every chapter opens a new spread`() {
+        // Capítulo 0: título + 25 líneas → 3 páginas; capítulo 1: título + 5 líneas → 1 página.
+        val blocks = listOf(
+            LayoutBlock.ChapterTitle(0, 0, "One"),
+            LayoutBlock.Original(0, 0, 0, 250),
+            LayoutBlock.ChapterTitle(1, 1, "Two"),
+            LayoutBlock.Original(1, 1, 0, 50),
+        )
+        val pages = PageBuilder.build(blocks, measureBy(10), 100f, 0f, 0f)
+        assertEquals(4, pages.size)
+        val spreads = spreads(pages)
+        // [1|2] [3|vacía: el capítulo 2 no empieza a la derecha] [4]
+        assertEquals(3, spreads.size)
+        assertEquals(pages[1].items, spreads[0].facing)
+        assertTrue(spreads[1].facing.isEmpty())
+        assertEquals(pages[3].start, spreads[2].start)
+        assertEquals(pages[0].items + pages[1].items, spreads[0].allItems)
+        // Buscar una posición de la cara derecha lleva a su doble página.
+        assertEquals(0, PagedBook(spreads).pageOf(pages[1].start))
+        assertEquals(1, PagedBook(spreads).pageOf(pages[2].start))
+    }
 }

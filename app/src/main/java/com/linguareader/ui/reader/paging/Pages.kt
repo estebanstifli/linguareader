@@ -50,8 +50,27 @@ sealed interface PageItem {
     data class Translation(override val passage: Int, val text: String, val firstLine: Int, val lastLine: Int) : PageItem
 }
 
-/** Una página: sus elementos, la posición del texto en la que empieza y su capítulo. */
-data class Page(val items: List<PageItem>, val start: TextPos, val chapter: Int)
+/**
+ * Una página: sus elementos, la posición del texto en la que empieza y su capítulo. En doble página, una página
+ * es el libro abierto: [items] a la izquierda y [facing] a la derecha (vacía si el capítulo acaba a la izquierda).
+ */
+data class Page(val items: List<PageItem>, val start: TextPos, val chapter: Int, val facing: List<PageItem> = emptyList()) {
+    /** Elementos de las dos caras. */
+    val allItems: List<PageItem> get() = if (facing.isEmpty()) items else items + facing
+}
+
+/** Junta las páginas de dos en dos (libro abierto). Cada capítulo empieza en una doble página nueva. */
+fun spreads(pages: List<Page>): List<Page> {
+    val result = mutableListOf<Page>()
+    var i = 0
+    while (i < pages.size) {
+        val left = pages[i]
+        val right = pages.getOrNull(i + 1)?.takeIf { it.chapter == left.chapter && it.items.firstOrNull() !is PageItem.Title }
+        result += if (right != null) left.copy(facing = right.items) else left
+        i += if (right != null) 2 else 1
+    }
+    return result
+}
 
 /** Métricas de líneas de un texto ya maquetado al ancho de página (en Compose, un `TextLayoutResult`). */
 interface MeasuredText {

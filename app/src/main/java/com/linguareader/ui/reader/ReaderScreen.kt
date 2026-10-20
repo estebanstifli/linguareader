@@ -9,6 +9,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.speech.tts.TextToSpeech
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -142,6 +143,13 @@ fun ReaderScreen(onBack: () -> Unit, onOpenSettings: () -> Unit = {}, vm: Reader
 
     // La minitarjeta apunta a una palabra de esta página: al cambiar de página deja de tener sentido.
     LaunchedEffect(pager.currentPage) { if (miniCard != null) vm.dismissCards() }
+    // Tras girar la pantalla se pierde la caja de la palabra (no se guarda): la minitarjeta ya no se puede colocar.
+    LaunchedEffect(miniCard != null, tappedWord == null) { if (miniCard != null && tappedWord == null) vm.dismissCards() }
+    // «Atrás» con la minitarjeta abierta la cierra, como un toque en el texto, en vez de salir del libro.
+    BackHandler(enabled = miniCard != null) {
+        controlsVisible = false
+        vm.dismissCards()
+    }
 
     ImmersiveMode(showSystemBars = controlsVisible)
     ReadingServiceEffect(playback, prefs, ui.book?.title.orEmpty())
@@ -167,7 +175,7 @@ fun ReaderScreen(onBack: () -> Unit, onOpenSettings: () -> Unit = {}, vm: Reader
                         paged = paged,
                         onPaged = { paged = it },
                         onSettled = { page, user ->
-                            vm.onPageSettled(page.start, page.items.map { it.passage }.toSet(), user)
+                            vm.onPageSettled(page.start, page.allItems.map { it.passage }.toSet(), user)
                         },
                         // Un toque abre controles (y la minitarjeta si cae en una palabra); el siguiente lo cierra todo.
                         onTap = { hit ->
