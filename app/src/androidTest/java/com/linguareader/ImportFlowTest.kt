@@ -14,6 +14,7 @@ import com.linguareader.core.model.UserPreferences
 import com.linguareader.data.content.BookImportService
 import com.linguareader.data.content.PendingImports
 import com.linguareader.data.prefs.UserPreferencesRepository
+import com.linguareader.data.scan.ScanSettingsRepository
 import com.linguareader.importer.ImportException
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.testing.HiltAndroidRule
@@ -41,6 +42,7 @@ class ImportFlowTest {
     @Inject lateinit var importer: BookImportService
     @Inject lateinit var books: BookRepository
     @Inject lateinit var preferences: UserPreferencesRepository
+    @Inject lateinit var scanSettings: ScanSettingsRepository
     @Inject lateinit var pendingImports: PendingImports
     @Inject @ApplicationContext lateinit var context: Context
 
@@ -48,7 +50,7 @@ class ImportFlowTest {
     fun setUp() {
         hilt.inject()
         // Sin la pantalla inicial de traducción, que taparía la biblioteca.
-        runBlocking { preferences.update { UserPreferences(translationSetupDone = true) } }
+        runBlocking { skipOnboarding(preferences, scanSettings, UserPreferences(translationSetupDone = true)) }
     }
 
     private fun file(name: String, text: String): Uri =
@@ -77,7 +79,7 @@ class ImportFlowTest {
         }
 
         compose.waitUntilAtLeastOneExists(hasText("El viejo faro"), 10_000)
-        compose.onNodeWithText("El viejo faro").performClick()
+        openFromCatalog(compose, "El viejo faro")
         compose.waitUntilAtLeastOneExists(hasText("El viento soplaba con fuerza.", substring = true), 10_000)
 
         runBlocking {

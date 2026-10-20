@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- INTERNET solo se usa en acciones explícitas del usuario: descargar el modelo de Supertonic
          o importar una página web. La biblioteca, la traducción, el TTS del sistema y Supertonic ya instalado
@@ -11,6 +12,14 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Ajustes › Examinar archivos: buscar libros y documentos en el almacenamiento (solo si el usuario lo pide).
+         Android 11+ exige «Acceso a todos los archivos»; antes basta con leer el almacenamiento. Las carpetas elegidas
+         con el selector del sistema no necesitan ninguno de los dos. -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
 
     <!-- Visibilidad de paquetes (Android 11+) para encontrar motores TTS instalados. -->
     <queries>
@@ -28,7 +37,14 @@
         android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
+        android:requestLegacyExternalStorage="true"
         android:theme="@style/Theme.LinguaReader">
+        <!-- ONNX Runtime registra un ContentProvider de telemetría que carga su librería nativa (~2 s) en cada
+             arranque, se use o no Supertonic, y envía datos de uso. Se quita: la librería se carga al usar el motor. -->
+        <provider
+            android:name="ai.onnxruntime.TelemetryInitializer"
+            android:authorities="${applicationId}.onnxruntime_telemetry_initializer"
+            tools:node="remove" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

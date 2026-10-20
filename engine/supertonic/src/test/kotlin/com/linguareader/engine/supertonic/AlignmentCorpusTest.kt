@@ -13,7 +13,7 @@ import java.nio.ByteOrder
 
 /**
  * Genera el corpus para comparar alineadores forzados (tools/eval_aligners.py):
- *  - natural/: frases reales de los libros demo sintetizadas con Supertonic (sin verdad de referencia).
+ *  - natural/: frases reales de los libros de prueba (content/test-books) sintetizadas con Supertonic (sin verdad de referencia).
  *  - reference/: frases construidas concatenando palabras sintetizadas por separado con huecos
  *    conocidos → tiempos de palabra exactos (verdad de referencia, prosodia menos natural).
  * Solo se ejecuta con -Dsupertonic.alignCorpus=true (tarea :engine:supertonic:alignCorpus).
@@ -38,7 +38,7 @@ class AlignmentCorpusTest {
 
             // 1) Frases naturales de los libros (primer capítulo de cada uno).
             val books = listOf("en-a1-the-red-kite", "fr-a2-le-marche-du-samedi").map {
-                BookManifestParser.parse(File("../../app/src/main/assets/books/$it/manifest.json").readText())
+                BookManifestParser.parse(File("../../content/test-books/$it/manifest.json").readText())
             }
             for (book in books) {
                 val lang = book.learningLanguage

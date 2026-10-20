@@ -10,6 +10,8 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.linguareader.core.model.AppPurpose
+import com.linguareader.core.model.CefrLevel
 import com.linguareader.core.model.DisplayMode
 import com.linguareader.core.model.HighlightStyle
 import com.linguareader.core.model.ThemeMode
@@ -19,6 +21,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import java.io.IOException
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -55,9 +58,14 @@ class UserPreferencesRepository @Inject constructor(
         val ttsMode = booleanPreferencesKey("tts_mode")
         val ttsModeChosen = booleanPreferencesKey("tts_mode_chosen")
         val learnLanguageChosen = booleanPreferencesKey("learn_language_chosen")
+        val purpose = stringPreferencesKey("purpose")
+        val learnerLevel = stringPreferencesKey("learner_level")
+        val learnerLevelChosen = booleanPreferencesKey("learner_level_chosen")
+        val onboardingSummaryShown = booleanPreferencesKey("onboarding_summary_shown")
         val orientation = stringPreferencesKey("orientation")
         val textJustification = stringPreferencesKey("text_justification")
         val readWithScreenOff = booleanPreferencesKey("read_with_screen_off")
+        val keepScreenOn = booleanPreferencesKey("keep_screen_on")
         val libraryGrid = booleanPreferencesKey("library_grid")
         val audioCacheMb = intPreferencesKey("audio_cache_mb")
         val translationSetupDone = booleanPreferencesKey("translation_setup_done")
@@ -97,9 +105,14 @@ class UserPreferencesRepository @Inject constructor(
             stored[Keys.ttsMode] = next.ttsMode
             stored[Keys.ttsModeChosen] = next.ttsModeChosen
             stored[Keys.learnLanguageChosen] = next.learnLanguageChosen
+            next.purpose?.let { stored[Keys.purpose] = it.name } ?: stored.remove(Keys.purpose)
+            next.learnerLevel?.let { stored[Keys.learnerLevel] = it.name } ?: stored.remove(Keys.learnerLevel)
+            stored[Keys.learnerLevelChosen] = next.learnerLevelChosen
+            stored[Keys.onboardingSummaryShown] = next.onboardingSummaryShown
             stored[Keys.orientation] = next.orientation.name
             stored[Keys.textJustification] = next.textJustification.name
             stored[Keys.readWithScreenOff] = next.readWithScreenOff
+            stored[Keys.keepScreenOn] = next.keepScreenOn
             stored[Keys.libraryGrid] = next.libraryGrid
             stored[Keys.audioCacheMb] = next.audioCacheMb
             stored[Keys.translationSetupDone] = next.translationSetupDone
@@ -111,7 +124,8 @@ class UserPreferencesRepository @Inject constructor(
         val d = UserPreferences()
         return UserPreferences(
             readingLanguage = p[Keys.readingLanguage],
-            translationLanguage = p[Keys.translationLanguage] ?: d.translationLanguage,
+            translationLanguage = p[Keys.translationLanguage] ?: deviceLanguage(),
+            // Los modos retirados (solo texto, bilingüe, ilustrado) pasan al modo por defecto.
             displayMode = enumOr(p[Keys.displayMode], d.displayMode),
             highlightStyle = enumOr(p[Keys.highlightStyle], d.highlightStyle),
             fingerPointerEnabled = p[Keys.finger] ?: d.fingerPointerEnabled,
@@ -135,15 +149,24 @@ class UserPreferencesRepository @Inject constructor(
             ttsMode = p[Keys.ttsMode] ?: d.ttsMode,
             ttsModeChosen = p[Keys.ttsModeChosen] ?: d.ttsModeChosen,
             learnLanguageChosen = p[Keys.learnLanguageChosen] ?: d.learnLanguageChosen,
+            purpose = p[Keys.purpose]?.let { n -> AppPurpose.entries.firstOrNull { it.name == n } },
+            learnerLevel = p[Keys.learnerLevel]?.let { n -> CefrLevel.entries.firstOrNull { it.name == n } },
+            learnerLevelChosen = p[Keys.learnerLevelChosen] ?: d.learnerLevelChosen,
+            onboardingSummaryShown = p[Keys.onboardingSummaryShown] ?: d.onboardingSummaryShown,
             orientation = enumOr(p[Keys.orientation], d.orientation),
             textJustification = enumOr(p[Keys.textJustification], d.textJustification),
             readWithScreenOff = p[Keys.readWithScreenOff] ?: d.readWithScreenOff,
+            keepScreenOn = p[Keys.keepScreenOn] ?: d.keepScreenOn,
             libraryGrid = p[Keys.libraryGrid] ?: d.libraryGrid,
             audioCacheMb = p[Keys.audioCacheMb] ?: d.audioCacheMb,
             translationSetupDone = p[Keys.translationSetupDone] ?: d.translationSetupDone,
             translationWifiOnly = p[Keys.translationWifiOnly] ?: d.translationWifiOnly,
         )
     }
+
+    /** Idioma del móvil como idioma nativo por defecto (subetiqueta primaria, p. ej. «es» de «es-ES»). */
+    private fun deviceLanguage(): String =
+        Locale.getDefault().language.takeIf { it.isNotEmpty() && it != "und" } ?: UserPreferences().translationLanguage
 
     private inline fun <reified E : Enum<E>> enumOr(name: String?, default: E): E =
         name?.let { n -> enumValues<E>().firstOrNull { it.name == n } } ?: default

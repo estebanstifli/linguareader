@@ -100,6 +100,8 @@ class ImportedBookRepository @Inject constructor(
         }
     }
 
+    suspend fun summary(bookId: String): BookSummary? = loaded()[bookId]?.toSummary()
+
     suspend fun contains(bookId: String): Boolean = loaded().containsKey(bookId)
 
     override fun observeCatalog(filter: CatalogFilter): Flow<List<BookSummary>> =
@@ -200,6 +202,7 @@ class ImportedBookRepository @Inject constructor(
                 estimatedMinutes = Book.estimateMinutes(wordCount, level),
                 passageCount = passageCount,
                 translationLanguages = emptySet(),
+                authors = listOfNotNull(authors?.takeIf { it.isNotBlank() }),
             )
         }
 

@@ -16,8 +16,6 @@ import java.util.Locale
 object Languages {
     /** Idiomas de traducción ofrecidos en la UI (los datos pueden no existir para todos). */
     val translationTargets = listOf("es", "en", "fr", "de", "it", "pt", "nl", "ca")
-    /** Opciones de idioma de lectura; null = todos. */
-    val readingOptions: List<String?> = listOf(null, "en", "es", "fr")
 
     fun name(tag: String?): String = when (tag?.let(LanguageTags::primary)) {
         null -> "Todos"
@@ -35,19 +33,13 @@ object Languages {
 
 object Labels {
     fun displayMode(mode: DisplayMode) = when (mode) {
-        DisplayMode.TEXT_ONLY -> "Solo texto"
-        DisplayMode.TRANSLATION_BELOW -> "Traducción bajo cada frase"
         DisplayMode.TRANSLATION_ON_TAP -> "Traducción al tocar"
-        DisplayMode.BILINGUAL_BLOCKS -> "Bilingüe por bloques"
-        DisplayMode.ILLUSTRATED -> "Ilustrado"
+        DisplayMode.TRANSLATION_BELOW -> "Traducción bajo cada frase"
     }
 
     fun displayModeHint(mode: DisplayMode) = when (mode) {
-        DisplayMode.TEXT_ONLY -> "Solo el idioma que aprendes"
+        DisplayMode.TRANSLATION_ON_TAP -> "Solo el texto del libro; toca una palabra para ver su traducción y la de su frase"
         DisplayMode.TRANSLATION_BELOW -> "Cada frase con su traducción debajo"
-        DisplayMode.TRANSLATION_ON_TAP -> "Mantén pulsada una palabra para ver su traducción y la de su frase"
-        DisplayMode.BILINGUAL_BLOCKS -> "Pasaje original y pasaje traducido"
-        DisplayMode.ILLUSTRATED -> "Imagen grande al inicio de cada pasaje"
     }
 
     fun highlight(style: HighlightStyle) = when (style) {
@@ -108,6 +100,18 @@ object Labels {
                 "No hay memoria suficiente para Supertonic en este dispositivo. Prueba con la voz del sistema."
         }
     }
+}
+
+/**
+ * Decodifica una imagen reducida a [maxWidthPx] de ancho como mucho (miniaturas del catálogo). Llamar fuera del
+ * hilo principal: decodificar decenas de portadas a tamaño completo bloquea la interfaz.
+ */
+fun MediaResult.toThumbnail(maxWidthPx: Int): ImageBitmap? = (this as? MediaResult.Ok)?.bytes?.let { bytes ->
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+    var sample = 1
+    while (bounds.outWidth / (sample * 2) >= maxWidthPx) sample *= 2
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
 }
 
 fun MediaResult.toImageBitmap(): ImageBitmap? = (this as? MediaResult.Ok)?.bytes?.let { bytes ->

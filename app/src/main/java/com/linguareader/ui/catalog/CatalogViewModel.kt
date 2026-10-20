@@ -8,6 +8,7 @@ import com.linguareader.core.model.BookSummary
 import com.linguareader.core.model.CatalogFilter
 import com.linguareader.core.model.CefrLevel
 import com.linguareader.core.model.LanguageTags
+import com.linguareader.data.content.BookExporter
 import com.linguareader.data.content.ImportedBookRepository
 import com.linguareader.data.db.ProgressDao
 import com.linguareader.data.db.ReadingProgressEntity
@@ -17,19 +18,25 @@ import com.linguareader.data.library.Shelf
 import com.linguareader.engine.translation.BookTranslationService
 import com.linguareader.engine.translation.BookTranslationState
 import com.linguareader.data.prefs.UserPreferencesRepository
-import com.linguareader.ui.common.toImageBitmap
+import com.linguareader.ui.common.toThumbnail
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.linguareader.core.model.AppPurpose
+import com.linguareader.core.model.UserPreferences
+import com.linguareader.data.db.DeviceDocumentDao
+import com.linguareader.data.scan.ScanSettingsRepository
+import kotlinx.coroutines.flow.first
+import com.linguareader.engine.packs.LibraryPackManager
 import javax.inject.Inject
 
 data class CatalogItem(
@@ -39,6 +46,8 @@ data class CatalogItem(
     val progressLabel: String?,
     /** Importado por el usuario: se puede borrar. */
     val imported: Boolean = false,
+    /** De una biblioteca descargable (también se guarda como importado, pero no lo trajo el usuario). */
+    val fromLibrary: Boolean = false,
     /** Pretraducción en curso o fallida (solo importados). */
     val translationJob: BookTranslationState? = null,
     /** Idiomas a los que el libro está traducido entero automáticamente. */
@@ -71,17 +80,15 @@ sealed interface LibrarySection {
     }
 }
 
-/** Procedencia de un libro (subfiltro de «Libros»). */
-enum class BookOrigin { ALL, BUNDLED, IMPORTED }
-
 /** Subfiltros del apartado actual; se reinician al cambiar de apartado. */
 data class SubFilters(
     val levels: Set<CefrLevel> = emptySet(),
-    val origin: BookOrigin = BookOrigin.ALL,
-    /** Solo en «Aprender otros idiomas»: null = todos. */
+    /** Idioma del libro (chips de «Aprender otros idiomas» o búsqueda): null = todos. */
     val language: String? = null,
     /** Solo en «Colecciones»: null = todas. */
     val collectionId: Long? = null,
+    /** Lupa de la cabecera: texto, estado de lectura y orden. */
+    val search: CatalogSearch = CatalogSearch(),
 )
 
 data class CatalogUiState(
@@ -96,14 +103,17 @@ data class CatalogUiState(
     val shelves: List<Shelf> = emptyList(),
     /** Idiomas de los libros de «otros idiomas» (para sus chips). */
     val otherLanguages: List<String> = emptyList(),
+    /** Idiomas de los libros del apartado actual (filtro de idioma de la búsqueda si hay más de uno). */
+    val sectionLanguages: List<String> = emptyList(),
     /** Número de libros de cada apartado, para el menú lateral. */
     val counts: Map<LibrarySection, Int> = emptyMap(),
+    /** «¿Por dónde empiezo?»: en «Aprender…» sin nada empezado, el libro más corto de lo que se muestra. */
+    val suggestion: CatalogItem? = null,
 ) {
     val systemShelves: List<Shelf> get() = shelves.filter { !it.isCustom }
     val collections: List<Shelf> get() = shelves.filter { it.isCustom }
 }
 
-@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class CatalogViewModel @Inject constructor(
     private val books: BookRepository,
@@ -111,40 +121,68 @@ class CatalogViewModel @Inject constructor(
     private val imported: ImportedBookRepository,
     private val bookTranslations: BookTranslationService,
     private val library: LibraryRepository,
+    private val exporter: BookExporter,
+    private val scanSettings: ScanSettingsRepository,
     progressDao: ProgressDao,
+    documents: DeviceDocumentDao,
 ) : ViewModel() {
+
+    /** Documentos encontrados en el móvil para el aviso de «Libros»; 0 si no hay o el usuario cerró el aviso. */
+    val foundDocuments: StateFlow<Int> =
+        combine(documents.observeAll(), scanSettings.settings) { docs, s -> if (s.foundBannerDismissed) 0 else docs.size }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    fun dismissFoundDocuments() = viewModelScope.launch { scanSettings.update { it.copy(foundBannerDismissed = true) } }
+
+    init {
+        // Al abrir (o al acabar la primera apertura), quien aprende empieza en «Aprender <idioma>» con su nivel.
+        viewModelScope.launch {
+            val p = preferences.preferences.first { it.purpose != null && it.onboardingSummaryShown }
+            homeOf(p)?.let { selection.value = it }
+        }
+    }
+
+    private fun homeOf(p: UserPreferences): Pair<LibrarySection, SubFilters>? {
+        if (p.purpose == AppPurpose.READ) return null
+        val lang = p.readingLanguage?.let(LanguageTags::primary) ?: return null
+        val levels = setOfNotNull(p.learnerLevel)
+        return if (lang in LibrarySection.LEARN_LANGUAGES) LibrarySection.Learn(lang) to SubFilters(levels = levels)
+        else LibrarySection.LearnOther to SubFilters(levels = levels, language = lang)
+    }
 
     private val selection = MutableStateFlow<Pair<LibrarySection, SubFilters>>(LibrarySection.Books to SubFilters())
     private val _covers = MutableStateFlow<Map<String, ImageBitmap>>(emptyMap())
     val covers: StateFlow<Map<String, ImageBitmap>> = _covers
 
     val state: StateFlow<CatalogUiState> =
+        // Un único combine plano: cada fuente se suscribe una vez. (Con flatMapLatest, cada cambio de preferencias,
+        // progreso o estanterías volvía a suscribirse al catálogo y repetía sus consultas.)
         combine(
             combine(preferences.preferences, progressDao.observeAll(), library.state, selection) { p, progress, lib, sel ->
                 Inputs(p.translationLanguage, p.libraryGrid, progress, lib, sel.first, sel.second)
             },
             bookTranslations.states,
             imported.translationStatus,
-        ) { inputs, jobs, statuses -> Triple(inputs, jobs, statuses) }
-            .flatMapLatest { (inputs, jobs, statuses) ->
-                books.observeCatalog(CatalogFilter()).map { all ->
-                    all.forEach(::loadCover)
-                    build(inputs, all) { s ->
-                        val pr = inputs.progress[s.id]
-                        CatalogItem(
-                            summary = s,
-                            progress = pr?.let { (it.passageIndex + 1f) / it.totalPassages.coerceAtLeast(1) },
-                            progressLabel = pr?.let { "Pasaje ${it.passageIndex + 1} de ${it.totalPassages}" },
-                            imported = imported.owns(s.id),
-                            translationJob = jobs[s.id],
-                            machineTranslations = statuses[s.id]?.done.orEmpty(),
-                            translationPause = statuses[s.id]?.paused,
-                            trashed = s.id in inputs.library.trashedIds,
-                        )
-                    }
-                }
+            books.observeCatalog(CatalogFilter()).onEach { all -> all.forEach(::loadCover) },
+        ) { inputs, jobs, statuses, all ->
+            build(inputs, all) { s ->
+                val pr = inputs.progress[s.id]
+                CatalogItem(
+                    summary = s,
+                    progress = pr?.let { (it.passageIndex + 1f) / it.totalPassages.coerceAtLeast(1) },
+                    progressLabel = pr?.let { "Pasaje ${it.passageIndex + 1} de ${it.totalPassages}" },
+                    imported = imported.owns(s.id),
+                    fromLibrary = LibraryPackManager.isLibraryBook(s.id),
+                    translationJob = jobs[s.id],
+                    machineTranslations = statuses[s.id]?.done.orEmpty(),
+                    translationPause = statuses[s.id]?.paused,
+                    trashed = s.id in inputs.library.trashedIds,
+                )
             }
+        }
             .catch { emit(CatalogUiState(loading = false, error = it.message ?: "Error al cargar la biblioteca")) }
+            // Filtrar y ordenar decenas de libros no debe competir con la primera composición en el hilo principal.
+            .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CatalogUiState())
 
     private class Inputs(
@@ -174,21 +212,27 @@ class CatalogViewModel @Inject constructor(
             LibrarySection.Collections -> lib.shelves.any { it.isCustom && b.id in it.bookIds }
             LibrarySection.Trash -> false
         }
-        val visible = when (section) {
+        val inThisSection = when (section) {
             LibrarySection.Trash -> all.filter { it.id in lib.trashedIds }
-            else -> live.filter { b ->
-                inSection(section, b) &&
-                    (f.levels.isEmpty() || b.cefrLevel in f.levels) &&
-                    when (f.origin) {
-                        BookOrigin.ALL -> true
-                        BookOrigin.BUNDLED -> !imported.owns(b.id)
-                        BookOrigin.IMPORTED -> imported.owns(b.id)
-                    } &&
-                    (f.language == null || LanguageTags.sameLanguage(f.language, b.learningLanguage)) &&
-                    (f.collectionId == null || lib.shelves.firstOrNull { it.id == f.collectionId }?.bookIds?.contains(b.id) == true)
+            else -> live.filter { inSection(section, it) }
+        }
+        val visible = inThisSection.filter { b ->
+            (f.levels.isEmpty() || b.cefrLevel in f.levels) &&
+                (f.language == null || LanguageTags.sameLanguage(f.language, b.learningLanguage)) &&
+                (f.collectionId == null || lib.shelves.firstOrNull { it.id == f.collectionId }?.bookIds?.contains(b.id) == true)
+        }.let { list ->
+            when (section) {
+                LibrarySection.Reading -> list.sortedByDescending { inputs.progress[it.id]?.updatedAt ?: 0L }
+                // Para aprender, de lo más fácil a lo más difícil (sortedBy es estable: dentro del nivel, el orden de antes).
+                is LibrarySection.Learn, LibrarySection.LearnOther -> list.sortedBy { it.cefrLevel }
+                else -> list
             }
         }.let { list ->
-            if (section == LibrarySection.Reading) list.sortedByDescending { inputs.progress[it.id]?.updatedAt ?: 0L } else list
+            val progress = inputs.progress.mapValues { (_, p) ->
+                CatalogSearch.Progress((p.passageIndex + 1f) / p.totalPassages.coerceAtLeast(1), p.updatedAt)
+            }
+            val finished = lib.shelves.firstOrNull { it.kind == LibraryRepository.READ }?.bookIds.orEmpty()
+            f.search.apply(list, progress, finished)
         }
         val sections = buildList {
             add(LibrarySection.Reading); add(LibrarySection.Books)
@@ -205,7 +249,12 @@ class CatalogViewModel @Inject constructor(
             grid = inputs.grid,
             shelves = lib.shelves,
             otherLanguages = live.filter(::learnsOther).map { LanguageTags.primary(it.learningLanguage) }.distinct().sorted(),
+            sectionLanguages = inThisSection.map { LanguageTags.primary(it.learningLanguage) }.distinct().sorted(),
             counts = sections.associateWith { s -> live.count { inSection(s, it) } } + (LibrarySection.Trash to lib.trash.size),
+            suggestion = visible.takeIf {
+                (section is LibrarySection.Learn || section == LibrarySection.LearnOther) && !f.search.isActive &&
+                    inThisSection.none { b -> b.id in inputs.progress }
+            }?.minByOrNull { it.estimatedMinutes }?.let(item),
         )
     }
 
@@ -217,8 +266,11 @@ class CatalogViewModel @Inject constructor(
 
     fun clearLevels() = selection.update { (s, f) -> s to f.copy(levels = emptySet()) }
 
-    fun setOrigin(origin: BookOrigin) = selection.update { (s, f) -> s to f.copy(origin = origin) }
+    fun setSearch(search: CatalogSearch) = selection.update { (s, f) -> s to f.copy(search = search) }
 
+    fun clearSearch() = selection.update { (s, f) -> s to f.copy(search = CatalogSearch(), language = if (s == LibrarySection.LearnOther) f.language else null) }
+
+    /** Filtro de idioma: chips de «Aprender otros idiomas» y búsqueda de los demás apartados. */
     fun setOtherLanguage(tag: String?) = selection.update { (s, f) -> s to f.copy(language = tag) }
 
     fun setCollection(id: Long?) = selection.update { (s, f) -> s to f.copy(collectionId = id) }
@@ -241,12 +293,22 @@ class CatalogViewModel @Inject constructor(
 
     fun setInShelf(shelfId: Long, bookId: String, inShelf: Boolean) = viewModelScope.launch { library.setInShelf(shelfId, bookId, inShelf) }
 
+    /** Crea una colección con el nombre dado y mete el libro en ella. */
+    fun createCollection(name: String, bookId: String) = viewModelScope.launch {
+        if (name.isNotBlank()) library.createCollection(name, bookId)
+    }
+
+    /** TXT del libro listo para compartir, o null si falla. */
+    suspend fun exportForSharing(bookId: String): android.net.Uri? =
+        runCatching { exporter.exportText(books.loadBook(bookId)) }.getOrNull()
+
     fun canDeleteForever(bookId: String) = library.canDeleteForever(bookId)
 
     /** Borra del dispositivo un libro importado que está en la papelera. */
     fun deleteForever(bookId: String) = viewModelScope.launch {
         bookTranslations.cancel(bookId)
         library.deleteForever(bookId)
+        requestedCovers.remove(bookId)
         _covers.update { it - bookId }
     }
 
@@ -255,11 +317,20 @@ class CatalogViewModel @Inject constructor(
         selection.update { (s, f) -> s to f.copy(collectionId = null) }
     }
 
+    /** Portadas ya pedidas (cargadas o en curso): [loadCover] se llama en cada emisión del catálogo. */
+    private val requestedCovers = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    /** Miniatura de la portada, leída y decodificada en segundo plano (nunca a tamaño completo ni en el hilo principal). */
     private fun loadCover(summary: BookSummary) {
         val cover = summary.cover ?: return
-        if (summary.id in _covers.value) return
-        viewModelScope.launch {
-            books.loadMedia(summary.id, cover).toImageBitmap()?.let { bmp -> _covers.update { it + (summary.id to bmp) } }
+        if (!requestedCovers.add(summary.id)) return
+        viewModelScope.launch(Dispatchers.Default) {
+            books.loadMedia(summary.id, cover).toThumbnail(COVER_THUMBNAIL_PX)?.let { bmp -> _covers.update { it + (summary.id to bmp) } }
         }
+    }
+
+    private companion object {
+        /** Ancho de miniatura suficiente para la portada más ancha de la cuadrícula en un móvil (≈ 160 dp a 3x). */
+        const val COVER_THUMBNAIL_PX = 480
     }
 }

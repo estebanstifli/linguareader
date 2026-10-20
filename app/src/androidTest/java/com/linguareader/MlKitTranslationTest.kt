@@ -11,6 +11,7 @@ import com.linguareader.core.model.UserPreferences
 import com.linguareader.data.content.BookImportService
 import com.linguareader.data.content.ImportedBookRepository
 import com.linguareader.data.prefs.UserPreferencesRepository
+import com.linguareader.data.scan.ScanSettingsRepository
 import com.linguareader.engine.translation.BookTranslationService
 import com.linguareader.engine.translation.BookTranslationState
 import com.linguareader.engine.translation.TranslationModelManager
@@ -44,13 +45,14 @@ class MlKitTranslationTest {
     @Inject lateinit var imported: ImportedBookRepository
     @Inject lateinit var bookTranslations: BookTranslationService
     @Inject lateinit var preferences: UserPreferencesRepository
+    @Inject lateinit var scanSettings: ScanSettingsRepository
     @Inject @ApplicationContext lateinit var context: Context
 
     @Before
     fun setUp() {
         hilt.inject()
         runBlocking {
-            preferences.update { UserPreferences(translationSetupDone = true, translationWifiOnly = false, translationLanguage = "es") }
+            skipOnboarding(preferences, scanSettings, UserPreferences(translationSetupDone = true, translationWifiOnly = false, translationLanguage = "es"))
             val ready = withTimeout(180_000) { models.awaitDownload("fr") && models.awaitDownload("es") }
             assumeTrue("Sin red para descargar los modelos de ML Kit: ${models.downloads.value}", ready)
         }

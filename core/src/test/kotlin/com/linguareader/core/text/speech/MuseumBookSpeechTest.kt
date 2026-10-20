@@ -5,10 +5,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.io.File
 
-/** El libro de prueba de normalización incluido en la app («A Day at the Museum»): forma hablada esperada de cada frase. */
+/** El libro de prueba de normalización («A Day at the Museum», en content/test-books): forma hablada esperada de cada frase. */
 class MuseumBookSpeechTest {
 
-    private val book = BookManifestParser.parse(File("../app/src/main/assets/books/en-a2-a-day-at-the-museum/manifest.json").readText())
+    private val book = BookManifestParser.parse(File("../content/test-books/en-a2-a-day-at-the-museum/manifest.json").readText())
     private val normalizer = RuleBasedSpeechNormalizer(Icu4jNumberSpeller)
 
     private val expected = listOf(

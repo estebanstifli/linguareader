@@ -15,11 +15,26 @@ traducción en contexto.
 
 ## Qué incluye
 
-- **Biblioteca local** con dos relatos originales de demostración: *The Red Kite* (inglés, A1) y
-  *Le marché du samedi* (francés, A2), con traducciones por frase (es/fr y es/en), glosario
-  contextual e ilustraciones propias. Filtros por idioma del texto y nivel. Funciona sin red.
-- **Lector portrait** con cinco modos: solo texto, traducción bajo cada frase, traducción al tocar,
-  bilingüe por bloques e ilustrado.
+- **Biblioteca local** con bibliotecas graduadas descargables por idioma (EPUB) y libros importados.
+  Vista en lista (portada, autor, progreso y acciones: para leer, leído, favorito, colección, editar,
+  compartir, papelera) o en cuadrícula. Funciona sin red.
+- **Lector portrait** con dos modos: traducción al tocar (por defecto) y traducción bajo cada frase.
+  La traducción se hace con el traductor del dispositivo al idioma nativo del usuario (por defecto, el del móvil).
+  La pantalla no se apaga sola mientras el lector está abierto (desactivable en Ajustes).
+- **Examinar archivos** (Ajustes y primera apertura): busca en el móvil los documentos que la app sabe abrir
+  (EPUB, PDF, FB2, Kindle, Word/ODT/RTF, HTML, Markdown, TXT, subtítulos), lee título/autor/idioma de EPUB y FB2 sin
+  abrirlos enteros y los muestra en «En el dispositivo», agrupados por formato, autor o carpeta. Tocar uno lo importa.
+  En Android 11+ necesita «Acceso a todos los archivos» (`MANAGE_EXTERNAL_STORAGE`); sin él se pueden añadir carpetas
+  concretas con el selector del sistema. Ojo: Google Play solo admite ese permiso en apps cuya función principal lo
+  requiera y pide justificarlo en la ficha.
+- **Primera apertura según el uso**: «Leer mis libros», «Aprender un idioma» o «Las dos cosas». Leer busca los
+  documentos del móvil; aprender pregunta idioma, idioma propio y nivel, y descarga en segundo plano la biblioteca y
+  los dos traductores y comprueba la voz del sistema. Termina con un resumen de lo preparado y abre la app en
+  «Aprender <idioma>» filtrado por nivel, con un «¿Por dónde empiezo?». Cerrar a medias retoma el paso pendiente.
+- **Búsqueda en la biblioteca** (lupa de la cabecera, en todos los apartados): título o autor sin tildes, estado de
+  lectura, idioma y orden (título, autor, nivel, leídos hace poco, más cortos).
+- **Ajustes por temas**: índice (Idioma y traducción, Bibliotecas, Examinar archivos, Lectura, Texto y tema, Voz y
+  audio, Acerca de) con una subpantalla por tema.
 - **Tokens tocables**: ficha con palabra, lema, traducción, expresión que la contiene (phrasal
   verbs, contracciones, elisiones francesas), ejemplos, frase traducida, audio de la palabra,
   «leer desde aquí» y guardar en vocabulario. Pulsación larga: traducción de la frase.
@@ -121,8 +136,9 @@ tools/  generate_demo_images.py (ilustraciones provisionales + sha256 en manifie
 
 ## Contenido y licencias
 
-Los textos de demostración son originales y se escribieron para este proyecto. Las imágenes las
-genera `tools/generate_demo_images.py` (CC0-1.0). Los iconos de UI usan trazados de Material
+Los libros de prueba de `content/test-books/` (fuera del APK; los usan los tests) son originales y se
+escribieron para este proyecto. La app no incluye libros: se descargan por idioma o se importan. Las imágenes las genera
+`tools/generate_demo_images.py` (CC0-1.0). Los iconos de UI usan trazados de Material
 Icons (Apache-2.0). El resumen de licencias está en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#licencias).
 No hay claves de API ni modelos binarios en el repositorio.
 

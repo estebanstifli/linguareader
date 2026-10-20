@@ -43,7 +43,6 @@ import javax.inject.Inject
 
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
-    private val repo: UserPreferencesRepository,
     private val libraries: LibraryPackManager,
 ) : ViewModel() {
     val catalog: StateFlow<Map<String, LibraryInfo>> = libraries.catalog
@@ -51,21 +50,6 @@ class LibraryViewModel @Inject constructor(
 
     fun download(lang: String) = libraries.download(lang)
     fun delete(lang: String) = viewModelScope.launch { libraries.delete(lang) }
-
-    /**
-     * Primera apertura en modo aprendizaje: [lang] pasa a ser el idioma de lectura y, si [download],
-     * se baja su biblioteca en segundo plano. null = «Ahora no».
-     */
-    fun chooseLearningLanguage(lang: String?, download: Boolean) = viewModelScope.launch {
-        repo.update { p ->
-            val target = if (lang != null && p.translationLanguage == lang) {
-                // Traducir al mismo idioma que se aprende no sirve: se propone otro.
-                if (lang == "es") "en" else "es"
-            } else p.translationLanguage
-            p.copy(learnLanguageChosen = true, readingLanguage = lang ?: p.readingLanguage, translationLanguage = target)
-        }
-        if (lang != null && download) libraries.download(lang)
-    }
 }
 
 private fun mb(bytes: Long) = "%.1f MB".format(Locale.ROOT, bytes / 1_000_000.0)
@@ -170,38 +154,5 @@ fun LibraryDownloadBanner(vm: LibraryViewModel = hiltViewModel()) {
                 LibraryProgress(state)
             }
         }
-    }
-}
-
-/** Primera apertura (modo aprendizaje): ¿qué idioma quieres aprender? Ofrece descargar su biblioteca. */
-@Composable
-fun LearnLanguageScreen(vm: LibraryViewModel = hiltViewModel()) {
-    val catalog by vm.catalog.collectAsStateWithLifecycle()
-    BackHandler { vm.chooseLearningLanguage(null, download = false) }
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .systemBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text("¿Qué idioma quieres aprender?", style = MaterialTheme.typography.headlineSmall)
-        Text(
-            "Descargamos su biblioteca de lecturas graduadas (de A1 a B2) para que puedas empezar a leer y escuchar " +
-                "sin conexión. Puedes añadir otros idiomas en Ajustes.",
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        catalog.toSortedMap().forEach { (lang, info) ->
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Button(
-                    onClick = { vm.chooseLearningLanguage(lang, download = true) },
-                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Aprender ${Languages.nameInSpanish(lang)}" },
-                ) { Text(Languages.name(lang)) }
-                Text(summary(info), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        TextButton(onClick = { vm.chooseLearningLanguage(null, download = false) }) { Text("Ahora no") }
     }
 }

@@ -147,8 +147,75 @@ data class CollectionBookEntity(val collectionId: Long, val bookId: String, val 
 @Entity(tableName = "trash")
 data class TrashEntity(@PrimaryKey val bookId: String, val title: String, val trashedAt: Long)
 
+/**
+ * Datos de un libro corregidos por el usuario (pantalla «Editar»). Sirve para cualquier libro, incluido o importado:
+ * el contenido original no se toca y estos valores se aplican encima al leerlo. null = el original.
+ */
+@Entity(tableName = "book_overrides")
+data class BookOverrideEntity(
+    @PrimaryKey val bookId: String,
+    val title: String?,
+    val author: String?,
+    val language: String?,
+    val cefrLevel: String?,
+)
+
+/**
+ * Documento encontrado en el dispositivo al examinar archivos (aún no importado). [location] identifica el fichero:
+ * una ruta absoluta o, en carpetas elegidas con el selector del sistema, un URI `content://`.
+ */
+@Entity(tableName = "device_documents", indices = [Index(value = ["format"]), Index(value = ["author"])])
+data class DeviceDocumentEntity(
+    @PrimaryKey val location: String,
+    val fileName: String,
+    /** Extensión en minúscula ("epub", "pdf"...). */
+    val format: String,
+    val sizeBytes: Long,
+    val modifiedAt: Long,
+    /** Carpeta que lo contiene, para mostrar y agrupar. */
+    val folder: String,
+    val title: String,
+    /** Primer autor según los metadatos (EPUB, FB2); null si no consta. */
+    val author: String?,
+    val language: String?,
+    val foundAt: Long,
+)
+
+/** Lo justo para decidir si un fichero cambió desde la última búsqueda. */
+data class DeviceDocumentStamp(val location: String, val sizeBytes: Long, val modifiedAt: Long)
+
+@Dao
+interface DeviceDocumentDao {
+    @Query("SELECT * FROM device_documents ORDER BY title COLLATE NOCASE")
+    fun observeAll(): Flow<List<DeviceDocumentEntity>>
+
+    @Query("SELECT location, sizeBytes, modifiedAt FROM device_documents")
+    suspend fun stamps(): List<DeviceDocumentStamp>
+
+    @Upsert
+    suspend fun upsert(documents: List<DeviceDocumentEntity>)
+
+    @Query("DELETE FROM device_documents WHERE location IN (:locations)")
+    suspend fun delete(locations: List<String>)
+
+    @Query("DELETE FROM device_documents")
+    suspend fun clear()
+}
+
 @Dao
 interface LibraryDao {
+    @Query("SELECT * FROM book_overrides")
+    fun observeOverrides(): Flow<List<BookOverrideEntity>>
+
+    @Query("SELECT * FROM book_overrides WHERE bookId = :bookId")
+    suspend fun override(bookId: String): BookOverrideEntity?
+
+    @Upsert
+    suspend fun putOverride(entry: BookOverrideEntity)
+
+    @Query("DELETE FROM book_overrides WHERE bookId = :bookId")
+    suspend fun deleteOverride(bookId: String)
+
     @Query("SELECT * FROM collections ORDER BY CASE kind WHEN 'favorites' THEN 0 WHEN 'to_read' THEN 1 WHEN 'read' THEN 2 ELSE 3 END, createdAt")
     fun observeCollections(): Flow<List<CollectionEntity>>
 
@@ -189,11 +256,11 @@ interface LibraryDao {
 @Database(
     entities = [
         ReadingProgressEntity::class, BookmarkEntity::class, VocabularyEntity::class, MachineTranslationEntity::class,
-        CollectionEntity::class, CollectionBookEntity::class, TrashEntity::class,
+        CollectionEntity::class, CollectionBookEntity::class, TrashEntity::class, BookOverrideEntity::class, DeviceDocumentEntity::class,
     ],
-    version = 3,
+    version = 5,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4), AutoMigration(from = 4, to = 5)],
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun progressDao(): ProgressDao
@@ -201,4 +268,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun vocabularyDao(): VocabularyDao
     abstract fun machineTranslationDao(): MachineTranslationDao
     abstract fun libraryDao(): LibraryDao
+    abstract fun deviceDocumentDao(): DeviceDocumentDao
 }

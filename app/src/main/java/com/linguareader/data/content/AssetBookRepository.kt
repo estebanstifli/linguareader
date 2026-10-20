@@ -61,6 +61,8 @@ class AssetBookRepository @Inject constructor(
         )
     }
 
+    suspend fun summary(bookId: String): BookSummary? = books()[bookId]?.summary()
+
     override suspend fun loadBook(bookId: String): Book =
         books()[bookId] ?: throw NoSuchElementException("Libro no encontrado: $bookId")
 

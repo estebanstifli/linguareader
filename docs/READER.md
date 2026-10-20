@@ -41,7 +41,7 @@ TalkBack: acciones «Página siguiente», «Página anterior», «Mostrar u ocul
 ## Paginación (`ui/reader/paging/`)
 
 1. `BookBlocks`: libro → bloques (título de capítulo, ilustración, texto original, traducción) según el modo
-   de visualización. «Traducción al tocar» se pagina como «Solo texto»: la traducción sale en la ficha.
+   de visualización. Hay dos modos: «Traducción al tocar» (solo el texto; la traducción sale en la ficha) y «Traducción bajo cada frase».
 2. `paginate` mide cada bloque una sola vez con `TextMeasurer` al ancho de la página (fuera del hilo principal).
 3. `PageBuilder` (puro, con tests de JVM) corta por líneas enteras: los pasajes fluyen en la misma página, cada
    capítulo empieza en página nueva y una imagen que no cabe pasa a la siguiente.

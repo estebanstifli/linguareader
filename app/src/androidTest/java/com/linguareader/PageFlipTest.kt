@@ -14,6 +14,7 @@ import com.linguareader.core.model.UserPreferences
 import com.linguareader.data.content.BookImportService
 import com.linguareader.core.reader.TtsEngineSelector
 import com.linguareader.data.prefs.UserPreferencesRepository
+import com.linguareader.data.scan.ScanSettingsRepository
 import com.linguareader.di.EngineSettingsHolder
 import com.linguareader.engine.supertonic.SupertonicEngine
 import com.linguareader.engine.supertonic.SupertonicModel
@@ -48,6 +49,7 @@ class PageFlipTest {
     @get:Rule(order = 1) val compose = createAndroidComposeRule<MainActivity>()
 
     @Inject lateinit var preferences: UserPreferencesRepository
+    @Inject lateinit var scanSettings: ScanSettingsRepository
     @Inject lateinit var selector: TtsEngineSelector
     @Inject lateinit var models: SupertonicModelManager
     @Inject lateinit var importer: BookImportService
@@ -58,9 +60,10 @@ class PageFlipTest {
         // Antes de la inyección: la caché de audio es un singleton que lee su carpeta al crearse.
         File(androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.filesDir, "audio-cache").deleteRecursively()
         hilt.inject()
+        grantNotifications()
         assumeTrue("Modelo Supertonic no instalado en ${models.modelDir}", SupertonicModelDir(models.modelDir).isComplete())
         runBlocking {
-            preferences.update { UserPreferences(translationSetupDone = true, readingLanguage = "en", autoContinue = true) }
+            skipOnboarding(preferences, scanSettings, UserPreferences(translationSetupDone = true, readingLanguage = "en", autoContinue = true))
             withContext(Dispatchers.Main) { selector.selectEngine(SupertonicModel.ENGINE_ID) }
         }
     }
@@ -105,9 +108,9 @@ class PageFlipTest {
         engineSettings.supertonicSteps = 12
         val id = importLongPages()
         try {
-            compose.waitUntilAtLeastOneExists(hasText("pasajes", substring = true), 15_000)
+            compose.waitUntilAtLeastOneExists(hasScrollToNodeAction(), 15_000)
             compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Long Pages"))
-            compose.onNodeWithText("Long Pages").performClick()
+            openFromCatalog(compose, "Long Pages")
             compose.waitUntilAtLeastOneExists(hasText("Pasaje 1 de 3", substring = true), 30_000)
             val startDeadline = System.currentTimeMillis() + 240_000
             while (overlayVisible() && System.currentTimeMillis() < startDeadline) Thread.sleep(100)
@@ -139,9 +142,18 @@ class PageFlipTest {
 
     @Test
     fun readingFlipsToTheNextPageWithoutThePreparingScreen() {
-        compose.waitUntilAtLeastOneExists(hasText("pasajes", substring = true), 15_000)
-        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("The Red Kite"))
-        compose.onNodeWithText("The Red Kite").performClick()
+        val id = importLongPages()
+        try {
+            readsIntoPageTwo()
+        } finally {
+            runBlocking { importer.delete(id) }
+        }
+    }
+
+    private fun readsIntoPageTwo() {
+        compose.waitUntilAtLeastOneExists(hasScrollToNodeAction(), 15_000)
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Long Pages"))
+        openFromCatalog(compose, "Long Pages")
 
         // Arranque: aquí SÍ puede salir la pantalla (primera vez, modelo sin cargar). Se espera a que acabe.
         compose.waitUntilAtLeastOneExists(hasText("Pasaje 1 de", substring = true), 30_000)

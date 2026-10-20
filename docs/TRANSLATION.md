@@ -36,8 +36,8 @@ y cambiar después en **Ajustes → Traducción automática**, donde también se
 
 | Situación | Qué ocurre |
 |---|---|
-| Modo «solo texto» | No se traduce nada en segundo plano. Solo al tocar una palabra o frase. |
-| Modos con traducción (bajo cada frase, al tocar, bilingüe) | Se traduce cada pasaje al llegar a él. |
+| Modo «traducción al tocar» (por defecto) | No se traduce nada en segundo plano. Solo al tocar una palabra o frase. |
+| Modo «traducción bajo cada frase» | Se traduce cada pasaje al llegar a él. |
 | Importar un libro → «Mientras leo» | Como el punto anterior. |
 | Importar un libro → «Traducir el libro entero ahora» | `BookTranslationService` traduce todas las frases en segundo plano, con barra de progreso y botón «Cancelar traducción» en la tarjeta del catálogo. Al terminar, la tarjeta muestra «Traducción automática: Español». |
 | Libro importado sin traducir entero | La tarjeta ofrece «Traducir el libro entero al …» cuando se quiera. |

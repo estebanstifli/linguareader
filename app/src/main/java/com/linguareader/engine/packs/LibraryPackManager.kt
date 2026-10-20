@@ -182,8 +182,11 @@ class LibraryPackManager @Inject constructor(
         }
     }
 
-    private companion object {
-        const val TAG = "LibraryPacks"
-        const val ID_PREFIX = "u-"
+    companion object {
+        private const val TAG = "LibraryPacks"
+        private const val ID_PREFIX = "u-"
+
+        /** Libro instalado desde una biblioteca descargable (no importado a mano por el usuario). */
+        fun isLibraryBook(bookId: String): Boolean = bookId.startsWith("${ID_PREFIX}lib-")
     }
 }

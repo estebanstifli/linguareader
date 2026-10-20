@@ -68,4 +68,5 @@ object InMemoryDatabaseModule {
     @Provides fun vocabularyDao(db: AppDatabase): VocabularyDao = db.vocabularyDao()
     @Provides fun libraryDao(db: AppDatabase): com.linguareader.data.db.LibraryDao = db.libraryDao()
     @Provides fun machineTranslationDao(db: AppDatabase): com.linguareader.data.db.MachineTranslationDao = db.machineTranslationDao()
+    @Provides fun deviceDocumentDao(db: AppDatabase): com.linguareader.data.db.DeviceDocumentDao = db.deviceDocumentDao()
 }

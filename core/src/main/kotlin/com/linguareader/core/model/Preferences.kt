@@ -1,16 +1,10 @@
 package com.linguareader.core.model
 
 enum class DisplayMode {
-    /** Solo texto en el idioma de aprendizaje. */
-    TEXT_ONLY,
+    /** Solo el texto del libro; la traducción sale al tocar una palabra o frase. */
+    TRANSLATION_ON_TAP,
     /** Traducción debajo de cada frase. */
     TRANSLATION_BELOW,
-    /** La traducción de una frase aparece al tocarla. */
-    TRANSLATION_ON_TAP,
-    /** Pasaje original y pasaje traducido como bloques. */
-    BILINGUAL_BLOCKS,
-    /** Imagen grande al inicio del pasaje + texto. */
-    ILLUSTRATED,
 }
 
 enum class HighlightStyle { BACKGROUND, UNDERLINE, MARKER }
@@ -20,15 +14,18 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK, SEPIA }
 /** Alineación del texto en el lector paginado. */
 enum class TextJustification { LEFT, JUSTIFIED, JUSTIFIED_HYPHENATED }
 
+/** Para qué usa la app el usuario (primera apertura). Decide la sección de inicio y qué se prepara. */
+enum class AppPurpose { READ, LEARN, BOTH }
+
 /** Orientación de la pantalla (se aplica a toda la app). */
 enum class ScreenOrientation { PORTRAIT, LANDSCAPE, AUTO }
 
 data class UserPreferences(
-    /** Idioma de lectura (filtro del catálogo). null = todos. */
+    /** Idioma que se aprende (elegido en la primera apertura); idioma por defecto de lo importado. null = sin elegir. */
     val readingLanguage: String? = null,
-    /** Idioma al que se traduce. Independiente del de lectura. */
+    /** Idioma nativo del usuario, al que se traduce. Por defecto, el del móvil (lo resuelve el repositorio). */
     val translationLanguage: String = "es",
-    val displayMode: DisplayMode = DisplayMode.TEXT_ONLY,
+    val displayMode: DisplayMode = DisplayMode.TRANSLATION_ON_TAP,
     val highlightStyle: HighlightStyle = HighlightStyle.BACKGROUND,
     val fingerPointerEnabled: Boolean = false,
     val autoScroll: Boolean = true,
@@ -71,10 +68,20 @@ data class UserPreferences(
     val ttsModeChosen: Boolean = false,
     /** Ya se preguntó, en la primera apertura del modo aprendizaje, qué idioma aprender (y se ofreció su biblioteca). */
     val learnLanguageChosen: Boolean = false,
+    /** Elegido en la primera apertura; null en instalaciones anteriores a esa pregunta. */
+    val purpose: AppPurpose? = null,
+    /** Nivel MCER aproximado del que aprende (filtro inicial de «Aprender…»); null = «No lo sé». */
+    val learnerLevel: CefrLevel? = null,
+    /** Ya se preguntó el nivel en la primera apertura. */
+    val learnerLevelChosen: Boolean = false,
+    /** Ya se mostró el resumen final de la primera apertura («Esto es lo que hemos preparado»). */
+    val onboardingSummaryShown: Boolean = false,
     val orientation: ScreenOrientation = ScreenOrientation.PORTRAIT,
     val textJustification: TextJustification = TextJustification.JUSTIFIED_HYPHENATED,
     /** Seguir leyendo en voz alta con la pantalla bloqueada (servicio en primer plano con notificación). */
     val readWithScreenOff: Boolean = true,
+    /** Impedir que la pantalla se apague sola mientras el lector está abierto (el botón de encendido sigue funcionando). */
+    val keepScreenOn: Boolean = true,
     /** Biblioteca en cuadrícula de portadas (true) o en lista de fichas (false). */
     val libraryGrid: Boolean = false,
 ) {

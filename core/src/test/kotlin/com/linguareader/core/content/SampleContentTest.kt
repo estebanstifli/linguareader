@@ -8,12 +8,18 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-/** Valida los libros de demostración empaquetados en app/src/main/assets/books. */
+/**
+ * Valida los libros de prueba del formato: los empaquetados en app/src/main/assets/books y los de
+ * content/test-books (fuera del APK; los usan los tests como ejemplo completo con imágenes, traducciones y glosario).
+ */
 class SampleContentTest {
 
-    private val root = File("../app/src/main/assets/books")
-    private val index = BookManifestParser.parseIndex(File(root, "index.json").readText())
-    private val books = index.books.map { id -> id to BookManifestParser.parse(File(root, "$id/manifest.json").readText()) }
+    private val roots = listOf(File("../app/src/main/assets/books"), File("../content/test-books"))
+    private val books = roots.flatMap { root ->
+        BookManifestParser.parseIndex(File(root, "index.json").readText()).books.map { id ->
+            Triple(root, id, BookManifestParser.parse(File(root, "$id/manifest.json").readText()))
+        }
+    }.map { (root, id, book) -> "${root.path}/$id" to book }
 
     @Test
     fun `catalog has at least two books in different languages and levels`() {
@@ -24,7 +30,7 @@ class SampleContentTest {
 
     @Test
     fun `folder name matches manifest id`() {
-        books.forEach { (folder, book) -> assertEquals(folder, book.id) }
+        books.forEach { (folder, book) -> assertEquals(File(folder).name, book.id) }
     }
 
     @Test
@@ -34,7 +40,7 @@ class SampleContentTest {
         books.forEach { (folder, book) ->
             val media = listOfNotNull(book.cover) + book.passages.mapNotNull { it.image }
             media.forEach { ref ->
-                val file = File(root, "$folder/${ref.path}")
+                val file = File(folder, ref.path)
                 assertTrue("Falta ${file.path}", file.exists())
                 val result = MediaIntegrity.verify(ref, file.readBytes())
                 assertTrue("Hash incorrecto en ${ref.path}: $result", result is MediaResult.Ok)

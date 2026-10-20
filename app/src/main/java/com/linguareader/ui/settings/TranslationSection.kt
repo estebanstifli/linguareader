@@ -73,15 +73,6 @@ class TranslationViewModel @Inject constructor(
     fun setTarget(code: String) = viewModelScope.launch { repo.update { it.copy(translationLanguage = code) } }
 
     fun setWifiOnly(value: Boolean) = viewModelScope.launch { repo.update { it.copy(translationWifiOnly = value) } }
-
-    /** Primera apertura: con voz (aprender idiomas) o lector clásico. Se puede cambiar en Ajustes. */
-    fun chooseMode(tts: Boolean) = viewModelScope.launch { repo.update { it.copy(ttsMode = tts, ttsModeChosen = true) } }
-
-    /** Cierra la configuración inicial; si [download], descarga el modelo del idioma elegido en segundo plano. */
-    fun finishSetup(target: String, wifiOnly: Boolean, download: Boolean) = viewModelScope.launch {
-        repo.update { it.copy(translationLanguage = target, translationWifiOnly = wifiOnly, translationSetupDone = true) }
-        if (download) models.download(target)
-    }
 }
 
 private fun languageName(code: String) = Languages.name(code)
@@ -111,115 +102,7 @@ private fun WifiOnlyRow(checked: Boolean, onChange: (Boolean) -> Unit) {
     }
 }
 
-/**
- * Configuración inicial (primera apertura): idioma de traducción, por defecto el del sistema, y
- * descarga de su modelo. Se puede omitir y cambiar después en Ajustes.
- */
-@Composable
-fun TranslationSetupGate(content: @Composable () -> Unit, vm: TranslationViewModel = hiltViewModel()) {
-    val prefs by vm.preferences.collectAsStateWithLifecycle()
-    Box(Modifier.fillMaxSize()) {
-        content()
-        val current = prefs ?: return@Box // aún cargando: no se muestra nada encima
-        when {
-            !current.ttsModeChosen -> ModeChoiceScreen(onChoose = vm::chooseMode)
-            // Solo dentro del primer arranque (antes de configurar la traducción): quien ya usaba la app
-            // no ve esta pantalla al actualizar; tiene las bibliotecas en Ajustes.
-            current.ttsMode && !current.learnLanguageChosen && !current.translationSetupDone -> LearnLanguageScreen()
-            !current.translationSetupDone -> TranslationSetupScreen(vm, current)
-        }
-    }
-}
-
-/** ¿Para qué se va a usar la app? Decide si el lector arranca con voz y controles de reproducción. */
-@Composable
-private fun ModeChoiceScreen(onChoose: (Boolean) -> Unit) {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .systemBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text("¿Cómo vas a usar LinguaReader?", style = MaterialTheme.typography.headlineSmall)
-        Text(
-            "Puedes cambiarlo cuando quieras en Ajustes o con el altavoz de la barra superior del lector.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        ModeOption(
-            title = "Aprender idiomas",
-            body = "Lectura en voz alta con la palabra iluminada, controles de reproducción y traducción al mantener pulsada una palabra.",
-            primary = true,
-            onClick = { onChoose(true) },
-        )
-        ModeOption(
-            title = "Solo leer",
-            body = "Lector de libros clásico a pantalla completa, sin voz. La traducción al mantener pulsada una palabra sigue disponible.",
-            primary = false,
-            onClick = { onChoose(false) },
-        )
-    }
-}
-
-@Composable
-private fun ModeOption(title: String, body: String, primary: Boolean, onClick: () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        if (primary) Button(onClick = onClick, modifier = Modifier.fillMaxWidth()) { Text(title) }
-        else OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) { Text(title) }
-        Text(body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
-private fun TranslationSetupScreen(vm: TranslationViewModel, prefs: UserPreferences) {
-    var target by remember { mutableStateOf(vm.deviceLanguage) }
-    var wifiOnly by remember { mutableStateOf(prefs.translationWifiOnly) }
-    BackHandler { vm.finishSetup(target, wifiOnly, download = false) }
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .systemBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text("Traducción en tu móvil", style = MaterialTheme.typography.headlineSmall)
-        Text(
-            "LinguaReader traduce palabras, frases y libros enteros sin conexión con el traductor de Google ML Kit, " +
-                "que funciona en el propio dispositivo. Cada idioma necesita un modelo de unos 40 MB que se descarga una vez.",
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Text(
-            "Los libros incluidos ya traen traducciones revisadas; el traductor automático se usa para tus libros importados " +
-                "y para lo que no esté incluido.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Traducir al", style = MaterialTheme.typography.titleMedium)
-            LanguagePicker(target, vm.languages) { target = it }
-        }
-        WifiOnlyRow(wifiOnly) { wifiOnly = it }
-        Text(
-            "Para traducir entre dos idiomas hace falta el modelo de cada uno (el del libro y el de traducción): " +
-                "se te ofrecerá descargar el que falte.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Button(onClick = { vm.finishSetup(target, wifiOnly, download = true) }, modifier = Modifier.fillMaxWidth()) {
-            Text("Descargar (≈40 MB) y empezar")
-        }
-        TextButton(onClick = { vm.finishSetup(target, wifiOnly, download = false) }, modifier = Modifier.fillMaxWidth()) {
-            Text("Ahora no")
-        }
-    }
-}
-
-/** Sección de Ajustes: idioma de traducción, modelos descargados y política de descarga. */
+/** Sección de Ajustes: idioma nativo (al que se traduce), modelos descargados y política de descarga. */
 @Composable
 fun TranslationSection(vm: TranslationViewModel = hiltViewModel()) {
     val prefs by vm.preferences.collectAsStateWithLifecycle()
@@ -228,16 +111,17 @@ fun TranslationSection(vm: TranslationViewModel = hiltViewModel()) {
     val current = prefs ?: return
     val target = vm.code(current.translationLanguage) ?: current.translationLanguage
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Traducción automática (ML Kit)", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
-        Text(
-            "Se usa cuando el libro no incluye la traducción: libros importados, palabras fuera del glosario. " +
-                "Funciona sin conexión una vez descargado el modelo de cada idioma (≈40 MB por idioma).",
-            style = MaterialTheme.typography.bodySmall,
-        )
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Traducir al", style = MaterialTheme.typography.labelLarge)
+            Text("Tu idioma", style = MaterialTheme.typography.labelLarge)
             LanguagePicker(target, vm.languages) { vm.setTarget(it) }
         }
+        Text(
+            "Tu idioma nativo: las palabras y frases se traducen a él. Por defecto es el del móvil. " +
+                "La traducción se hace en el propio dispositivo con Google ML Kit y funciona sin conexión " +
+                "una vez descargado el modelo de cada idioma (≈40 MB).",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         ModelRow(target, target in downloaded, downloads[target], vm)
         WifiOnlyRow(current.translationWifiOnly, vm::setWifiOnly)
 
@@ -248,7 +132,7 @@ fun TranslationSection(vm: TranslationViewModel = hiltViewModel()) {
         }
         val reading = current.readingLanguage?.let(vm::code)
         if (reading != null && reading != target && reading !in downloaded) {
-            Text("Idioma de lectura actual", style = MaterialTheme.typography.labelLarge)
+            Text("Idioma que aprendes", style = MaterialTheme.typography.labelLarge)
             ModelRow(reading, false, downloads[reading], vm)
         }
     }

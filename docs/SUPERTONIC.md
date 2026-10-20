@@ -183,7 +183,7 @@ evaluadas: otra JDK, parchear el JBR o usar ORT 1.18 en las pruebas de escritori
    Sin cable de datos rápido, o para probar la descarga real: `.\run.cmd` y en la app
    *Ajustes > Motor de voz > Descargar* (Wi-Fi recomendado).
 4. En la app: *Ajustes > Motor de voz > Supertonic 3*, y luego *Probar voz > EN*. Anota carga, RTF y PSS.
-5. Abre *The Red Kite* y pulsa reproducir: debe sonar con resaltado por frase y avanzar entre pasajes.
+5. Abre *A Day at the Museum* (o cualquier libro) y pulsa reproducir: debe sonar con resaltado por frase y avanzar entre pasajes.
 6. Métricas detalladas: `adb logcat -s Supertonic` (cada síntesis registra caracteres, duración,
    tiempo, RTF, pasos y memoria).
 7. Prueba instrumentada en el teléfono (desinstala la app al terminar):

@@ -2,6 +2,7 @@ package com.linguareader.data.library
 
 import com.linguareader.data.content.BookImportService
 import com.linguareader.data.content.ImportedBookRepository
+import com.linguareader.data.db.BookOverrideEntity
 import com.linguareader.data.db.CollectionBookEntity
 import com.linguareader.data.db.CollectionEntity
 import com.linguareader.data.db.LibraryDao
@@ -72,6 +73,15 @@ class LibraryRepository @Inject constructor(
 
     suspend fun deleteCollection(id: Long) = dao.deleteCollection(id)
 
+    /** Guarda los datos corregidos de un libro (se aplican encima del original; ver [BookOverrideEntity]). */
+    suspend fun editBook(bookId: String, title: String, author: String, language: String, level: String) =
+        dao.putOverride(BookOverrideEntity(bookId, title.trim(), author.trim(), language, level))
+
+    suspend fun hasEdits(bookId: String): Boolean = dao.override(bookId) != null
+
+    /** Vuelve a los datos originales del libro. */
+    suspend fun resetBook(bookId: String) = dao.deleteOverride(bookId)
+
     suspend fun trash(bookId: String, title: String) = dao.trash(TrashEntity(bookId, title, System.currentTimeMillis()))
 
     suspend fun restore(bookId: String) = dao.restore(bookId)
@@ -83,6 +93,7 @@ class LibraryRepository @Inject constructor(
         if (!canDeleteForever(bookId)) return
         importer.delete(bookId)
         dao.removeFromAllCollections(bookId)
+        dao.deleteOverride(bookId)
         dao.restore(bookId)
     }
 

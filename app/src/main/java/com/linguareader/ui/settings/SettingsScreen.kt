@@ -1,5 +1,18 @@
 package com.linguareader.ui.settings
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalContext
+import com.linguareader.core.model.TextJustification
+import com.linguareader.data.db.DeviceDocumentDao
+import com.linguareader.engine.supertonic.SupertonicModel
+import kotlinx.coroutines.flow.map
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,43 +75,135 @@ import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
-class SettingsViewModel @Inject constructor(private val repo: UserPreferencesRepository) : ViewModel() {
+class SettingsViewModel @Inject constructor(
+    private val repo: UserPreferencesRepository,
+    documents: DeviceDocumentDao,
+) : ViewModel() {
     val preferences: StateFlow<UserPreferences> = repo.preferences.stateIn(viewModelScope, SharingStarted.Eagerly, UserPreferences())
+    /** Documentos encontrados al examinar archivos (resumen del índice). */
+    val documentCount: StateFlow<Int> = documents.observeAll().map { it.size }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
     fun update(transform: (UserPreferences) -> UserPreferences) = viewModelScope.launch { repo.update(transform) }
 }
 
+/** Subpantallas de Ajustes, una por tema. */
+enum class SettingsPage(val title: String, val icon: Int) {
+    LANGUAGE("Idioma y traducción", R.drawable.ic_translate),
+    LIBRARIES("Bibliotecas", R.drawable.ic_library_books),
+    FILES("Examinar archivos", R.drawable.ic_find_in_page),
+    READING("Lectura", R.drawable.ic_menu_book),
+    APPEARANCE("Texto y tema", R.drawable.ic_palette),
+    VOICE("Voz y audio", R.drawable.ic_record_voice_over),
+    ABOUT("Acerca de", R.drawable.ic_info),
+}
+
+/**
+ * Ajustes: un índice por temas y una subpantalla por tema. Con [initialPage] se abre directamente esa subpantalla
+ * (p. ej. «Voz y audio» desde un aviso del lector) y «atrás» sale de Ajustes.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) {
+fun SettingsScreen(
+    onBack: () -> Unit,
+    onOpenDocuments: () -> Unit = {},
+    initialPage: SettingsPage? = null,
+    vm: SettingsViewModel = hiltViewModel(),
+) {
     val prefs by vm.preferences.collectAsStateWithLifecycle()
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val documentCount by vm.documentCount.collectAsStateWithLifecycle()
+    var page by rememberSaveable { mutableStateOf(initialPage) }
+    val backToIndex = page != null && initialPage == null
+    BackHandler(enabled = backToIndex) { page = null }
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ajustes") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Volver") } },
+                title = { Text(page?.title ?: "Ajustes") },
+                navigationIcon = {
+                    IconButton(onClick = { if (backToIndex) page = null else onBack() }) {
+                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Volver")
+                    }
+                },
             )
         },
     ) { padding ->
-        Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            SectionTitle("Idiomas")
-            Text("Idioma del texto (libros que se muestran)", style = MaterialTheme.typography.labelLarge)
-            ChipRow(Languages.readingOptions, prefs.readingLanguage, Languages::name) { tag -> vm.update { it.copy(readingLanguage = tag) } }
-            Text(
-                "El idioma de lectura y el de traducción son independientes: puedes leer en francés y traducir al inglés.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            TranslationSection()
-            LibrarySection()
+        val current = page
+        if (current == null) {
+            SettingsIndex(prefs, documentCount, Modifier.padding(padding)) { page = it }
+        } else {
+            Column(
+                Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                SettingsPageContent(current, prefs, onUpdate = { t -> vm.update(t) }, onOpenDocuments = onOpenDocuments)
+                Spacer(Modifier.height(24.dp))
+            }
+        }
+    }
+}
 
-            HorizontalDivider()
-            ReaderPreferencesPanel(prefs = prefs, onUpdate = { t -> vm.update(t) }, voices = emptyList(), selectedVoice = null, onVoice = {})
+@Composable
+private fun SettingsIndex(prefs: UserPreferences, documentCount: Int, modifier: Modifier, onOpen: (SettingsPage) -> Unit) {
+    fun summary(page: SettingsPage): String = when (page) {
+        SettingsPage.LANGUAGE -> "Tu idioma: ${Languages.name(prefs.translationLanguage)} · traducción sin conexión"
+        SettingsPage.LIBRARIES -> "Lecturas graduadas A1–B2 para descargar"
+        SettingsPage.FILES -> if (documentCount > 0) "$documentCount documentos encontrados en el móvil" else "Buscar libros y documentos en el móvil"
+        SettingsPage.READING -> "${Labels.displayMode(prefs.displayMode)} · resaltado ${Labels.highlight(prefs.highlightStyle).lowercase()}"
+        SettingsPage.APPEARANCE -> "Tema ${Labels.theme(prefs.theme).lowercase()} · texto al ${(prefs.fontScale * 100).toInt()} %"
+        SettingsPage.VOICE -> when {
+            !prefs.ttsMode -> "Lectura en voz alta desactivada"
+            prefs.ttsEngineId == UserPreferences.ANDROID_TTS_ENGINE -> "Voz del sistema (Android)"
+            else -> SupertonicModel.DISPLAY_NAME
+        }
+        SettingsPage.ABOUT -> "Versión 0.2.0 y licencias"
+    }
+    val groups = listOf(
+        "Contenido" to listOf(SettingsPage.LANGUAGE, SettingsPage.LIBRARIES, SettingsPage.FILES),
+        "Lectura" to listOf(SettingsPage.READING, SettingsPage.APPEARANCE, SettingsPage.VOICE),
+        "Aplicación" to listOf(SettingsPage.ABOUT),
+    )
+    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 8.dp)) {
+        groups.forEach { (title, pages) ->
+            item(key = title) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 4.dp),
+                )
+            }
+            items(pages, key = { it.name }) { p ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().clickable { onOpen(p) }.padding(horizontal = 20.dp, vertical = 12.dp),
+                ) {
+                    IconBadge(p.icon)
+                    Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
+                        Text(p.title, style = MaterialTheme.typography.titleMedium)
+                        Text(summary(p), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+                    }
+                    Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+    }
+}
 
-            HorizontalDivider()
+@Composable
+private fun SettingsPageContent(
+    page: SettingsPage,
+    prefs: UserPreferences,
+    onUpdate: ((UserPreferences) -> UserPreferences) -> Unit,
+    onOpenDocuments: () -> Unit,
+) {
+    val context = LocalContext.current
+    when (page) {
+        SettingsPage.LANGUAGE -> TranslationSection()
+        SettingsPage.LIBRARIES -> LibrarySection()
+        SettingsPage.FILES -> ScanFilesSection(onOpenDocuments = onOpenDocuments)
+        SettingsPage.READING -> ReadingOptions(prefs, onUpdate)
+        SettingsPage.APPEARANCE -> AppearanceOptions(prefs, onUpdate)
+        SettingsPage.VOICE -> {
+            VoiceOptions(prefs, onUpdate)
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
             TtsEngineSection()
             WordAlignmentSection()
             PacksSection()
@@ -111,15 +216,12 @@ fun SettingsScreen(onBack: () -> Unit, vm: SettingsViewModel = hiltViewModel()) 
                     context.startActivity(android.content.Intent("com.android.settings.TTS_SETTINGS").addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
                 }
             }) { Text("Abrir ajustes de texto a voz") }
-
-            HorizontalDivider()
-            SectionTitle("Acerca de")
-            Text(
-                "LinguaReader 0.2.0 · Biblioteca local sin conexión. Libros de demostración originales. " +
-                    "Iconos: Material Icons (Apache 2.0). Ver docs/ARCHITECTURE.md para licencias.",
-                style = MaterialTheme.typography.bodySmall,
-            )
         }
+        SettingsPage.ABOUT -> Text(
+            "LinguaReader 0.2.0 · Biblioteca local sin conexión. " +
+                "Iconos: Material Icons (Apache 2.0). Ver docs/ARCHITECTURE.md para licencias.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
     }
 }
 
@@ -134,82 +236,9 @@ fun ReaderPreferencesPanel(
     onVoice: (String?) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        SwitchRow("Modo aprendizaje con voz (TTS)", prefs.ttsMode) { v -> onUpdate { it.copy(ttsMode = v, ttsModeChosen = true) } }
-
-        SectionTitle("Tema")
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            ThemeMode.entries.forEachIndexed { i, mode ->
-                SegmentedButton(
-                    selected = prefs.theme == mode,
-                    onClick = { onUpdate { it.copy(theme = mode) } },
-                    shape = SegmentedButtonDefaults.itemShape(i, ThemeMode.entries.size),
-                ) { Text(Labels.theme(mode)) }
-            }
-        }
-
-        SectionTitle("Modo de visualización")
-        DisplayMode.entries.forEach { mode ->
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().selectable(
-                    selected = prefs.displayMode == mode,
-                    onClick = { onUpdate { it.copy(displayMode = mode) } },
-                    role = Role.RadioButton,
-                ),
-            ) {
-                RadioButton(selected = prefs.displayMode == mode, onClick = null)
-                Column(Modifier.padding(start = 8.dp, top = 4.dp, bottom = 4.dp)) {
-                    Text(Labels.displayMode(mode), style = MaterialTheme.typography.bodyLarge)
-                    Text(Labels.displayModeHint(mode), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
-
-        SectionTitle("Resaltado")
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            HighlightStyle.entries.forEachIndexed { i, style ->
-                SegmentedButton(
-                    selected = prefs.highlightStyle == style,
-                    onClick = { onUpdate { it.copy(highlightStyle = style) } },
-                    shape = SegmentedButtonDefaults.itemShape(i, HighlightStyle.entries.size),
-                ) { Text(Labels.highlight(style)) }
-            }
-        }
-
-        SwitchRow("Dedo indicador sobre la palabra", prefs.fingerPointerEnabled) { v -> onUpdate { it.copy(fingerPointerEnabled = v) } }
-        SwitchRow("Pasar página automáticamente al leer en voz alta", prefs.autoScroll) { v -> onUpdate { it.copy(autoScroll = v) } }
-        SwitchRow("Mostrar ilustraciones", prefs.showIllustrations) { v -> onUpdate { it.copy(showIllustrations = v) } }
-        SwitchRow("Seguir leyendo con la pantalla apagada", prefs.readWithScreenOff) { v -> onUpdate { it.copy(readWithScreenOff = v) } }
-        SwitchRow("Pausar al consultar una palabra", prefs.pauseOnWordTap) { v -> onUpdate { it.copy(pauseOnWordTap = v) } }
-        SwitchRow("Continuar con el siguiente pasaje", prefs.autoContinue) { v -> onUpdate { it.copy(autoContinue = v) } }
-        SwitchRow("Reducir movimiento", prefs.reduceMotion) { v -> onUpdate { it.copy(reduceMotion = v) } }
-
-        SectionTitle("Pausas de lectura")
-        LabeledSlider("Entre frases", prefs.sentencePauseMs / 1000f, 0.2f..1.5f, "%.1f s".format(Locale.ROOT, prefs.sentencePauseMs / 1000f)) { v ->
-            onUpdate { it.copy(sentencePauseMs = (v * 1000).toInt() / 50 * 50) }
-        }
-        LabeledSlider("Entre párrafos", prefs.paragraphPauseMs / 1000f, 0.3f..3.0f, "%.1f s".format(Locale.ROOT, prefs.paragraphPauseMs / 1000f)) { v ->
-            onUpdate { it.copy(paragraphPauseMs = (v * 1000).toInt() / 50 * 50) }
-        }
-        SwitchRow("Leer números y abreviaturas como palabras (voz Supertonic)", prefs.normalizeSpeech) { v -> onUpdate { it.copy(normalizeSpeech = v) } }
-
-        SectionTitle("Texto")
-        LabeledSlider("Tamaño", prefs.fontScale, 0.8f..1.8f, "%.0f%%".format(Locale.ROOT, prefs.fontScale * 100)) { v ->
-            onUpdate { it.copy(fontScale = v) }
-        }
-        LabeledSlider("Interlineado", prefs.lineHeight, 1.2f..2.2f, "%.1f".format(Locale.ROOT, prefs.lineHeight)) { v ->
-            onUpdate { it.copy(lineHeight = v) }
-        }
-        Text("Alineación", style = MaterialTheme.typography.labelLarge)
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            com.linguareader.core.model.TextJustification.entries.forEachIndexed { i, mode ->
-                SegmentedButton(
-                    selected = prefs.textJustification == mode,
-                    onClick = { onUpdate { it.copy(textJustification = mode) } },
-                    shape = SegmentedButtonDefaults.itemShape(i, com.linguareader.core.model.TextJustification.entries.size),
-                ) { Text(Labels.justification(mode), maxLines = 1) }
-            }
-        }
+        AppearanceOptions(prefs, onUpdate)
+        ReadingOptions(prefs, onUpdate)
+        VoiceOptions(prefs, onUpdate)
 
         SectionTitle("Traducir al")
         ChipRow(Languages.translationTargets, prefs.translationLanguage, Languages::name) { tag ->
@@ -235,6 +264,99 @@ fun ReaderPreferencesPanel(
             }
         }
     }
+}
+
+/** Lectura: modo de visualización, resaltado y comportamiento del lector. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReadingOptions(prefs: UserPreferences, onUpdate: ((UserPreferences) -> UserPreferences) -> Unit) {
+    SectionTitle("Modo de visualización")
+    DisplayMode.entries.forEach { mode ->
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().selectable(
+                selected = prefs.displayMode == mode,
+                onClick = { onUpdate { it.copy(displayMode = mode) } },
+                role = Role.RadioButton,
+            ),
+        ) {
+            RadioButton(selected = prefs.displayMode == mode, onClick = null)
+            Column(Modifier.padding(start = 8.dp, top = 4.dp, bottom = 4.dp)) {
+                Text(Labels.displayMode(mode), style = MaterialTheme.typography.bodyLarge)
+                Text(Labels.displayModeHint(mode), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+
+    SectionTitle("Resaltado")
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+        HighlightStyle.entries.forEachIndexed { i, style ->
+            SegmentedButton(
+                selected = prefs.highlightStyle == style,
+                onClick = { onUpdate { it.copy(highlightStyle = style) } },
+                shape = SegmentedButtonDefaults.itemShape(i, HighlightStyle.entries.size),
+            ) { Text(Labels.highlight(style)) }
+        }
+    }
+
+    SectionTitle("Al leer")
+    SwitchRow("Dedo indicador sobre la palabra", prefs.fingerPointerEnabled) { v -> onUpdate { it.copy(fingerPointerEnabled = v) } }
+    SwitchRow("Pasar página automáticamente al leer en voz alta", prefs.autoScroll) { v -> onUpdate { it.copy(autoScroll = v) } }
+    SwitchRow("Mostrar ilustraciones", prefs.showIllustrations) { v -> onUpdate { it.copy(showIllustrations = v) } }
+    SwitchRow("No apagar la pantalla mientras leo", prefs.keepScreenOn) { v -> onUpdate { it.copy(keepScreenOn = v) } }
+    SwitchRow("Pausar al consultar una palabra", prefs.pauseOnWordTap) { v -> onUpdate { it.copy(pauseOnWordTap = v) } }
+    SwitchRow("Continuar con el siguiente pasaje", prefs.autoContinue) { v -> onUpdate { it.copy(autoContinue = v) } }
+    SwitchRow("Reducir movimiento", prefs.reduceMotion) { v -> onUpdate { it.copy(reduceMotion = v) } }
+}
+
+/** Texto y tema: tema de color, tamaño, interlineado y alineación. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AppearanceOptions(prefs: UserPreferences, onUpdate: ((UserPreferences) -> UserPreferences) -> Unit) {
+    SectionTitle("Tema")
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+        ThemeMode.entries.forEachIndexed { i, mode ->
+            SegmentedButton(
+                selected = prefs.theme == mode,
+                onClick = { onUpdate { it.copy(theme = mode) } },
+                shape = SegmentedButtonDefaults.itemShape(i, ThemeMode.entries.size),
+            ) { Text(Labels.theme(mode)) }
+        }
+    }
+
+    SectionTitle("Texto")
+    LabeledSlider("Tamaño", prefs.fontScale, 0.8f..1.8f, "%.0f%%".format(Locale.ROOT, prefs.fontScale * 100)) { v ->
+        onUpdate { it.copy(fontScale = v) }
+    }
+    LabeledSlider("Interlineado", prefs.lineHeight, 1.2f..2.2f, "%.1f".format(Locale.ROOT, prefs.lineHeight)) { v ->
+        onUpdate { it.copy(lineHeight = v) }
+    }
+    Text("Alineación", style = MaterialTheme.typography.labelLarge)
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+        TextJustification.entries.forEachIndexed { i, mode ->
+            SegmentedButton(
+                selected = prefs.textJustification == mode,
+                onClick = { onUpdate { it.copy(textJustification = mode) } },
+                shape = SegmentedButtonDefaults.itemShape(i, TextJustification.entries.size),
+            ) { Text(Labels.justification(mode), maxLines = 1) }
+        }
+    }
+}
+
+/** Voz y audio: lectura en voz alta, pantalla apagada, pausas y normalización del texto. */
+@Composable
+private fun VoiceOptions(prefs: UserPreferences, onUpdate: ((UserPreferences) -> UserPreferences) -> Unit) {
+    SwitchRow("Modo aprendizaje con voz (TTS)", prefs.ttsMode) { v -> onUpdate { it.copy(ttsMode = v, ttsModeChosen = true) } }
+    SwitchRow("Seguir leyendo con la pantalla apagada", prefs.readWithScreenOff) { v -> onUpdate { it.copy(readWithScreenOff = v) } }
+
+    SectionTitle("Pausas de lectura")
+    LabeledSlider("Entre frases", prefs.sentencePauseMs / 1000f, 0.2f..1.5f, "%.1f s".format(Locale.ROOT, prefs.sentencePauseMs / 1000f)) { v ->
+        onUpdate { it.copy(sentencePauseMs = (v * 1000).toInt() / 50 * 50) }
+    }
+    LabeledSlider("Entre párrafos", prefs.paragraphPauseMs / 1000f, 0.3f..3.0f, "%.1f s".format(Locale.ROOT, prefs.paragraphPauseMs / 1000f)) { v ->
+        onUpdate { it.copy(paragraphPauseMs = (v * 1000).toInt() / 50 * 50) }
+    }
+    SwitchRow("Leer números y abreviaturas como palabras (voz Supertonic)", prefs.normalizeSpeech) { v -> onUpdate { it.copy(normalizeSpeech = v) } }
 }
 
 @Composable

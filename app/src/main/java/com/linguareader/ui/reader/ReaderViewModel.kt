@@ -81,6 +81,8 @@ data class WordCardState(
     /** La lectura estaba sonando y se pausó al tocar: ofrecer "Reanudar". */
     val pausedForCard: Boolean = false,
     val targetLanguage: String,
+    /** false = minitarjeta junto a la palabra; true = ficha completa («Más información»). */
+    val expanded: Boolean = false,
 )
 
 data class SentenceCardState(
@@ -357,8 +359,8 @@ class ReaderViewModel @Inject constructor(
     // --------------------------------------------------------------------------------------
 
     /**
-     * La pantalla se asentó en una página que empieza en [pos]. Si la cambió el usuario ([user]): leyendo, la
-     * lectura salta al principio de esa página; en pausa, la lectura se reanudará desde ahí.
+     * La pantalla se asentó en una página que empieza en [pos]. Si la cambió el usuario ([user]), la lectura se
+     * pausa (como al pulsar pausa) y se reanudará desde el principio de esa página.
      */
     fun onPageSettled(pos: TextPos, passagesOnPage: Set<Int>, user: Boolean) = viewModelScope.launch {
         val book = _state.value.book ?: return@launch
@@ -369,9 +371,9 @@ class ReaderViewModel @Inject constructor(
             return@launch
         }
         val passage = book.passages.getOrNull(pos.passage) ?: return@launch
-        val playing = playback.value.isPlaying
+        if (playback.value.isPlaying) audio.pause()
         if (passage.index != _state.value.passageIndex) {
-            showPassage(passage.index, pos.offset, autoplay = playing)
+            showPassage(passage.index, pos.offset, autoplay = false)
         } else {
             audio.seekToOffset(pos.offset)
             persist(passage, pos.offset)
@@ -411,7 +413,7 @@ class ReaderViewModel @Inject constructor(
     /** Traduce (traductor del dispositivo) las frases de los pasajes visibles en los modos que las muestran. */
     private suspend fun ensureTranslations(book: Book, passages: Set<Int>) {
         val prefs = preferences.value
-        if (prefs.displayMode != DisplayMode.TRANSLATION_BELOW && prefs.displayMode != DisplayMode.BILINGUAL_BLOCKS) return
+        if (prefs.displayMode != DisplayMode.TRANSLATION_BELOW) return
         val target = prefs.translationLanguage
         for (index in passages.sorted()) {
             if (!translatedPassages.add(index)) continue
@@ -624,6 +626,9 @@ class ReaderViewModel @Inject constructor(
 
     fun dismissCards() = _state.update { it.copy(wordCard = null, sentenceCard = null) }
 
+    /** De la minitarjeta a la ficha completa de la palabra. */
+    fun expandWordCard() = _state.update { s -> s.copy(wordCard = s.wordCard?.copy(expanded = true)) }
+
     fun resumeAfterCard() = viewModelScope.launch {
         dismissCards()
         audio.play()
@@ -642,8 +647,8 @@ class ReaderViewModel @Inject constructor(
         val book = _state.value.book ?: return
         val passage = _state.value.passage ?: return
         val prefs = preferences.value
-        // Quien solo quiere leer no paga traducciones: se traduce al tocar una palabra o frase.
-        if (prefs.displayMode == DisplayMode.TEXT_ONLY) return
+        // En «Traducción al tocar» no se pagan traducciones por adelantado: se traduce al tocar una palabra o frase.
+        if (prefs.displayMode != DisplayMode.TRANSLATION_BELOW) return
         val target = prefs.translationLanguage
         val map = passage.sentences.associate { it.id to lookupService.translateSentence(book, passage, it, target) }
         noteMissingModels(book, target, *map.values.toTypedArray())

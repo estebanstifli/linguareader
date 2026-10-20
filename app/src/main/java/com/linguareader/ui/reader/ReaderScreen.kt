@@ -64,6 +64,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -71,6 +72,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -120,20 +125,31 @@ fun ReaderScreen(onBack: () -> Unit, onOpenSettings: () -> Unit = {}, vm: Reader
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Pantalla completa por defecto: los controles salen al tocar el centro del texto.
+    // Pantalla completa por defecto: los controles salen al tocar el texto (y, sobre una palabra, su minitarjeta).
     var controlsVisible by rememberSaveable { mutableStateOf(false) }
+    // Caja de la palabra tocada y zonas de pantalla (coordenadas raíz) para colocar la minitarjeta.
+    var tappedWord by remember { mutableStateOf<Rect?>(null) }
+    var rootBounds by remember { mutableStateOf(Rect.Zero) }
+    var textArea by remember { mutableStateOf(Rect.Zero) }
+    var topBarHeight by remember { mutableIntStateOf(0) }
+    var bottomBarHeight by remember { mutableIntStateOf(0) }
     var sheet by rememberSaveable { mutableStateOf(ReaderSheet.NONE) }
     var paged by remember { mutableStateOf<PagedBook?>(null) }
     val pager = rememberPagerState { paged?.size ?: 0 }
     val navigator = remember(pager) { PageNavigator(pager) { prefs.reduceMotion } }
     val currentPage = paged?.pages?.getOrNull(pager.currentPage)
+    val miniCard = ui.wordCard?.takeIf { !it.expanded }
+
+    // La minitarjeta apunta a una palabra de esta página: al cambiar de página deja de tener sentido.
+    LaunchedEffect(pager.currentPage) { if (miniCard != null) vm.dismissCards() }
 
     ImmersiveMode(showSystemBars = controlsVisible)
     ReadingServiceEffect(playback, prefs, ui.book?.title.orEmpty())
+    KeepScreenOn(prefs.keepScreenOn)
 
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).onGloballyPositioned { rootBounds = it.boundsInRoot() }) {
         Column(Modifier.fillMaxSize()) {
-            Box(Modifier.weight(1f).fillMaxWidth()) {
+            Box(Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { textArea = it.boundsInRoot() }) {
                 val book = ui.book
                 when {
                     ui.error != null -> Text(ui.error!!, Modifier.padding(24.dp), color = MaterialTheme.colorScheme.error)
@@ -153,8 +169,20 @@ fun ReaderScreen(onBack: () -> Unit, onOpenSettings: () -> Unit = {}, vm: Reader
                         onSettled = { page, user ->
                             vm.onPageSettled(page.start, page.items.map { it.passage }.toSet(), user)
                         },
-                        onToggleControls = { controlsVisible = !controlsVisible },
-                        onLongPressToken = { vm.onTokenTap(it.id) },
+                        // Un toque abre controles (y la minitarjeta si cae en una palabra); el siguiente lo cierra todo.
+                        onTap = { hit ->
+                            if (controlsVisible || ui.wordCard != null) {
+                                controlsVisible = false
+                                vm.dismissCards()
+                            } else {
+                                controlsVisible = true
+                                if (hit != null) {
+                                    tappedWord = hit.bounds
+                                    vm.onTokenTap(hit.token.id)
+                                }
+                            }
+                        },
+                        onUserDrag = vm::pause,
                         onSentenceAction = vm::onSentenceAction,
                         // Márgenes estables: no cambian al mostrar u ocultar las barras del sistema (no se re-pagina).
                         modifier = Modifier
@@ -167,7 +195,7 @@ fun ReaderScreen(onBack: () -> Unit, onOpenSettings: () -> Unit = {}, vm: Reader
                 // Barra inferior (sobre el texto, encima del reproductor si lo hay).
                 SlideFromEdge(visible = controlsVisible && paged != null, fromBottom = true, modifier = Modifier.align(Alignment.BottomCenter)) {
                     val book = paged
-                    if (book != null) {
+                    if (book != null) Box(Modifier.onSizeChanged { bottomBarHeight = it.height }) {
                         ReaderBottomBar(
                             paged = book,
                             page = pager.currentPage,
@@ -217,7 +245,7 @@ fun ReaderScreen(onBack: () -> Unit, onOpenSettings: () -> Unit = {}, vm: Reader
             exit = slideOutVertically { -it } + fadeOut(),
             modifier = Modifier.align(Alignment.TopCenter),
         ) {
-            Column {
+            Column(Modifier.onSizeChanged { topBarHeight = it.height }) {
                 ReaderTopBar(
                     book = ui.book,
                     chapterTitle = currentPage?.let { p -> ui.book?.chapters?.getOrNull(p.chapter)?.title },
@@ -259,10 +287,28 @@ fun ReaderScreen(onBack: () -> Unit, onOpenSettings: () -> Unit = {}, vm: Reader
             }
         }
 
+        val word = tappedWord
+        if (miniCard != null && word != null) {
+            // Entre las barras de controles, que se muestran a la vez que la tarjeta.
+            val origin = rootBounds.topLeft
+            WordPopup(
+                card = miniCard,
+                word = word.translate(-origin),
+                top = maxOf(textArea.top - origin.y, topBarHeight.toFloat()),
+                bottom = textArea.bottom - origin.y - bottomBarHeight,
+                onMoreInfo = vm::expandWordCard,
+                onSave = vm::saveWord,
+                onReadFromHere = {
+                    controlsVisible = false
+                    vm.readFromToken(miniCard.tokenId)
+                },
+            )
+        }
+
         if (ui.preparing) PreparingOverlay(reduceMotion = prefs.reduceMotion, title = ui.book?.title.orEmpty())
     }
 
-    ui.wordCard?.let { card ->
+    ui.wordCard?.takeIf { it.expanded }?.let { card ->
         WordCardSheet(
             card = card,
             onDismiss = vm::dismissCards,
@@ -373,6 +419,19 @@ private fun ImmersiveMode(showSystemBars: Boolean) {
         onDispose {
             view.context.findActivity()?.window?.let { WindowCompat.getInsetsController(it, view).show(WindowInsetsCompat.Type.systemBars()) }
         }
+    }
+}
+
+/**
+ * Mientras el lector está abierto (leyendo o escuchando) la pantalla no se apaga por inactividad.
+ * El usuario puede apagarla igualmente con el botón de encendido; al salir del lector vuelve el comportamiento normal.
+ */
+@Composable
+private fun KeepScreenOn(enabled: Boolean) {
+    val view = LocalView.current
+    DisposableEffect(enabled) {
+        view.keepScreenOn = enabled
+        onDispose { view.keepScreenOn = false }
     }
 }
 
@@ -706,7 +765,7 @@ private fun Detail(label: String, value: String) {
 }
 
 @Composable
-private fun NewCollectionDialog(onCreate: (String) -> Unit, onDismiss: () -> Unit) {
+internal fun NewCollectionDialog(onCreate: (String) -> Unit, onDismiss: () -> Unit) {
     var name by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,

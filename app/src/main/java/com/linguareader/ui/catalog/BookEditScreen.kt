@@ -1,0 +1,198 @@
+package com.linguareader.ui.catalog
+
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
+import com.linguareader.R
+import com.linguareader.core.model.CefrLevel
+import com.linguareader.core.model.LanguageTags
+import com.linguareader.data.content.CompositeBookRepository
+import com.linguareader.data.library.LibraryRepository
+import com.linguareader.ui.common.Languages
+import com.linguareader.ui.navigation.BookEditRoute
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+/** Datos editables de un libro, tal como se ven ahora (con las correcciones anteriores aplicadas). */
+data class BookEditForm(
+    val title: String,
+    val author: String,
+    val language: String,
+    val level: CefrLevel,
+    /** Ya tiene correcciones: se ofrece volver a los datos originales. */
+    val edited: Boolean,
+)
+
+sealed interface BookEditState {
+    data object Loading : BookEditState
+    data class Ready(val form: BookEditForm) : BookEditState
+    data class Failed(val message: String) : BookEditState
+    /** Guardado o restaurado: la pantalla se cierra. */
+    data object Done : BookEditState
+}
+
+@HiltViewModel
+class BookEditViewModel @Inject constructor(
+    savedState: SavedStateHandle,
+    private val books: CompositeBookRepository,
+    private val library: LibraryRepository,
+) : ViewModel() {
+    private val bookId = savedState.toRoute<BookEditRoute>().bookId
+    private val _state = MutableStateFlow<BookEditState>(BookEditState.Loading)
+    val state: StateFlow<BookEditState> = _state
+
+    init {
+        viewModelScope.launch {
+            _state.value = runCatching {
+                // El resumen basta: no hace falta abrir un libro largo entero ni esperar al catálogo completo.
+                val book = books.loadSummary(bookId) ?: error("No se encontró el libro")
+                BookEditState.Ready(
+                    BookEditForm(
+                        title = book.title,
+                        author = book.authors.joinToString(", "),
+                        language = LanguageTags.primary(book.learningLanguage),
+                        level = book.cefrLevel,
+                        edited = library.hasEdits(bookId),
+                    ),
+                )
+            }.getOrElse { BookEditState.Failed(it.message ?: "No se pudo abrir el libro") }
+        }
+    }
+
+    fun save(form: BookEditForm) = viewModelScope.launch {
+        library.editBook(bookId, form.title, form.author, form.language, form.level.name)
+        _state.value = BookEditState.Done
+    }
+
+    fun reset() = viewModelScope.launch {
+        library.resetBook(bookId)
+        _state.value = BookEditState.Done
+    }
+}
+
+/** Pantalla «Editar» del menú ⋮ de un libro: título, autor, idioma y nivel. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BookEditScreen(onBack: () -> Unit, vm: BookEditViewModel = hiltViewModel()) {
+    val state by vm.state.collectAsStateWithLifecycle()
+    LaunchedEffect(state) { if (state == BookEditState.Done) onBack() }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Editar libro") },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Volver") } },
+            )
+        },
+    ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            when (val s = state) {
+                BookEditState.Loading, BookEditState.Done -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                is BookEditState.Failed -> Text(s.message, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(20.dp))
+                is BookEditState.Ready -> EditForm(s.form, onSave = vm::save, onReset = vm::reset, onCancel = onBack)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditForm(initial: BookEditForm, onSave: (BookEditForm) -> Unit, onReset: () -> Unit, onCancel: () -> Unit) {
+    var form by remember(initial) { mutableStateOf(initial) }
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        OutlinedTextField(
+            value = form.title,
+            onValueChange = { form = form.copy(title = it) },
+            label = { Text("Título") },
+            isError = form.title.isBlank(),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = form.author,
+            onValueChange = { form = form.copy(author = it) },
+            label = { Text("Autor") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        var open by remember { mutableStateOf(false) }
+        ExposedDropdownMenuBox(expanded = open, onExpandedChange = { open = it }) {
+            OutlinedTextField(
+                value = Languages.name(form.language),
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Idioma del libro") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = open) },
+                modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+            )
+            ExposedDropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                (Languages.translationTargets + form.language).distinct().sortedBy(Languages::name).forEach { tag ->
+                    DropdownMenuItem(text = { Text(Languages.name(tag)) }, onClick = { form = form.copy(language = tag); open = false })
+                }
+            }
+        }
+        Text(
+            "Es el idioma en que está escrito el texto: decide la voz que lo lee y desde qué idioma se traduce.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Text("Nivel", style = MaterialTheme.typography.labelLarge)
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            CefrLevel.entries.forEach { level ->
+                FilterChip(selected = form.level == level, onClick = { form = form.copy(level = level) }, label = { Text(level.name) })
+            }
+        }
+
+        Button(onClick = { onSave(form) }, enabled = form.title.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Guardar") }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            if (initial.edited) TextButton(onClick = onReset) { Text("Restaurar datos originales") } else Box(Modifier)
+            TextButton(onClick = onCancel) { Text("Cancelar") }
+        }
+    }
+}

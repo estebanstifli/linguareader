@@ -24,6 +24,7 @@ import com.linguareader.core.translation.WordLookupService
 import com.linguareader.data.content.CompositeBookRepository
 import com.linguareader.data.db.AppDatabase
 import com.linguareader.data.db.BookmarkDao
+import com.linguareader.data.db.DeviceDocumentDao
 import com.linguareader.data.db.LibraryDao
 import com.linguareader.data.db.MachineTranslationDao
 import com.linguareader.data.db.ProgressDao
@@ -31,6 +32,7 @@ import com.linguareader.data.db.VocabularyDao
 import com.linguareader.engine.audio.AndroidAudioFocusGate
 import com.linguareader.engine.alignment.AlignmentModelManager
 import com.linguareader.engine.alignment.Wav2Vec2ClipAligner
+import com.linguareader.engine.audio.LazyClipPlayer
 import com.linguareader.engine.audio.Media3ClipPlayer
 import com.linguareader.engine.importing.PdfExtractor
 import com.linguareader.engine.supertonic.AndroidMemoryProbe
@@ -163,8 +165,8 @@ object TtsEngineModule {
         val normalizer = SwitchableNormalizer({ settings.normalizeSpeech }, RuleBasedSpeechNormalizer(AndroidIcuNumberSpeller))
         val rendered = RenderedReaderAudioController(
             synthesizer = supertonic,
-            player = Media3ClipPlayer(context, handleAudioFocus = true),
-            snippetPlayer = Media3ClipPlayer(context, handleAudioFocus = false),
+            player = LazyClipPlayer { Media3ClipPlayer(context, handleAudioFocus = true) },
+            snippetPlayer = LazyClipPlayer { Media3ClipPlayer(context, handleAudioFocus = false) },
             dispatcher = main,
             parameters = { mapOf("steps" to settings.supertonicSteps.toString()) },
             pauses = { settings.pauses },
@@ -177,8 +179,8 @@ object TtsEngineModule {
         val system = (streaming as? FileSpeechSynthesizer)?.let { file ->
             RenderedReaderAudioController(
                 synthesizer = CachingSpeechSynthesizer(file, cache),
-                player = Media3ClipPlayer(context, handleAudioFocus = true),
-                snippetPlayer = Media3ClipPlayer(context, handleAudioFocus = false),
+                player = LazyClipPlayer { Media3ClipPlayer(context, handleAudioFocus = true) },
+                snippetPlayer = LazyClipPlayer { Media3ClipPlayer(context, handleAudioFocus = false) },
                 dispatcher = main,
                 pauses = { settings.pauses },
                 aligner = aligner, // solo si el motor instalado no da marcas y hay modelo de alineación
@@ -212,4 +214,5 @@ object DatabaseModule {
     @Provides fun vocabularyDao(db: AppDatabase): VocabularyDao = db.vocabularyDao()
     @Provides fun machineTranslationDao(db: AppDatabase): MachineTranslationDao = db.machineTranslationDao()
     @Provides fun libraryDao(db: AppDatabase): LibraryDao = db.libraryDao()
+    @Provides fun deviceDocumentDao(db: AppDatabase): DeviceDocumentDao = db.deviceDocumentDao()
 }

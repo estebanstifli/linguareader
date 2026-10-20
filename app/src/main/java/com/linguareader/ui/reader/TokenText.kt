@@ -70,16 +70,19 @@ class ActiveTokenAnchor {
     }
 }
 
+/** Token tocado y su caja en pantalla (coordenadas raíz), para colocar la minitarjeta junto a él. */
+data class TokenHit(val token: Token, val bounds: Rect)
+
 /**
  * Localiza el token bajo una posición de pantalla (coordenadas raíz) entre todos los [TokenText] visibles.
- * La página lo usa para la pulsación larga sin que cada texto capture los toques (que pasan página).
+ * La página lo usa para los toques sin que cada texto los capture (deslizar pasa página).
  */
 @Stable
 class TokenHitRegistry {
-    private val testers = LinkedHashMap<Any, (Offset) -> Token?>()
-    fun register(owner: Any, tester: (Offset) -> Token?) { testers[owner] = tester }
+    private val testers = LinkedHashMap<Any, (Offset) -> TokenHit?>()
+    fun register(owner: Any, tester: (Offset) -> TokenHit?) { testers[owner] = tester }
     fun unregister(owner: Any) { testers.remove(owner) }
-    fun tokenAt(rootPosition: Offset): Token? = testers.values.firstNotNullOfOrNull { it(rootPosition) }
+    fun hitAt(rootPosition: Offset): TokenHit? = testers.values.firstNotNullOfOrNull { it(rootPosition) }
 }
 
 /**
@@ -158,17 +161,18 @@ fun TokenText(
         anchor.report(owner, token, focus)
     }
 
-    fun tokenAt(position: Offset): Token? {
+    /** Token bajo [position] (coordenadas locales del texto) y su caja local. */
+    fun hitAt(position: Offset): Pair<Token, Rect>? {
         val l = layout ?: return null
         val local = l.getOffsetForPosition(position)
         val candidates = listOfNotNull(
             OffsetIndex.tokenAt(currentTokens, segmentStart + local),
             OffsetIndex.tokenAt(currentTokens, segmentStart + local - 1),
         )
-        return candidates.firstOrNull { t ->
-            if (!visible(t.rangeStart - segmentStart, l)) return@firstOrNull false
+        return candidates.firstNotNullOfOrNull { t ->
+            if (!visible(t.rangeStart - segmentStart, l)) return@firstNotNullOfOrNull null
             val box = l.getPathForRange(t.rangeStart - segmentStart, t.rangeEnd - segmentStart).getBounds()
-            box.inflate(slop).contains(position)
+            if (box.inflate(slop).contains(position)) t to box else null
         }
     }
 
@@ -177,7 +181,9 @@ fun TokenText(
     DisposableEffect(hitRegistry) {
         hitRegistry?.register(owner) { root ->
             val c = coordinates[0]
-            if (c == null || !c.isAttached) null else tokenAt(root - c.positionInRoot())
+            if (c == null || !c.isAttached) return@register null
+            val origin = c.positionInRoot()
+            hitAt(root - origin)?.let { (token, box) -> TokenHit(token, box.translate(origin)) }
         }
         onDispose { hitRegistry?.unregister(owner) }
     }
@@ -211,8 +217,8 @@ fun TokenText(
                 if (hitRegistry != null) Modifier
                 else Modifier.pointerInput(segmentStart, segmentEnd) {
                     detectTapGestures(
-                        onTap = { pos -> tokenAt(pos)?.let(currentOnTap) },
-                        onLongPress = { pos -> tokenAt(pos)?.let(currentOnLongPress) },
+                        onTap = { pos -> hitAt(pos)?.first?.let(currentOnTap) },
+                        onLongPress = { pos -> hitAt(pos)?.first?.let(currentOnLongPress) },
                     )
                 },
             )

@@ -3,6 +3,7 @@ package com.linguareader.ui.reader
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -45,7 +46,6 @@ import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.unit.dp
 import com.linguareader.core.model.Book
 import com.linguareader.core.model.DisplayMode
-import com.linguareader.core.model.Token
 import com.linguareader.core.model.UserPreferences
 import com.linguareader.core.reader.HighlightGranularity
 import com.linguareader.core.reader.PlaybackState
@@ -59,7 +59,9 @@ import com.linguareader.ui.reader.paging.PagedBook
 import com.linguareader.ui.reader.paging.TextPos
 import com.linguareader.ui.reader.paging.paginate
 import com.linguareader.ui.theme.LocalReaderColors
+import kotlin.math.abs
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -84,8 +86,8 @@ class PageNavigator(val pager: PagerState, private val reduceMotion: () -> Boole
 /**
  * Libro paginado a pantalla completa. Pagina con el tamaño real disponible y vuelve a paginar (manteniendo la
  * posición del texto) al cambiar tamaño de letra, interlineado, modo, orientación o traducciones.
- * Toques: borde izquierdo/derecho = página anterior/siguiente; centro = mostrar u ocultar controles;
- * pulsación larga sobre una palabra = ficha de traducción.
+ * Las páginas se pasan deslizando (arrastrar pausa la lectura). Un toque, o una pulsación larga, en cualquier
+ * punto llega a [onTap] con la palabra tocada si la hay (controles y minitarjeta de traducción).
  */
 @Composable
 fun PagedReaderContent(
@@ -100,8 +102,8 @@ fun PagedReaderContent(
     paged: PagedBook?,
     onPaged: (PagedBook) -> Unit,
     onSettled: (Page, user: Boolean) -> Unit,
-    onToggleControls: () -> Unit,
-    onLongPressToken: (Token) -> Unit,
+    onTap: (TokenHit?) -> Unit,
+    onUserDrag: () -> Unit,
     onSentenceAction: (passage: Int, sentenceId: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -122,7 +124,7 @@ fun PagedReaderContent(
     val currentAnchor by rememberUpdatedState(anchor)
     val currentPaged by rememberUpdatedState(paged)
     val currentOnSettled by rememberUpdatedState(onSettled)
-    val usesTranslations = prefs.displayMode == DisplayMode.TRANSLATION_BELOW || prefs.displayMode == DisplayMode.BILINGUAL_BLOCKS
+    val usesTranslations = prefs.displayMode == DisplayMode.TRANSLATION_BELOW
     val layoutTranslations = if (usesTranslations) translations else emptyMap()
 
     BoxWithConstraints(modifier.fillMaxSize()) {
@@ -168,20 +170,53 @@ fun PagedReaderContent(
             }
         }
 
+        // El usuario empieza a arrastrar la página: se pausa la lectura, como al pulsar pausa.
+        val currentOnUserDrag by rememberUpdatedState(onUserDrag)
+        LaunchedEffect(pager) {
+            pager.interactionSource.interactions.collect { if (it is DragInteraction.Start) currentOnUserDrag() }
+        }
+
         // Saltos explícitos: índice, marcadores, búsqueda.
         LaunchedEffect(jumps) {
             jumps.collect { pos -> currentPaged?.let { navigator.goTo(it.pageOf(pos), user = false, animate = false) } }
         }
 
         // La página sigue a la voz: palabra activa o, si no hay tiempos por palabra, la frase.
+        // En el silencio final de una frase no hay palabra activa: se sigue en la última palabra leída de esa frase
+        // (no al inicio de la frase), para no volver atrás si la frase empezaba en la página anterior.
+        // El paso de página se lanza fuera del efecto: el efecto se reinicia con cada palabra y, si la animación
+        // corriera dentro, se cancelaría a medias y dejaría asomar el borde de la página anterior.
         val following = prefs.autoScroll && playback.isPlaying
+        val lastFollowed = remember { arrayOfNulls<TextPos>(1) }
+        val followScope = rememberCoroutineScope()
+        val followJob = remember { arrayOfNulls<Job>(1) }
         LaunchedEffect(following, playback.passageId, playback.sentenceIndex, playback.activeTokenId, paged) {
             if (!following) return@LaunchedEffect
             val passage = book.passages.firstOrNull { it.id == playback.passageId } ?: return@LaunchedEffect
-            val offset = playback.activeTokenId?.let(passage::tokenById)?.rangeStart
-                ?: passage.sentences.getOrNull(playback.sentenceIndex)?.rangeStart ?: return@LaunchedEffect
+            val sentence = passage.sentences.getOrNull(playback.sentenceIndex) ?: return@LaunchedEffect
+            val tokenStart = playback.activeTokenId?.let(passage::tokenById)?.rangeStart
+            val offset = if (tokenStart != null) {
+                tokenStart.also { lastFollowed[0] = TextPos(passage.index, it) }
+            } else {
+                lastFollowed[0]?.takeIf { it.passage == passage.index && it.offset in sentence.rangeStart until sentence.rangeEnd }
+                    ?.offset ?: sentence.rangeStart
+            }
             val target = paged.pageOf(TextPos(passage.index, offset))
-            if (target != pager.currentPage && !pager.isScrollInProgress) navigator.goTo(target, user = false)
+            if (target == pager.currentPage || pager.isScrollInProgress || followJob[0]?.isActive == true) return@LaunchedEffect
+            followJob[0] = followScope.launch { navigator.goTo(target, user = false) }
+        }
+
+        // Red de seguridad: si un desplazamiento se interrumpe (sin el dedo en la pantalla) y la página queda
+        // a medio pasar, se completa hasta la página más cercana.
+        LaunchedEffect(pager) {
+            snapshotFlow { pager.isScrollInProgress to pager.currentPageOffsetFraction }
+                .collect { (scrolling, fraction) ->
+                    if (scrolling || abs(fraction) < 0.001f || followJob[0]?.isActive == true) return@collect
+                    delay(100) // deja terminar el ajuste propio del pager tras soltar el dedo
+                    if (!pager.isScrollInProgress && abs(pager.currentPageOffsetFraction) >= 0.001f) {
+                        navigator.goTo(pager.currentPage, user = false)
+                    }
+                }
         }
 
         val hits = remember { TokenHitRegistry() }
@@ -189,24 +224,24 @@ fun PagedReaderContent(
         var origin by remember { mutableStateOf(Offset.Zero) }
         var container by remember { mutableStateOf<Rect?>(null) }
         val scope = rememberCoroutineScope()
-        val width = constraints.maxWidth
+        val currentOnTap by rememberUpdatedState(onTap)
 
         Box(
             Modifier
                 .fillMaxSize()
                 .onGloballyPositioned { origin = it.boundsInRoot().topLeft; container = it.boundsInRoot() }
-                .pointerInput(width) {
+                .pointerInput(Unit) {
                     detectTapGestures(
-                        // Las páginas solo se pasan deslizando; un toque en los lados no hace nada.
-                        onTap = { pos -> if (pos.x in width * SIDE..width * (1 - SIDE)) onToggleControls() },
-                        onLongPress = { pos -> hits.tokenAt(origin + pos)?.let(onLongPressToken) },
+                        // Las páginas solo se pasan deslizando; toque y pulsación larga hacen lo mismo.
+                        onTap = { pos -> currentOnTap(hits.hitAt(origin + pos)) },
+                        onLongPress = { pos -> currentOnTap(hits.hitAt(origin + pos)) },
                     )
                 }
                 .semantics {
                     customActions = listOf(
                         CustomAccessibilityAction("Página siguiente") { scope.launchPage(navigator, pager.currentPage + 1); true },
                         CustomAccessibilityAction("Página anterior") { scope.launchPage(navigator, pager.currentPage - 1); true },
-                        CustomAccessibilityAction("Mostrar u ocultar controles") { onToggleControls(); true },
+                        CustomAccessibilityAction("Mostrar u ocultar controles") { currentOnTap(null); true },
                     )
                 },
         ) {
@@ -226,9 +261,6 @@ fun PagedReaderContent(
         }
     }
 }
-
-/** Fracción del ancho de cada lado donde un toque no hace nada (el centro muestra u oculta los controles). */
-private const val SIDE = 0.25f
 
 private fun CoroutineScope.launchPage(navigator: PageNavigator, page: Int) {
     launch { navigator.goTo(page, user = true) }

@@ -65,6 +65,7 @@ data class Book(
         estimatedMinutes = estimateMinutes(wordCount, cefrLevel),
         passageCount = passages.size,
         translationLanguages = fullyTranslatedLanguages,
+        authors = authors,
     )
 
     companion object {
@@ -148,6 +149,7 @@ data class BookSummary(
     val estimatedMinutes: Int,
     val passageCount: Int,
     val translationLanguages: Set<String>,
+    val authors: List<String> = emptyList(),
 )
 
 data class CatalogFilter(
