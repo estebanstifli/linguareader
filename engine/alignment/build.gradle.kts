@@ -45,6 +45,7 @@ tasks.register<Test>("alignBench") {
     filter { includeTestsMatching("*Bench*") }
     systemProperty("align.models", models.absolutePath)
     systemProperty("align.bench", "true")
+    listOf("align.int8Only", "align.dirs", "align.threads").forEach { k -> System.getProperty(k)?.let { systemProperty(k, it) } }
     maxHeapSize = "3g"
     outputs.upToDateWhen { false }
     testLogging { showStandardStreams = true }

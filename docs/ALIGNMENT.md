@@ -189,7 +189,7 @@ es separador).
   `packs-v1` del repositorio de GitHub; ver «Paquetes descargables» en docs/ARCHITECTURE.md (`tools/make_release.py`).
 - Verificado en emulador: descarga de 121 MB con sha256 desde el servidor local, 4 frases alineadas (7/7, 10/10,
   6/6, 6/6 palabras; 0,33–0,64 s cada una), palabra resaltada en pantalla y estado «sincronía por palabra».
-- Pendiente: alineaciones sin persistir (se recalculan al releer), medir en ARM real, MMS no se ofrece por su licencia.
+- Pendiente: medir en ARM real. MMS no se ofrece (CC-BY-NC y 317 MB). FR/ES: ver §9 (VoxPopuli, sustituye al FR large).
 
 ### Palabras sin tiempo (relleno de huecos)
 El alineador no marca las palabras sin letras alineables (números, símbolos) ni las que no consigue situar. En vez de
@@ -205,3 +205,49 @@ ExoPlayer informa `currentPosition` a saltos (≈ 250 ms en el emulador; depende
 lector la consulte cada 40 ms. Sin corregirlo, las palabras cortas (< 250 ms) caían entre dos saltos y nunca se
 iluminaban. `RenderedReaderAudioController.tick` interpola la posición con el reloj entre saltos (como máximo
 +350 ms) y se re-ancla cuando el reproductor da una posición nueva.
+
+## 9. FR y ES con wav2vec2 base VoxPopuli (int8, ~120 MB)
+
+Objetivo: alineadores tan ligeros como el inglés para francés y español. Modelos `facebook/wav2vec2-base-10k-voxpopuli-ft-fr`
+(revisión `e6d7b145`) y `-ft-es` (`1f8c1fd6`): wav2vec2 **base** (95M) preentrenado con 10K h de VoxPopuli y ajustado por
+idioma, vocabulario de caracteres en minúsculas con acentos (`<pad>` = blanco, `|` separador, sin apóstrofo). Licencia
+**CC-BY-NC-4.0 (no comercial)**: aceptable mientras LinguaReader no sea comercial; la app lo indica junto al modelo.
+Exportados con `tools/export_wav2vec2_onnx.py <repo> <dir> <revisión>` (int8 = cuantización dinámica solo de MatMul).
+El código de alineación no cambia: `Wav2Vec2Text` ya admite estos vocabularios.
+
+Corpus con verdad de referencia ampliado con **32 frases en español** (309 palabras alineables). PC (Ryzen 9 3900XT, 4 hilos),
+solo int8; error de inicio **sin** y **con** el adelanto de inicio (ver más abajo):
+
+| Idioma · modelo | Disco | RTF PC | RAM (+JVM) | Inicio sin adelanto (p90) | Sesgo inicio | Adelanto | Inicio con adelanto | ≤ 50 ms |
+|---|---|---|---|---|---|---|---|---|
+| EN · w2v2 base-100h | 121 MB | 0,06 | +384 MB | 45 (100) | +41 ms | 40 ms | **31 ms** | 83 % |
+| FR · w2v2 large 7K (anterior) | 355 MB | 0,12 | +867 MB | 55 (90) | – | – | – | 44 % |
+| FR · **VoxPopuli base** | **121 MB** | 0,06 | +377 MB | 81 (120) | +80 ms | 80 ms | **32 ms** | 79 % |
+| ES · **VoxPopuli base** | **121 MB** | 0,06 | +360 MB | 68 (110) | +56 ms | 60 ms | **34 ms** | 83 % |
+| (ref.) MMS uint8 FR / ES | 317 MB | 0,19 | +883 MB | 45 / 37 | +37 / +27 ms | – | – | 60 / 73 % |
+
+Emulador x86_64 (4 vCPU; `Wav2Vec2AlignOnDeviceTest`, sin adelanto): FR VoxPopuli RTF **0,26** (antes 0,39), PSS pico
+**491 MB** (antes 709 MB); ES RTF 0,23, PSS pico 472 MB. Errores idénticos al PC. ARM real sin medir.
+
+### Adelanto de inicio (`startLeadMs`)
+El error de inicio es casi todo **sesgo**: el CTC emite la primera letra de cada palabra después de que empiece a sonar
+(todos los modelos, también MMS; los VoxPopuli más). El catálogo lleva un adelanto por modelo, elegido con el barrido de
+`alignBench` (línea «adelanto→ini medio»): EN 40 ms, FR 80 ms, ES 60 ms. `advanceStarts` (en `Wav2Vec2ClipAligner`) adelanta
+cada inicio sin cruzar el fin de la palabra anterior; los fines no cambian. El adelanto entra en la firma de la alineación,
+así que las alineaciones guardadas se recalculan. Medido sobre frases palabra a palabra (con huecos de 120 ms); en habla
+continua el recorte contra la palabra anterior lo limita.
+
+### Integración y verificación
+- Catálogo (`tools/make_release.py` → `assets/aligners/catalog.json`): `w2v2-en`, `vp-fr`, `vp-es`; `w2v2-fr` retirado y
+  borrado del dispositivo al arrancar.
+- **Corregido**: el script escribía `vocab.json` con la codificación por defecto de Windows (cp1252). El `w2v2-fr.vocab.json`
+  publicado no era UTF-8, así que la app descartaba las letras acentuadas al alinear francés (sin fallar). Ahora se escribe en UTF-8.
+- Verificado en emulador con Supertonic: «Hansel et Gretel» (FR) y «Hansel y Gretel» (ES) alinean todas las palabras
+  (p. ej. 12/12, 14/14, 10/10; 0,7–1,7 s por frase) y el lector muestra «sincronía por palabra (alineación forzada)».
+
+```powershell
+python tools\export_wav2vec2_onnx.py facebook/wav2vec2-base-10k-voxpopuli-ft-fr .models\aligners\vp-fr e6d7b145359a2a07df759369aea64307f4f6031a
+python tools\export_wav2vec2_onnx.py facebook/wav2vec2-base-10k-voxpopuli-ft-es .models\aligners\vp-es 1f8c1fd6048a71c6c7644224c5a0aa87fb92cc27
+.\gradlew.bat :engine:supertonic:alignCorpus
+.\gradlew.bat :engine:alignment:alignBench -Dalign.int8Only=true -Dalign.threads=4 -Dalign.dirs=vp-fr,vp-es,w2v2-base-100h
+```

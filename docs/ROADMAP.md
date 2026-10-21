@@ -53,8 +53,10 @@ Leyenda: ✅ hecho y verificado · 🟡 parcial · ⬜ pendiente
 - ⬜ **Medir en un móvil real de gama media (arm64)** y ajustar los pasos por defecto.
 - ✅ Estudio de alineadores forzados ([ALIGNMENT.md](ALIGNMENT.md)): MMS (audio.cpp y ONNX) y Qwen3 (audio.cpp).
   MMS-ONNX en Kotlin (`:engine:alignment`) funciona en Android: ~30 ms de error, RTF 0,39 en el emulador.
-- ⬜ Integrar la alineación en el lector (resaltado por palabra con Supertonic) — **decidir la licencia**:
-  MMS es CC-BY-NC (no comercial); Qwen3 es Apache-2.0 pero pesado para móvil.
+- ✅ Alineación en el lector (resaltado por palabra con Supertonic) con wav2vec2 int8 de ~120 MB por idioma: EN base-100h
+  (Apache-2.0), FR y ES VoxPopuli base (CC-BY-NC-4.0, app no comercial). Adelanto de inicio por modelo (`startLeadMs`)
+  medido con `alignBench`: ~31–34 ms de error medio de inicio. Verificado en emulador en FR y ES ([ALIGNMENT.md §9](ALIGNMENT.md)).
+  Publicados en `packs-v1`. Pendiente: si la app se vuelve comercial, sustituir FR/ES por modelos Apache-2.0.
 - ✅ Normalización de texto antes del TTS renderizado ([SPEECH_NORMALIZATION.md](SPEECH_NORMALIZATION.md)): números,
   ordinales, horas, %, moneda y abreviaturas (es/en/fr; enteros en el resto) con ICU del sistema, léxico y forma
   hablada del autor en el manifiesto, mapa token → habla para la alineación. Pendiente: escucharlo en dispositivo.

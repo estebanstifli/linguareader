@@ -9,6 +9,7 @@
       "sourceRevision": "9c1fef36b62a428a658e5b022ef9f21b38f47e0b",
       "license": "Apache-2.0",
       "licenseUrl": "https://huggingface.co/facebook/wav2vec2-base-100h",
+      "startLeadMs": 40,
       "format": "onnx-int8-matmul",
       "files": [
         {
@@ -24,24 +25,48 @@
       ]
     },
     {
-      "id": "w2v2-fr",
+      "id": "vp-fr",
       "language": "fr",
-      "name": "wav2vec2 large 7K FR (francés)",
-      "source": "bofenghuang/asr-wav2vec2-ctc-french",
-      "sourceRevision": "46bbc5088ec8a5921a501a2458fe27c789be0167",
-      "license": "Apache-2.0",
-      "licenseUrl": "https://huggingface.co/bofenghuang/asr-wav2vec2-ctc-french",
+      "name": "wav2vec2 base VoxPopuli FR (francés)",
+      "source": "facebook/wav2vec2-base-10k-voxpopuli-ft-fr",
+      "sourceRevision": "e6d7b145359a2a07df759369aea64307f4f6031a",
+      "license": "CC-BY-NC-4.0",
+      "licenseUrl": "https://huggingface.co/facebook/wav2vec2-base-10k-voxpopuli-ft-fr",
+      "startLeadMs": 80,
       "format": "onnx-int8-matmul",
       "files": [
         {
           "path": "model.onnx",
-          "sizeBytes": 355041409,
-          "sha256": "45a5a212db5f61d95a5c11c6a3b727264661f2a6f6800e5d32d7e2830c2526de"
+          "sizeBytes": 121943907,
+          "sha256": "127a63bc9cf1e3cfdcff1da947ec3a7ba5dc859c9fc32dde6be43d448b564f4c"
         },
         {
           "path": "vocab.json",
-          "sizeBytes": 658,
-          "sha256": "38146cb82e6b144cd039fdb754ea6896a2bb54fe7f35fa7ce5aad9caa4f77a13"
+          "sizeBytes": 432,
+          "sha256": "2c833779d7ea07cbdc83d6b4fe1fcda90ac9535aa669c30dfbdfea2d60d9aad7"
+        }
+      ]
+    },
+    {
+      "id": "vp-es",
+      "language": "es",
+      "name": "wav2vec2 base VoxPopuli ES (español)",
+      "source": "facebook/wav2vec2-base-10k-voxpopuli-ft-es",
+      "sourceRevision": "1f8c1fd6048a71c6c7644224c5a0aa87fb92cc27",
+      "license": "CC-BY-NC-4.0",
+      "licenseUrl": "https://huggingface.co/facebook/wav2vec2-base-10k-voxpopuli-ft-es",
+      "startLeadMs": 60,
+      "format": "onnx-int8-matmul",
+      "files": [
+        {
+          "path": "model.onnx",
+          "sizeBytes": 121938503,
+          "sha256": "eb05d0e5c93307b6542e084fbce500d7425ab4350323814ebd1aefdaabfb1d66"
+        },
+        {
+          "path": "vocab.json",
+          "sizeBytes": 361,
+          "sha256": "9ee0a61fff0d84ef7dfc1fe70eb58dc6c87fcfc4c5eb238f7f1831d6154ed8c2"
         }
       ]
     }

@@ -173,6 +173,8 @@ Detalles, métricas y limitaciones: [SUPERTONIC.md](SUPERTONIC.md).
 | Supertonic 3 — código de referencia (portado a Kotlin) | MIT | Supertone Inc. Repositorio archivado. |
 | Supertonic 3 — pesos ONNX | BigScience OpenRAIL-M | **No se empaquetan.** Descarga bajo demanda tras aceptar la licencia en la app; restricciones de uso (Anexo A); se indica «voz sintética». Ver [SUPERTONIC.md](SUPERTONIC.md). |
 | ONNX Runtime | MIT | Microsoft. |
+| Alineador EN `facebook/wav2vec2-base-100h` (pesos) | Apache-2.0 | No se empaqueta: descarga opcional (release `packs-v1`). |
+| Alineadores FR/ES `facebook/wav2vec2-base-10k-voxpopuli-ft-fr` / `-es` (pesos) | **CC-BY-NC-4.0** | **Solo uso no comercial.** No se empaquetan: descarga opcional; la app muestra el aviso. Si la app pasa a ser comercial (o con complementos de pago), hay que sustituirlos (p. ej. FR large Apache-2.0 de bofenghuang, 355 MB) — ver [ALIGNMENT.md §9](ALIGNMENT.md). |
 | Media3 | Apache-2.0 | Google. |
 | jsoup | MIT | Importación de HTML/XHTML/XML. |
 | ML Kit Translation (Google) | ML Kit Terms of Service (no es código abierto) | Traducción en el dispositivo. Modelos (~30 MB/idioma) descargados de servidores de Google bajo demanda. Revisar los términos y la declaración de datos de Play antes de publicar. Ver [TRANSLATION.md](TRANSLATION.md). |
@@ -190,7 +192,11 @@ Supertonic sigue descargándose de Hugging Face (revisión fijada).
 |---|---|---|
 | `voices.zip` | 60 WAV por voz (F1–F5, M1–M5) e idioma (en, fr, es): muestra de prueba y frase «preparando la lectura», + manifest con sha256 | 12 MB |
 | `w2v2-en.model.onnx` / `.vocab.json` | wav2vec2 base 100h (Apache-2.0), int8 | 122 MB |
-| `w2v2-fr.model.onnx` / `.vocab.json` | wav2vec2 large 7K FR (Apache-2.0), int8 | 355 MB |
+| `vp-fr.model.onnx` / `.vocab.json` | wav2vec2 base VoxPopuli FR (**CC-BY-NC-4.0**), int8 | 122 MB |
+| `vp-es.model.onnx` / `.vocab.json` | wav2vec2 base VoxPopuli ES (**CC-BY-NC-4.0**), int8 | 122 MB |
+
+El antiguo `w2v2-fr` (wav2vec2 large 7K FR, Apache-2.0, 355 MB) ya no está en el catálogo; la app borra su carpeta al
+arrancar (`AlignmentModelManager.removeRetired`). Ver [ALIGNMENT.md §9](ALIGNMENT.md).
 
 - Generar y publicar: `./gradlew :engine:supertonic:voicePack`, `python tools/make_release.py` (copia los adjuntos a
   `.models/release/` y regenera `assets/aligners/catalog.json` y `assets/packs/voices.json` con tamaños y sha256) y

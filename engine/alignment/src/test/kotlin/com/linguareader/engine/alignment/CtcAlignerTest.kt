@@ -91,4 +91,43 @@ class CtcAlignerTest {
         val p = t.prepare(listOf("--", "mère"))
         assertEquals(listOf(1), p.alignedWords)
     }
+
+    @Test
+    fun `start lead moves starts earlier without overlapping the previous word`() {
+        val spans = listOf(
+            com.linguareader.core.alignment.WordSpanMs(0, 30, 300, 0.9f),
+            com.linguareader.core.alignment.WordSpanMs(1, 320, 500, 0.9f), // hueco de 20 ms: solo puede adelantarse 20
+            com.linguareader.core.alignment.WordSpanMs(2, 800, 900, 0.9f),
+        )
+        val out = advanceStarts(spans, 80)
+        assertEquals(listOf(0L, 300L, 720L), out.map { it.startMs })
+        assertEquals(spans.map { it.endMs }, out.map { it.endMs })
+        assertEquals(spans, advanceStarts(spans, 0))
+    }
+
+    // Vocabularios reales de facebook/wav2vec2-base-10k-voxpopuli-ft-fr / -es (sin apóstrofo; `|` separador).
+    private fun voxpopuli(letters: String) = mapOf("<pad>" to 0, "<s>" to 1, "</s>" to 2, "<unk>" to 3, "|" to 4) +
+        letters.mapIndexed { i, c -> c.toString() to 5 + i }
+
+    @Test
+    fun `voxpopuli french keeps accents and ligatures and drops apostrophes`() {
+        val t = Wav2Vec2Text(voxpopuli("esnitraouldcpmévqfgbhxàjèyêzôkçœûùîâwïëüæ"))
+        assertEquals(0, t.blank)
+        assertEquals("où", t.normalize("Où"))
+        assertEquals("cœur", t.normalize("cœur"))
+        assertEquals("lété", t.normalize("L’été"))
+        assertEquals("grandsparents", t.normalize("grands-parents"))
+        assertEquals(listOf(1), t.prepare(listOf("«", "Noël")).alignedWords)
+    }
+
+    @Test
+    fun `voxpopuli spanish keeps tildes, enye and dieresis and ignores inverted marks`() {
+        val t = Wav2Vec2Text(voxpopuli("eaosnrildctupmbqygvhófíájzñéxúkwü") + ("1" to 38))
+        assertEquals("niño", t.normalize("Niño"))
+        assertEquals("pingüino", t.normalize("pingüino"))
+        assertEquals("qué", t.normalize("¿Qué?"))
+        assertEquals("", t.normalize("¡"))
+        assertEquals("", t.normalize("1")) // los dígitos no se alinean: los cubre el relleno de huecos
+        assertEquals(listOf(0, 2), t.prepare(listOf("Él", "—", "salió")).alignedWords)
+    }
 }

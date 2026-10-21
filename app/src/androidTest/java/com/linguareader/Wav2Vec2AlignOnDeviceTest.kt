@@ -18,7 +18,7 @@ import kotlin.math.abs
 
 /**
  * Experimento wav2vec2 vs MMS en el dispositivo, sobre las frases con verdad de referencia del idioma.
- * Argumentos: aligner=mms|w2v2, lang=en|fr, model=<fichero dentro de files/aligners/<dir>/>, dir=<carpeta>.
+ * Argumentos: aligner=mms|w2v2, lang=en|fr|es, model=<fichero dentro de files/aligners/<dir>/>, dir=<carpeta>.
  * Se omite si no se han copiado modelo y corpus (ver docs/ALIGNMENT.md).
  */
 class Wav2Vec2AlignOnDeviceTest {

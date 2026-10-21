@@ -1,6 +1,6 @@
 """Exporta un wav2vec2 CTC de Hugging Face a ONNX (fp32, fp16 e int8) para el alineador.
 
-    python tools/export_wav2vec2_onnx.py facebook/wav2vec2-base-100h .models/aligners/w2v2-base-100h
+    python tools/export_wav2vec2_onnx.py facebook/wav2vec2-base-100h .models/aligners/w2v2-base-100h [revisión]
 
 Genera onnx/model.onnx (fp32), model_fp16.onnx, model_int8.onnx (cuantización dinámica solo de
 MatMul: ORT CPU no soporta ConvInteger) y vocab.json (símbolo → id; "<pad>" es el blanco CTC).
@@ -10,10 +10,11 @@ import numpy as np, torch
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 
 repo, out = sys.argv[1], pathlib.Path(sys.argv[2])
+revision = sys.argv[3] if len(sys.argv) > 3 else None
 (out / "onnx").mkdir(parents=True, exist_ok=True)
-model = Wav2Vec2ForCTC.from_pretrained(repo).eval()
-vocab = Wav2Vec2Processor.from_pretrained(repo).tokenizer.get_vocab()
-json.dump(vocab, open(out / "vocab.json", "w"), ensure_ascii=False)
+model = Wav2Vec2ForCTC.from_pretrained(repo, revision=revision).eval()
+vocab = Wav2Vec2Processor.from_pretrained(repo, revision=revision).tokenizer.get_vocab()
+json.dump(vocab, open(out / "vocab.json", "w", encoding="utf-8"), ensure_ascii=False)
 
 class Wrap(torch.nn.Module):
     def __init__(s, m): super().__init__(); s.m = m

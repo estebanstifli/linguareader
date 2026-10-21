@@ -16,10 +16,15 @@ rel.mkdir(parents=True, exist_ok=True)
 MODELS = [
     dict(id="w2v2-en", language="en", name="wav2vec2 base 100h (inglés)", source="facebook/wav2vec2-base-100h",
          sourceRevision="9c1fef36b62a428a658e5b022ef9f21b38f47e0b", license="Apache-2.0",
-         licenseUrl="https://huggingface.co/facebook/wav2vec2-base-100h", srcDir="w2v2-base-100h"),
-    dict(id="w2v2-fr", language="fr", name="wav2vec2 large 7K FR (francés)", source="bofenghuang/asr-wav2vec2-ctc-french",
-         sourceRevision="46bbc5088ec8a5921a501a2458fe27c789be0167", license="Apache-2.0",
-         licenseUrl="https://huggingface.co/bofenghuang/asr-wav2vec2-ctc-french", srcDir="w2v2-fr"),
+         licenseUrl="https://huggingface.co/facebook/wav2vec2-base-100h", srcDir="w2v2-base-100h", startLeadMs=40),
+    # FR y ES: VoxPopuli base (95M, ~120 MB en int8), licencia no comercial. Sustituye al FR large Apache-2.0
+    # (bofenghuang/asr-wav2vec2-ctc-french, 355 MB). startLeadMs: adelanto de inicios medido con alignBench (docs/ALIGNMENT.md §9).
+    dict(id="vp-fr", language="fr", name="wav2vec2 base VoxPopuli FR (francés)", source="facebook/wav2vec2-base-10k-voxpopuli-ft-fr",
+         sourceRevision="e6d7b145359a2a07df759369aea64307f4f6031a", license="CC-BY-NC-4.0",
+         licenseUrl="https://huggingface.co/facebook/wav2vec2-base-10k-voxpopuli-ft-fr", srcDir="vp-fr", startLeadMs=80),
+    dict(id="vp-es", language="es", name="wav2vec2 base VoxPopuli ES (español)", source="facebook/wav2vec2-base-10k-voxpopuli-ft-es",
+         sourceRevision="1f8c1fd6048a71c6c7644224c5a0aa87fb92cc27", license="CC-BY-NC-4.0",
+         licenseUrl="https://huggingface.co/facebook/wav2vec2-base-10k-voxpopuli-ft-es", srcDir="vp-es", startLeadMs=60),
 ]
 
 

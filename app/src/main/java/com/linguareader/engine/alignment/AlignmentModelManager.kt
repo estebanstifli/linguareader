@@ -36,8 +36,13 @@ data class AlignerModelSpec(
     val license: String,
     val licenseUrl: String,
     val files: List<AlignerFileSpec>,
+    /** Adelanto de los inicios de palabra para este modelo (ver [AlignerModelFiles.startLeadMs]). */
+    val startLeadMs: Long = 0,
 ) {
     val totalBytes: Long get() = files.sumOf { it.sizeBytes }
+
+    /** Licencias Creative Commons NC (p. ej. CC-BY-NC-4.0 de VoxPopuli): prohíben el uso comercial. */
+    val nonCommercial: Boolean get() = license.split('-').any { it.equals("NC", ignoreCase = true) }
 }
 
 @Serializable
@@ -75,7 +80,21 @@ class AlignmentModelManager @Inject constructor(
     /** Se ejecuta antes de borrar un modelo (liberar la sesión ONNX). */
     var beforeDelete: () -> Unit = {}
 
-    init { refresh() }
+    init {
+        refresh()
+        appScope.launch(Dispatchers.IO) { removeRetired() }
+    }
+
+    /** Borra modelos y revisiones que ya no están en el catálogo (p. ej. el FR large de 355 MB, sustituido por VoxPopuli). */
+    private fun removeRetired() {
+        if (catalog.isEmpty()) return // catálogo ilegible: no borrar nada
+        val keep = catalog.associate { it.id to it.sourceRevision.take(8) }
+        File(context.filesDir, "models/alignment").listFiles()?.forEach { model ->
+            val rev = keep[model.name]
+            val stale = if (rev == null) listOf(model) else model.listFiles()?.filter { it.name != rev }.orEmpty()
+            stale.forEach { runCatching { it.deleteRecursively() }.onSuccess { _ -> Log.i(TAG, "Modelo de alineación retirado: ${it.path}") } }
+        }
+    }
 
     fun specFor(language: String): AlignerModelSpec? = catalog.firstOrNull { it.language == language.substringBefore('-').lowercase() }
 
@@ -99,7 +118,7 @@ class AlignmentModelManager @Inject constructor(
         if (!isInstalled(spec)) return null
         val dir = dirOf(spec)
         val model = File(dir, "model.onnx")
-        return AlignerModelFiles(model, File(dir, "vocab.json"), version = "${spec.id}@${spec.sourceRevision.take(8)}:${model.length()}")
+        return AlignerModelFiles(model, File(dir, "vocab.json"), version = "${spec.id}@${spec.sourceRevision.take(8)}:${model.length()}", startLeadMs = spec.startLeadMs)
     }
 
     private fun set(id: String, state: ModelState) = _states.update { it + (id to state) }

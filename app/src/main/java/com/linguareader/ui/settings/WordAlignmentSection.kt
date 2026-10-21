@@ -92,6 +92,9 @@ fun WordAlignmentSection(vm: WordAlignmentViewModel = hiltViewModel()) {
                         style = MaterialTheme.typography.titleSmall,
                     )
                     Text("${spec.name} · licencia ${spec.license}", style = MaterialTheme.typography.bodySmall)
+                    if (spec.nonCommercial) {
+                        Text("Licencia no comercial: solo para uso personal y no comercial.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     when (val m = state) {
                         is ModelState.NotInstalled -> {
                             Text(
@@ -119,8 +122,9 @@ fun WordAlignmentSection(vm: WordAlignmentViewModel = hiltViewModel()) {
             }
         }
         Text(
-            "Los modelos son redes wav2vec2 de Meta ajustadas por terceros (${vm.catalog.joinToString { it.source }}), convertidas a ONNX y " +
-                "cuantizadas a int8 con el script del proyecto. Licencia Apache-2.0. Se guardan en el almacenamiento de la app.",
+            "Los modelos son redes wav2vec2 de Meta (${vm.catalog.joinToString { it.source }}), convertidas a ONNX y " +
+                "cuantizadas a int8 con el script del proyecto. Licencias: ${vm.catalog.map { it.license }.distinct().joinToString(", ")}. " +
+                "Se guardan en el almacenamiento de la app.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

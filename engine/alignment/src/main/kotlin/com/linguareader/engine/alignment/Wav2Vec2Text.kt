@@ -4,8 +4,9 @@ import java.text.Normalizer
 
 /**
  * Texto para vocabularios wav2vec2 de Hugging Face basados en caracteres: inglés en mayúsculas
- * (facebook/wav2vec2-base-100h: A–Z, `'`, blanco `<pad>`) o francés en minúsculas con acentos
- * (bofenghuang/asr-wav2vec2-ctc-french: blanco `[PAD]`, `|` es solo separador de palabras).
+ * (facebook/wav2vec2-base-100h: A–Z, `'`, blanco `<pad>`) o minúsculas con acentos
+ * (bofenghuang/asr-wav2vec2-ctc-french: blanco `[PAD]`; facebook/wav2vec2-base-10k-voxpopuli-ft-fr/-es:
+ * blanco `<pad>`, sin apóstrofo). `|` es solo separador de palabras.
  * Se conservan los diacríticos que el vocabulario tenga; los que no, se eliminan. Los guiones y
  * cualquier símbolo fuera del alfabeto no se alinean. Equivalente a [MmsText] para estos alfabetos.
  */
