@@ -1,6 +1,5 @@
 package com.linguareader.data.prefs
 
-import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -9,28 +8,25 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import com.linguareader.core.model.AppPurpose
 import com.linguareader.core.model.CefrLevel
 import com.linguareader.core.model.DisplayMode
 import com.linguareader.core.model.HighlightStyle
 import com.linguareader.core.model.ThemeMode
 import com.linguareader.core.model.UserPreferences
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
-import java.io.IOException
-import java.util.Locale
-import javax.inject.Inject
-import javax.inject.Singleton
+import okio.IOException
 
-private val Context.userPrefsStore: DataStore<Preferences> by preferencesDataStore(name = "user_preferences")
-
-/** Preferencias persistentes. Idioma de lectura e idioma de traducción son claves independientes. */
-@Singleton
-class UserPreferencesRepository @Inject constructor(
-    @param:ApplicationContext private val context: Context,
+/**
+ * Preferencias persistentes. Idioma de lectura e idioma de traducción son claves independientes.
+ * [store] lo crea cada plataforma (Android: `Context.userPreferencesStore`); [deviceLanguage] es el idioma del
+ * dispositivo (subetiqueta primaria, p. ej. «es»), idioma de traducción por defecto.
+ */
+class UserPreferencesRepository(
+    private val store: DataStore<Preferences>,
+    private val deviceLanguage: () -> String,
 ) {
     private object Keys {
         val readingLanguage = stringPreferencesKey("reading_language")
@@ -76,12 +72,12 @@ class UserPreferencesRepository @Inject constructor(
         val translationWifiOnly = booleanPreferencesKey("translation_wifi_only")
     }
 
-    val preferences: Flow<UserPreferences> = context.userPrefsStore.data
+    val preferences: Flow<UserPreferences> = store.data
         .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
         .map(::fromPreferences)
 
     suspend fun update(transform: (UserPreferences) -> UserPreferences) {
-        context.userPrefsStore.edit { stored ->
+        store.edit { stored ->
             val next = transform(fromPreferences(stored))
             if (next.readingLanguage == null) stored.remove(Keys.readingLanguage)
             else stored[Keys.readingLanguage] = next.readingLanguage!!
@@ -176,9 +172,9 @@ class UserPreferencesRepository @Inject constructor(
         )
     }
 
-    /** Idioma del móvil como idioma nativo por defecto (subetiqueta primaria, p. ej. «es» de «es-ES»). */
+    /** Idioma del dispositivo como idioma nativo por defecto; si no se conoce, el de [UserPreferences]. */
     private fun deviceLanguage(): String =
-        Locale.getDefault().language.takeIf { it.isNotEmpty() && it != "und" } ?: UserPreferences().translationLanguage
+        deviceLanguage.invoke().takeIf { it.isNotEmpty() && it != "und" } ?: UserPreferences().translationLanguage
 
     private inline fun <reified E : Enum<E>> enumOr(name: String?, default: E): E =
         name?.let { n -> enumValues<E>().firstOrNull { it.name == n } } ?: default

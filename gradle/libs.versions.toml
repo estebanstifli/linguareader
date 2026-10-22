@@ -11,6 +11,8 @@ lifecycle = "2.11.0"
 navigation = "2.10.2"
 room = "2.8.5"
 datastore = "1.2.1"
+# SQLite empaquetado para los tests JVM de :data (y, más adelante, iOS). Misma versión que exige Room. Apache-2.0.
+sqlite = "2.6.2"
 coroutines = "1.11.0"
 serialization = "1.11.0"
 # E/S multiplataforma (ficheros, zip) para los módulos compartidos con iOS. Apache-2.0.
@@ -50,6 +52,8 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+androidx-datastore-preferences-core = { group = "androidx.datastore", name = "datastore-preferences-core", version.ref = "datastore" }
+androidx-sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", version.ref = "sqlite" }
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
 androidx-hilt-lifecycle-viewmodel-compose = { group = "androidx.hilt", name = "hilt-lifecycle-viewmodel-compose", version.ref = "androidxHilt" }

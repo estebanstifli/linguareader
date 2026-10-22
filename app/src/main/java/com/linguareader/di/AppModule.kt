@@ -32,6 +32,8 @@ import com.linguareader.data.db.LibraryDao
 import com.linguareader.data.db.MachineTranslationDao
 import com.linguareader.data.db.ProgressDao
 import com.linguareader.data.db.VocabularyDao
+import com.linguareader.data.prefs.UserPreferencesRepository
+import com.linguareader.data.prefs.userPreferencesStore
 import com.linguareader.engine.audio.AndroidAudioFocusGate
 import com.linguareader.engine.alignment.AlignmentModelManager
 import com.linguareader.engine.alignment.Wav2Vec2ClipAligner
@@ -57,6 +59,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import java.io.File
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Qualifier
 import javax.inject.Singleton
@@ -111,6 +114,10 @@ object AppModule {
 
     @Provides @Singleton @ApplicationScope
     fun applicationScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    @Provides @Singleton
+    fun userPreferences(@ApplicationContext context: Context): UserPreferencesRepository =
+        UserPreferencesRepository(context.userPreferencesStore) { Locale.getDefault().language }
 }
 
 /** Motor del sistema (Android TTS). Reemplazable en tests (@TestInstallIn). */

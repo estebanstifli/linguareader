@@ -5,7 +5,6 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
-    alias(libs.plugins.room)
 }
 
 android {
@@ -83,12 +82,9 @@ android {
     }
 }
 
-room {
-    schemaDirectory("$projectDir/schemas")
-}
-
 dependencies {
     implementation(project(":core"))
+    implementation(project(":data")) // Room y preferencias (KMP)
     implementation(project(":engine:supertonic"))
     implementation(project(":engine:alignment"))
     implementation(project(":importer"))
@@ -111,9 +107,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
-    implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.room.ktx)
-    ksp(libs.androidx.room.compiler)
+    implementation(libs.androidx.room.runtime) // Room.databaseBuilder(context, …): la base viene de :data
 
     implementation(libs.androidx.datastore.preferences)
 
