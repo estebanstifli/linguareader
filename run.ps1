@@ -178,9 +178,9 @@ try {
         Invoke-Native $gradlew @("clean", "--console=plain") "gradle clean"
     }
     if ($Tests -or $AllTests) {
-        Step "Tests JVM (:core:test)"
-        Invoke-Native $gradlew @(":core:test", "--console=plain") "Tests JVM"
-        Info "OK. Informe: core\build\reports\tests\test\index.html"
+        Step "Tests JVM (core, importer, alignment, supertonic)"
+        Invoke-Native $gradlew @(":core:jvmTest", ":importer:jvmTest", ":engine:alignment:jvmTest", ":engine:supertonic:jvmTest", "--console=plain") "Tests JVM"
+        Info "OK. Informes: <modulo>\build\reports\tests\jvmTest\index.html"
     }
     if ($AllTests) {
         Step "Tests instrumentados (en el dispositivo)"
