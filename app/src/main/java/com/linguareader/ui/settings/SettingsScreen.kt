@@ -1,6 +1,7 @@
 package com.linguareader.ui.settings
 
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -9,6 +10,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.linguareader.BuildConfig
 import com.linguareader.core.model.TextJustification
 import com.linguareader.data.db.DeviceDocumentDao
 import com.linguareader.engine.supertonic.SupertonicModel
@@ -63,6 +67,7 @@ import com.linguareader.core.model.DisplayMode
 import com.linguareader.core.model.HighlightStyle
 import com.linguareader.core.model.ThemeMode
 import com.linguareader.core.model.UserPreferences
+import com.linguareader.core.model.OriginalOpenMode
 import com.linguareader.data.prefs.UserPreferencesRepository
 import com.linguareader.ui.common.Labels
 import com.linguareader.ui.common.Languages
@@ -86,14 +91,14 @@ class SettingsViewModel @Inject constructor(
 }
 
 /** Subpantallas de Ajustes, una por tema. */
-enum class SettingsPage(val title: String, val icon: Int) {
-    LANGUAGE("Idioma y traducción", R.drawable.ic_translate),
-    LIBRARIES("Bibliotecas", R.drawable.ic_library_books),
-    FILES("Examinar archivos", R.drawable.ic_find_in_page),
-    READING("Lectura", R.drawable.ic_menu_book),
-    APPEARANCE("Texto y tema", R.drawable.ic_palette),
-    VOICE("Voz y audio", R.drawable.ic_record_voice_over),
-    ABOUT("Acerca de", R.drawable.ic_info),
+enum class SettingsPage(@StringRes val title: Int, val icon: Int) {
+    LANGUAGE(R.string.settings_page_language, R.drawable.ic_translate),
+    LIBRARIES(R.string.settings_page_libraries, R.drawable.ic_library_books),
+    FILES(R.string.scan_title, R.drawable.ic_find_in_page),
+    READING(R.string.settings_page_reading, R.drawable.ic_menu_book),
+    APPEARANCE(R.string.settings_page_appearance, R.drawable.ic_palette),
+    VOICE(R.string.settings_page_voice, R.drawable.ic_record_voice_over),
+    ABOUT(R.string.settings_page_about, R.drawable.ic_info),
 }
 
 /**
@@ -116,10 +121,10 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(page?.title ?: "Ajustes") },
+                title = { Text(stringResource(page?.title ?: R.string.section_settings)) },
                 navigationIcon = {
                     IconButton(onClick = { if (backToIndex) page = null else onBack() }) {
-                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Volver")
+                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.common_back))
                     }
                 },
             )
@@ -142,29 +147,40 @@ fun SettingsScreen(
 
 @Composable
 private fun SettingsIndex(prefs: UserPreferences, documentCount: Int, modifier: Modifier, onOpen: (SettingsPage) -> Unit) {
+    @Composable
     fun summary(page: SettingsPage): String = when (page) {
-        SettingsPage.LANGUAGE -> "Tu idioma: ${Languages.name(prefs.translationLanguage)} · traducción sin conexión"
-        SettingsPage.LIBRARIES -> "Lecturas graduadas A1–B2 para descargar"
-        SettingsPage.FILES -> if (documentCount > 0) "$documentCount documentos encontrados en el móvil" else "Buscar libros y documentos en el móvil"
-        SettingsPage.READING -> "${Labels.displayMode(prefs.displayMode)} · resaltado ${Labels.highlight(prefs.highlightStyle).lowercase()}"
-        SettingsPage.APPEARANCE -> "Tema ${Labels.theme(prefs.theme).lowercase()} · texto al ${(prefs.fontScale * 100).toInt()} %"
+        SettingsPage.LANGUAGE -> stringResource(R.string.settings_summary_language, Languages.name(prefs.translationLanguage))
+        SettingsPage.LIBRARIES -> stringResource(R.string.settings_summary_libraries)
+        SettingsPage.FILES ->
+            if (documentCount > 0) pluralStringResource(R.plurals.onboarding_found_on_phone, documentCount, documentCount)
+            else stringResource(R.string.settings_summary_files)
+        SettingsPage.READING -> stringResource(
+            R.string.settings_summary_reading,
+            Labels.displayMode(prefs.displayMode),
+            Labels.highlight(prefs.highlightStyle).lowercase(),
+        )
+        SettingsPage.APPEARANCE -> stringResource(
+            R.string.settings_summary_appearance,
+            Labels.theme(prefs.theme).lowercase(),
+            (prefs.fontScale * 100).toInt(),
+        )
         SettingsPage.VOICE -> when {
-            !prefs.ttsMode -> "Lectura en voz alta desactivada"
-            prefs.ttsEngineId == UserPreferences.ANDROID_TTS_ENGINE -> "Voz del sistema (Android)"
+            !prefs.ttsMode -> stringResource(R.string.settings_summary_voice_off)
+            prefs.ttsEngineId == UserPreferences.ANDROID_TTS_ENGINE -> stringResource(R.string.settings_summary_voice_system)
             else -> SupertonicModel.DISPLAY_NAME
         }
-        SettingsPage.ABOUT -> "Versión 0.2.0 y licencias"
+        SettingsPage.ABOUT -> stringResource(R.string.settings_summary_about, BuildConfig.VERSION_NAME)
     }
     val groups = listOf(
-        "Contenido" to listOf(SettingsPage.LANGUAGE, SettingsPage.LIBRARIES, SettingsPage.FILES),
-        "Lectura" to listOf(SettingsPage.READING, SettingsPage.APPEARANCE, SettingsPage.VOICE),
-        "Aplicación" to listOf(SettingsPage.ABOUT),
+        R.string.settings_group_content to listOf(SettingsPage.LANGUAGE, SettingsPage.LIBRARIES, SettingsPage.FILES),
+        R.string.settings_group_reading to listOf(SettingsPage.READING, SettingsPage.APPEARANCE, SettingsPage.VOICE),
+        R.string.settings_group_app to listOf(SettingsPage.ABOUT),
     )
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 8.dp)) {
         groups.forEach { (title, pages) ->
             item(key = title) {
                 Text(
-                    title,
+                    stringResource(title),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 4.dp),
@@ -177,7 +193,7 @@ private fun SettingsIndex(prefs: UserPreferences, documentCount: Int, modifier: 
                 ) {
                     IconBadge(p.icon)
                     Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
-                        Text(p.title, style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(p.title), style = MaterialTheme.typography.titleMedium)
                         Text(summary(p), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
                     }
                     Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -198,7 +214,10 @@ private fun SettingsPageContent(
     when (page) {
         SettingsPage.LANGUAGE -> TranslationSection()
         SettingsPage.LIBRARIES -> LibrarySection()
-        SettingsPage.FILES -> ScanFilesSection(onOpenDocuments = onOpenDocuments)
+        SettingsPage.FILES -> {
+            OriginalOpenOptions(prefs, onUpdate)
+            ScanFilesSection(onOpenDocuments = onOpenDocuments)
+        }
         SettingsPage.READING -> ReadingOptions(prefs, onUpdate)
         SettingsPage.APPEARANCE -> AppearanceOptions(prefs, onUpdate)
         SettingsPage.VOICE -> {
@@ -208,18 +227,17 @@ private fun SettingsPageContent(
             WordAlignmentSection()
             PacksSection()
             Text(
-                "Voces del sistema: se instalan desde los ajustes de Android; se prefieren voces sin conexión.",
+                stringResource(R.string.settings_system_voices_hint),
                 style = MaterialTheme.typography.bodySmall,
             )
             OutlinedButton(onClick = {
                 runCatching {
                     context.startActivity(android.content.Intent("com.android.settings.TTS_SETTINGS").addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
                 }
-            }) { Text("Abrir ajustes de texto a voz") }
+            }) { Text(stringResource(R.string.settings_open_tts_settings)) }
         }
         SettingsPage.ABOUT -> Text(
-            "LinguaReader 0.2.0 · Biblioteca local sin conexión. " +
-                "Iconos: Material Icons (Apache 2.0). Ver docs/ARCHITECTURE.md para licencias.",
+            stringResource(R.string.settings_about_text, BuildConfig.VERSION_NAME),
             style = MaterialTheme.typography.bodyMedium,
         )
     }
@@ -240,23 +258,25 @@ fun ReaderPreferencesPanel(
         ReadingOptions(prefs, onUpdate)
         VoiceOptions(prefs, onUpdate)
 
-        SectionTitle("Traducir al")
+        SectionTitle(stringResource(R.string.catalog_translate_to))
         ChipRow(Languages.translationTargets, prefs.translationLanguage, Languages::name) { tag ->
             onUpdate { it.copy(translationLanguage = tag) }
         }
 
         if (voices.isNotEmpty()) {
-            SectionTitle("Voz")
+            SectionTitle(stringResource(R.string.player_voice))
             var open by remember { mutableStateOf(false) }
             Box {
                 OutlinedButton(onClick = { open = true }) {
-                    Text(voices.firstOrNull { it.id == selectedVoice }?.displayName ?: "Automática (sin conexión si existe)")
+                    Text(voices.firstOrNull { it.id == selectedVoice }?.displayName ?: stringResource(R.string.settings_voice_automatic))
                 }
                 DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-                    DropdownMenuItem(text = { Text("Automática (sin conexión si existe)") }, onClick = { onVoice(null); open = false })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.settings_voice_automatic)) }, onClick = { onVoice(null); open = false })
                     voices.forEach { v ->
                         DropdownMenuItem(
-                            text = { Text(v.displayName + if (v.requiresNetwork) " · requiere red" else "") },
+                            text = {
+                                Text(if (v.requiresNetwork) stringResource(R.string.settings_voice_needs_network, v.displayName) else v.displayName)
+                            },
                             onClick = { onVoice(v.id); open = false },
                         )
                     }
@@ -270,7 +290,7 @@ fun ReaderPreferencesPanel(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ReadingOptions(prefs: UserPreferences, onUpdate: ((UserPreferences) -> UserPreferences) -> Unit) {
-    SectionTitle("Modo de visualización")
+    SectionTitle(stringResource(R.string.settings_display_mode))
     DisplayMode.entries.forEach { mode ->
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -288,7 +308,7 @@ private fun ReadingOptions(prefs: UserPreferences, onUpdate: ((UserPreferences) 
         }
     }
 
-    SectionTitle("Resaltado")
+    SectionTitle(stringResource(R.string.settings_highlight))
     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
         HighlightStyle.entries.forEachIndexed { i, style ->
             SegmentedButton(
@@ -299,21 +319,42 @@ private fun ReadingOptions(prefs: UserPreferences, onUpdate: ((UserPreferences) 
         }
     }
 
-    SectionTitle("Al leer")
-    SwitchRow("Dedo indicador sobre la palabra", prefs.fingerPointerEnabled) { v -> onUpdate { it.copy(fingerPointerEnabled = v) } }
-    SwitchRow("Pasar página automáticamente al leer en voz alta", prefs.autoScroll) { v -> onUpdate { it.copy(autoScroll = v) } }
-    SwitchRow("Mostrar ilustraciones", prefs.showIllustrations) { v -> onUpdate { it.copy(showIllustrations = v) } }
-    SwitchRow("No apagar la pantalla mientras leo", prefs.keepScreenOn) { v -> onUpdate { it.copy(keepScreenOn = v) } }
-    SwitchRow("Pausar al consultar una palabra", prefs.pauseOnWordTap) { v -> onUpdate { it.copy(pauseOnWordTap = v) } }
-    SwitchRow("Continuar con el siguiente pasaje", prefs.autoContinue) { v -> onUpdate { it.copy(autoContinue = v) } }
-    SwitchRow("Reducir movimiento", prefs.reduceMotion) { v -> onUpdate { it.copy(reduceMotion = v) } }
+    SectionTitle(stringResource(R.string.settings_while_reading))
+    SwitchRow(stringResource(R.string.settings_finger_pointer), prefs.fingerPointerEnabled) { v -> onUpdate { it.copy(fingerPointerEnabled = v) } }
+    SwitchRow(stringResource(R.string.settings_auto_page), prefs.autoScroll) { v -> onUpdate { it.copy(autoScroll = v) } }
+    SwitchRow(stringResource(R.string.settings_show_illustrations), prefs.showIllustrations) { v -> onUpdate { it.copy(showIllustrations = v) } }
+    SwitchRow(stringResource(R.string.settings_keep_screen_on), prefs.keepScreenOn) { v -> onUpdate { it.copy(keepScreenOn = v) } }
+    SwitchRow(stringResource(R.string.settings_pause_on_word), prefs.pauseOnWordTap) { v -> onUpdate { it.copy(pauseOnWordTap = v) } }
+    SwitchRow(stringResource(R.string.settings_auto_continue), prefs.autoContinue) { v -> onUpdate { it.copy(autoContinue = v) } }
+    SwitchRow(stringResource(R.string.settings_reduce_motion), prefs.reduceMotion) { v -> onUpdate { it.copy(reduceMotion = v) } }
+}
+
+/** Al pulsar un PDF importado: preguntar, modo lectura o ver el original. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OriginalOpenOptions(prefs: UserPreferences, onUpdate: ((UserPreferences) -> UserPreferences) -> Unit) {
+    SectionTitle(stringResource(R.string.settings_open_pdf))
+    val modes = listOf(
+        OriginalOpenMode.ASK to R.string.settings_open_pdf_ask,
+        OriginalOpenMode.READER to R.string.open_mode_reader,
+        OriginalOpenMode.ORIGINAL to R.string.settings_open_pdf_original,
+    )
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+        modes.forEachIndexed { i, (mode, label) ->
+            SegmentedButton(
+                selected = prefs.originalOpenMode == mode,
+                onClick = { onUpdate { it.copy(originalOpenMode = mode) } },
+                shape = SegmentedButtonDefaults.itemShape(i, modes.size),
+            ) { Text(stringResource(label)) }
+        }
+    }
 }
 
 /** Texto y tema: tema de color, tamaño, interlineado y alineación. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AppearanceOptions(prefs: UserPreferences, onUpdate: ((UserPreferences) -> UserPreferences) -> Unit) {
-    SectionTitle("Tema")
+    SectionTitle(stringResource(R.string.settings_theme))
     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
         ThemeMode.entries.forEachIndexed { i, mode ->
             SegmentedButton(
@@ -324,14 +365,14 @@ private fun AppearanceOptions(prefs: UserPreferences, onUpdate: ((UserPreference
         }
     }
 
-    SectionTitle("Texto")
-    LabeledSlider("Tamaño", prefs.fontScale, 0.8f..1.8f, "%.0f%%".format(Locale.ROOT, prefs.fontScale * 100)) { v ->
+    SectionTitle(stringResource(R.string.settings_text))
+    LabeledSlider(stringResource(R.string.settings_text_size), prefs.fontScale, 0.8f..1.8f, "%.0f%%".format(Locale.ROOT, prefs.fontScale * 100)) { v ->
         onUpdate { it.copy(fontScale = v) }
     }
-    LabeledSlider("Interlineado", prefs.lineHeight, 1.2f..2.2f, "%.1f".format(Locale.ROOT, prefs.lineHeight)) { v ->
+    LabeledSlider(stringResource(R.string.settings_line_height), prefs.lineHeight, 1.2f..2.2f, "%.1f".format(Locale.ROOT, prefs.lineHeight)) { v ->
         onUpdate { it.copy(lineHeight = v) }
     }
-    Text("Alineación", style = MaterialTheme.typography.labelLarge)
+    Text(stringResource(R.string.settings_alignment), style = MaterialTheme.typography.labelLarge)
     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
         TextJustification.entries.forEachIndexed { i, mode ->
             SegmentedButton(
@@ -342,24 +383,24 @@ private fun AppearanceOptions(prefs: UserPreferences, onUpdate: ((UserPreference
         }
     }
 
-    SectionTitle("Pantallas grandes")
-    SwitchRow("Doble página en horizontal", prefs.doublePage) { v -> onUpdate { it.copy(doublePage = v) } }
+    SectionTitle(stringResource(R.string.settings_large_screens))
+    SwitchRow(stringResource(R.string.settings_double_page), prefs.doublePage) { v -> onUpdate { it.copy(doublePage = v) } }
 }
 
 /** Voz y audio: lectura en voz alta, pantalla apagada, pausas y normalización del texto. */
 @Composable
 private fun VoiceOptions(prefs: UserPreferences, onUpdate: ((UserPreferences) -> UserPreferences) -> Unit) {
-    SwitchRow("Modo aprendizaje con voz (TTS)", prefs.ttsMode) { v -> onUpdate { it.copy(ttsMode = v, ttsModeChosen = true) } }
-    SwitchRow("Seguir leyendo con la pantalla apagada", prefs.readWithScreenOff) { v -> onUpdate { it.copy(readWithScreenOff = v) } }
+    SwitchRow(stringResource(R.string.settings_tts_mode), prefs.ttsMode) { v -> onUpdate { it.copy(ttsMode = v, ttsModeChosen = true) } }
+    SwitchRow(stringResource(R.string.settings_read_screen_off), prefs.readWithScreenOff) { v -> onUpdate { it.copy(readWithScreenOff = v) } }
 
-    SectionTitle("Pausas de lectura")
-    LabeledSlider("Entre frases", prefs.sentencePauseMs / 1000f, 0.2f..1.5f, "%.1f s".format(Locale.ROOT, prefs.sentencePauseMs / 1000f)) { v ->
+    SectionTitle(stringResource(R.string.settings_pauses))
+    LabeledSlider(stringResource(R.string.settings_pause_sentences), prefs.sentencePauseMs / 1000f, 0.2f..1.5f, "%.1f s".format(Locale.ROOT, prefs.sentencePauseMs / 1000f)) { v ->
         onUpdate { it.copy(sentencePauseMs = (v * 1000).toInt() / 50 * 50) }
     }
-    LabeledSlider("Entre párrafos", prefs.paragraphPauseMs / 1000f, 0.3f..3.0f, "%.1f s".format(Locale.ROOT, prefs.paragraphPauseMs / 1000f)) { v ->
+    LabeledSlider(stringResource(R.string.settings_pause_paragraphs), prefs.paragraphPauseMs / 1000f, 0.3f..3.0f, "%.1f s".format(Locale.ROOT, prefs.paragraphPauseMs / 1000f)) { v ->
         onUpdate { it.copy(paragraphPauseMs = (v * 1000).toInt() / 50 * 50) }
     }
-    SwitchRow("Leer números y abreviaturas como palabras (voz Supertonic)", prefs.normalizeSpeech) { v -> onUpdate { it.copy(normalizeSpeech = v) } }
+    SwitchRow(stringResource(R.string.settings_normalize_speech), prefs.normalizeSpeech) { v -> onUpdate { it.copy(normalizeSpeech = v) } }
 }
 
 @Composable

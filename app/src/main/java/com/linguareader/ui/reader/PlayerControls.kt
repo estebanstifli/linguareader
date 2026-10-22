@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
+import androidx.compose.ui.res.stringResource
 import com.linguareader.core.engine.VoiceInfo
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -84,31 +85,32 @@ fun PlayerControls(
             ) {
                 if (voices.size > 1) {
                     IconButton(onClick = { voiceSheet = true }, modifier = small) {
-                        Icon(painterResource(R.drawable.ic_record_voice_over), contentDescription = "Elegir voz")
+                        Icon(painterResource(R.drawable.ic_record_voice_over), contentDescription = stringResource(R.string.player_choose_voice))
                     }
                 }
                 IconButton(onClick = onPrevious, modifier = small) {
-                    Icon(painterResource(R.drawable.ic_skip_previous), contentDescription = "Frase anterior")
+                    Icon(painterResource(R.drawable.ic_skip_previous), contentDescription = stringResource(R.string.player_previous_sentence))
                 }
                 IconButton(onClick = onRepeat, enabled = audioEnabled, modifier = small) {
-                    Icon(painterResource(R.drawable.ic_replay), contentDescription = "Repetir frase")
+                    Icon(painterResource(R.drawable.ic_replay), contentDescription = stringResource(R.string.player_repeat_sentence))
                 }
                 FilledIconButton(onClick = onPlayPause, enabled = audioEnabled, modifier = Modifier.size(if (compact) 40.dp else 64.dp)) {
                     Icon(
                         painterResource(if (playback.isPlaying) R.drawable.ic_pause else R.drawable.ic_play),
-                        contentDescription = if (playback.isPlaying) "Pausar" else "Reproducir",
+                        contentDescription = stringResource(if (playback.isPlaying) R.string.player_pause else R.string.player_play),
                         modifier = Modifier.size(if (compact) 24.dp else 36.dp),
                     )
                 }
                 IconButton(onClick = onNext, modifier = small) {
-                    Icon(painterResource(R.drawable.ic_skip_next), contentDescription = "Frase siguiente")
+                    Icon(painterResource(R.drawable.ic_skip_next), contentDescription = stringResource(R.string.player_next_sentence))
                 }
                 if (playback.supportsSpeed) {
                     var open by remember { mutableStateOf(false) }
+                    val speedDescription = stringResource(R.string.player_speed, fmt(speed))
                     Box {
                         TextButton(
                             onClick = { open = true },
-                            modifier = Modifier.semantics { contentDescription = "Velocidad ${fmt(speed)}" },
+                            modifier = Modifier.semantics { contentDescription = speedDescription },
                         ) { Text("${fmt(speed)}×") }
                         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
                             SPEEDS.forEach { s ->
@@ -119,19 +121,20 @@ fun PlayerControls(
                 }
             }
             val sync = when {
-                !playback.isAudioAvailable -> "Sin audio"
-                playback.buffering && playback.isPlaying -> "Generando audio…"
+                !playback.isAudioAvailable -> stringResource(R.string.player_no_audio)
+                playback.buffering && playback.isPlaying -> stringResource(R.string.player_generating_audio)
                 playback.engineLacksWordTimings && playback.granularity == HighlightGranularity.WORD ->
-                    "Voz sintética (Supertonic) · sincronía por palabra (alineación forzada)"
+                    stringResource(R.string.player_sync_supertonic_word)
                 playback.engineLacksWordTimings && (playback.status == PlaybackStatus.PLAYING || playback.status == PlaybackStatus.PAUSED) ->
-                    "Voz sintética (Supertonic) · sincronía por frase: el motor no da tiempos por palabra"
-                playback.granularity == HighlightGranularity.WORD -> "Sincronía por palabra (eventos del motor)"
+                    stringResource(R.string.player_sync_supertonic_sentence)
+                playback.granularity == HighlightGranularity.WORD -> stringResource(R.string.player_sync_word)
                 playback.status == PlaybackStatus.PLAYING || playback.status == PlaybackStatus.PAUSED ->
-                    if (playback.wordEventsObserved) "Sincronía por frase en esta frase" else "Sincronía por frase (el motor no envía tiempos por palabra)"
-                else -> "Listo"
+                    stringResource(if (playback.wordEventsObserved) R.string.player_sync_sentence_here else R.string.player_sync_sentence)
+                else -> stringResource(R.string.player_ready)
             }
+            val sentence = (playback.sentenceIndex + 1).coerceAtMost(sentenceCount.coerceAtLeast(1))
             Text(
-                if (compact) sync else "Frase ${(playback.sentenceIndex + 1).coerceAtMost(sentenceCount.coerceAtLeast(1))} de $sentenceCount · $sync",
+                if (compact) sync else stringResource(R.string.player_sentence_status, sentence, sentenceCount, sync),
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -146,13 +149,13 @@ fun PlayerControls(
 @Composable
 private fun VoicePickerSheet(voices: List<VoiceInfo>, selected: String?, automatic: Boolean, onSelect: (String?) -> Unit, onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        Text("Voz", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+        Text(stringResource(R.string.player_voice), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
         LazyColumn(Modifier.fillMaxWidth().navigationBarsPadding()) {
-            if (automatic) item(key = "auto") { VoiceRow("Automática", "La mejor voz instalada sin conexión", selected == null) { onSelect(null) } }
+            if (automatic) item(key = "auto") { VoiceRow(stringResource(R.string.voice_automatic), stringResource(R.string.voice_automatic_detail), selected == null) { onSelect(null) } }
             items(voices, key = { it.id }) { v ->
                 VoiceRow(
                     v.displayName,
-                    if (v.requiresNetwork) "Necesita conexión" else null,
+                    if (v.requiresNetwork) stringResource(R.string.voice_needs_network) else null,
                     selected == v.id,
                 ) { onSelect(v.id) }
             }

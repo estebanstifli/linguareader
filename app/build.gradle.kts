@@ -32,7 +32,17 @@ android {
         // aporta ~34 MB nativos por ABI y un modelo de ~400 MB en fp32 no es práctico en 32 bits.
     }
 
+    // Idiomas de la interfaz: values/ (inglés, base) + values-xx/. Genera locales_config.xml para el
+    // «Idioma de la app» de Android 13+ (docs/I18N.md).
+    androidResources {
+        generateLocaleConfig = true
+    }
+
     buildTypes {
+        debug {
+            // Pseudoidiomas en-XA / ar-XB para ver textos fijos en el código y textos que se cortan.
+            isPseudoLocalesEnabled = true
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

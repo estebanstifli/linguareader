@@ -76,6 +76,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
@@ -96,8 +98,10 @@ import com.linguareader.data.content.ImportedBookRepository
 import com.linguareader.data.library.LibraryRepository
 import com.linguareader.data.library.Shelf
 import com.linguareader.engine.translation.BookTranslationState
+import com.linguareader.ui.common.Labels
 import com.linguareader.ui.common.Languages
 import com.linguareader.ui.reader.NewCollectionDialog
+import com.linguareader.core.model.OriginalOpenMode
 import com.linguareader.ui.settings.LibraryDownloadBanner
 import kotlinx.coroutines.launch
 
@@ -109,6 +113,8 @@ fun CatalogScreen(
     onOpenSettings: () -> Unit,
     onEditBook: (String) -> Unit,
     onOpenDeviceDocuments: () -> Unit = {},
+    onViewOriginal: (bookId: String, title: String) -> Unit = { _, _ -> },
+    onViewPdf: (uri: String) -> Unit = {},
     vm: CatalogViewModel = hiltViewModel(),
     importVm: ImportViewModel = hiltViewModel(),
 ) {
@@ -117,6 +123,7 @@ fun CatalogScreen(
     val foundDocuments by vm.foundDocuments.collectAsStateWithLifecycle()
     val importState by importVm.state.collectAsStateWithLifecycle()
     var pendingDelete by remember { mutableStateOf<CatalogItem?>(null) }
+    var chooseMode by remember { mutableStateOf<CatalogItem?>(null) }
     var newCollectionFor by remember { mutableStateOf<String?>(null) }
     var showSearch by remember { mutableStateOf(false) }
     val drawer = rememberDrawerState(DrawerValue.Closed)
@@ -137,6 +144,7 @@ fun CatalogScreen(
     var whatsAppHelp by remember { mutableStateOf(false) }
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
+    val shareTitle = stringResource(R.string.catalog_share_book)
 
     if (whatsAppHelp) {
         WhatsAppHelpDialog(
@@ -162,7 +170,13 @@ fun CatalogScreen(
         importVm.dismiss()
         onOpenBook(done.bookId)
     }
-    ImportDialog(state = importState, onEdit = importVm::edit, onConfirm = importVm::confirm, onDismiss = importVm::dismiss)
+    ImportDialog(
+        state = importState,
+        onEdit = importVm::edit,
+        onConfirm = importVm::confirm,
+        onDismiss = importVm::dismiss,
+        onViewOriginal = { uri -> onViewPdf(uri.toString()) },
+    )
 
     newCollectionFor?.let { bookId ->
         NewCollectionDialog(
@@ -171,15 +185,27 @@ fun CatalogScreen(
         )
     }
 
+    chooseMode?.let { item ->
+        OpenModeSheet(
+            item = item,
+            onChoose = { mode, remember ->
+                chooseMode = null
+                if (remember) vm.setOriginalOpenMode(mode)
+                if (mode == OriginalOpenMode.ORIGINAL) onViewOriginal(item.summary.id, item.summary.title) else onOpenBook(item.summary.id)
+            },
+            onDismiss = { chooseMode = null },
+        )
+    }
+
     pendingDelete?.let { item ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
-            title = { Text("Borrar definitivamente") },
-            text = { Text("«${item.summary.title}» se eliminará del dispositivo. Puedes volver a importarlo cuando quieras.") },
+            title = { Text(stringResource(R.string.catalog_delete_forever)) },
+            text = { Text(stringResource(R.string.catalog_delete_forever_message, item.summary.title)) },
             confirmButton = {
-                TextButton(onClick = { vm.deleteForever(item.summary.id); pendingDelete = null }) { Text("Borrar") }
+                TextButton(onClick = { vm.deleteForever(item.summary.id); pendingDelete = null }) { Text(stringResource(R.string.common_delete)) }
             },
-            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancelar") } },
+            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text(stringResource(R.string.common_cancel)) } },
         )
     }
 
@@ -200,7 +226,7 @@ fun CatalogScreen(
                 TopAppBar(
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawer.open() } }) {
-                            Icon(painterResource(R.drawable.ic_menu), contentDescription = "Menú")
+                            Icon(painterResource(R.drawable.ic_menu), contentDescription = stringResource(R.string.common_menu))
                         }
                     },
                     title = { Text(sectionTitle(state.section, state.shelves), maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -208,40 +234,43 @@ fun CatalogScreen(
                         val searching = state.filters.search.isActive || searchLanguage(state) != null
                         IconButton(onClick = { showSearch = true }) {
                             BadgedBox(badge = { if (searching) Badge() }) {
-                                Icon(painterResource(R.drawable.ic_search), contentDescription = if (searching) "Buscar (hay una búsqueda activa)" else "Buscar")
+                                Icon(
+                                    painterResource(R.drawable.ic_search),
+                                    contentDescription = stringResource(if (searching) R.string.catalog_search_active else R.string.common_search),
+                                )
                             }
                         }
                         IconButton(onClick = { vm.setGrid(!state.grid) }) {
                             Icon(
                                 painterResource(if (state.grid) R.drawable.ic_view_list else R.drawable.ic_grid_view),
-                                contentDescription = if (state.grid) "Ver como lista" else "Ver portadas",
+                                contentDescription = stringResource(if (state.grid) R.string.catalog_view_list else R.string.catalog_view_covers),
                             )
                         }
                         Box {
                             IconButton(onClick = { importMenu = true }) {
-                                Icon(painterResource(R.drawable.ic_add), contentDescription = "Importar libro")
+                                Icon(painterResource(R.drawable.ic_add), contentDescription = stringResource(R.string.catalog_import_book))
                             }
                             DropdownMenu(expanded = importMenu, onDismissRequest = { importMenu = false }) {
                                 DropdownMenuItem(
-                                    text = { Text("Desde un fichero…") },
+                                    text = { Text(stringResource(R.string.catalog_import_from_file)) },
                                     onClick = { importMenu = false; pick(PickerStart.ANY) },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Recibido por WhatsApp…") },
+                                    text = { Text(stringResource(R.string.catalog_import_from_whatsapp)) },
                                     onClick = { importMenu = false; whatsAppHelp = true },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Recibido por Telegram…") },
+                                    text = { Text(stringResource(R.string.catalog_import_from_telegram)) },
                                     onClick = { importMenu = false; pick(PickerStart.TELEGRAM) },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Desde una página web…") },
+                                    text = { Text(stringResource(R.string.catalog_import_from_web)) },
                                     onClick = { importMenu = false; askUrl = true },
                                 )
                                 // El portapapeles se lee solo al pulsar: leerlo al abrir el menú hace que
                                 // Android avise de que la app ha accedido a él.
                                 DropdownMenuItem(
-                                    text = { Text("Pegar texto copiado") },
+                                    text = { Text(stringResource(R.string.catalog_import_paste)) },
                                     onClick = {
                                         importMenu = false
                                         importVm.start(ImportRequest.Text(clipboard.getText()?.text.orEmpty(), null))
@@ -249,8 +278,7 @@ fun CatalogScreen(
                                 )
                                 HorizontalDivider()
                                 Text(
-                                    "También: abre el archivo en WhatsApp, Telegram o el correo y elige " +
-                                        "«Abrir con» o «Compartir» › LinguaReader.",
+                                    stringResource(R.string.catalog_import_also_hint),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).width(240.dp),
@@ -283,7 +311,16 @@ fun CatalogScreen(
                         onClear = vm::clearSearch,
                     )
                 }
-                val onOpen = { item: CatalogItem -> if (!item.trashed) onOpenBook(item.summary.id) }
+                val onOpen = { item: CatalogItem ->
+                    if (!item.trashed) {
+                        when {
+                            item.original?.viewable != true -> onOpenBook(item.summary.id)
+                            state.originalOpenMode == OriginalOpenMode.READER -> onOpenBook(item.summary.id)
+                            state.originalOpenMode == OriginalOpenMode.ORIGINAL -> onViewOriginal(item.summary.id, item.summary.title)
+                            else -> chooseMode = item
+                        }
+                    }
+                }
                 val onShare = { item: CatalogItem ->
                     scope.launch {
                         val uri = vm.exportForSharing(item.summary.id) ?: return@launch
@@ -292,7 +329,7 @@ fun CatalogScreen(
                             .putExtra(Intent.EXTRA_STREAM, uri)
                             .putExtra(Intent.EXTRA_SUBJECT, item.summary.title)
                             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        context.startActivity(Intent.createChooser(send, "Compartir libro"))
+                        context.startActivity(Intent.createChooser(send, shareTitle))
                     }
                     Unit
                 }
@@ -316,7 +353,7 @@ fun CatalogScreen(
                     FoundDocumentsBanner(foundDocuments, onOpen = onOpenDeviceDocuments, onDismiss = vm::dismissFoundDocuments)
                 }
                 when {
-                    state.error != null -> Text(state.error!!, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp))
+                    state.error != null -> Text(state.error!!.asString(), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp))
                     state.loading -> LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 24.dp))
                     !state.loading && state.items.isEmpty() -> Text(
                         emptyMessage(state.section, filtering = state.filters.search.isActive || state.filters.levels.isNotEmpty() || state.filters.language != null),
@@ -351,6 +388,7 @@ fun CatalogScreen(
                                 onEdit = { onEditBook(item.summary.id) },
                                 onShare = { onShare(item) },
                                 onAction = onTranslation,
+                                onViewOriginal = { onViewOriginal(item.summary.id, item.summary.title) },
                             )
                         }
                     }
@@ -379,6 +417,7 @@ fun CatalogScreen(
                                 onRestore = { vm.restore(item.summary.id) },
                                 onDeleteForever = if (item.trashed && vm.canDeleteForever(item.summary.id)) ({ pendingDelete = item }) else null,
                                 onAction = onTranslation,
+                                onViewOriginal = { onViewOriginal(item.summary.id, item.summary.title) },
                             )
                         }
                     }
@@ -392,33 +431,35 @@ fun CatalogScreen(
 private fun searchLanguage(state: CatalogUiState): String? =
     state.filters.language.takeIf { state.section != LibrarySection.LearnOther }
 
+@Composable
 private fun sectionTitle(section: LibrarySection, shelves: List<Shelf>): String = when (section) {
-    LibrarySection.Reading -> "Leyendo ahora"
-    LibrarySection.Books -> "Libros"
-    is LibrarySection.Learn -> "Aprender ${Languages.nameInSpanish(section.language)}"
-    LibrarySection.LearnOther -> "Aprender otros idiomas"
-    is LibrarySection.OnShelf -> shelves.firstOrNull { it.id == section.id }?.name ?: "Libros"
-    LibrarySection.Collections -> "Colecciones"
-    LibrarySection.Trash -> "Papelera"
+    LibrarySection.Reading -> stringResource(R.string.section_reading)
+    LibrarySection.Books -> stringResource(R.string.section_books)
+    is LibrarySection.Learn -> stringResource(R.string.section_learn, Languages.nameInSentence(section.language))
+    LibrarySection.LearnOther -> stringResource(R.string.section_learn_other)
+    is LibrarySection.OnShelf -> shelves.firstOrNull { it.id == section.id }?.let { Labels.shelf(it) } ?: stringResource(R.string.section_books)
+    LibrarySection.Collections -> stringResource(R.string.section_collections)
+    LibrarySection.Trash -> stringResource(R.string.section_trash)
 }
 
+@Composable
 private fun emptyMessage(section: LibrarySection, filtering: Boolean): String = when {
-    filtering -> "Ningún libro coincide con la búsqueda o los filtros. Prueba a cambiarlos o quítalos con la ✕."
-    section == LibrarySection.Books ->
-        "Aún no tienes libros. Abre uno de los documentos de tu móvil (menú › En el dispositivo), descarga lecturas " +
-            "graduadas en Ajustes › Bibliotecas o usa + para importar un EPUB, PDF, TXT, FB2, Word, HTML o subtítulos."
+    filtering -> stringResource(R.string.catalog_empty_filtered)
+    section == LibrarySection.Books -> stringResource(R.string.catalog_empty_books)
     else -> sectionEmptyMessage(section)
 }
 
-private fun sectionEmptyMessage(section: LibrarySection): String = when (section) {
-    LibrarySection.Reading -> "Aún no has empezado ningún libro. Los que abras aparecerán aquí, el último primero."
-    LibrarySection.Trash -> "La papelera está vacía."
-    is LibrarySection.OnShelf -> "No hay libros en esta estantería. Añádelos desde el ⋮ de una portada o desde el lector: menú ⋮ › Agregar a…"
-    LibrarySection.Collections -> "No hay libros en colecciones. Crea una con el icono de carpeta de un libro (vista de lista) o desde el lector: menú ⋮ › Agregar a… › Nueva colección."
-    is LibrarySection.Learn, LibrarySection.LearnOther ->
-        "No hay libros de este idioma. Descarga su biblioteca de lecturas graduadas en Ajustes › Bibliotecas o importa los tuyos con +."
-    else -> "No hay libros aquí todavía."
-}
+@Composable
+private fun sectionEmptyMessage(section: LibrarySection): String = stringResource(
+    when (section) {
+        LibrarySection.Reading -> R.string.catalog_empty_reading
+        LibrarySection.Trash -> R.string.catalog_empty_trash
+        is LibrarySection.OnShelf -> R.string.catalog_empty_shelf
+        LibrarySection.Collections -> R.string.catalog_empty_collections
+        is LibrarySection.Learn, LibrarySection.LearnOther -> R.string.catalog_empty_language
+        else -> R.string.catalog_empty_generic
+    }
+)
 
 /** Menú lateral: apartados de la biblioteca (la mayoría son filtros de los mismos libros), vocabulario y ajustes. */
 @Composable
@@ -438,7 +479,7 @@ private fun LibraryDrawer(
                     modifier = Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary),
                 )
                 Spacer(Modifier.width(12.dp))
-                Text("LinguaReader", style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge)
             }
             @Composable
             fun item(section: LibrarySection, label: String, icon: @Composable () -> Unit) = NavigationDrawerItem(
@@ -450,13 +491,13 @@ private fun LibraryDrawer(
                 modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
             )
             fun res(id: Int): @Composable () -> Unit = { Icon(painterResource(id), contentDescription = null) }
-            item(LibrarySection.Reading, "Leyendo ahora", res(R.drawable.ic_history))
-            item(LibrarySection.Books, "Libros", res(R.drawable.ic_library_books))
+            item(LibrarySection.Reading, stringResource(R.string.section_reading), res(R.drawable.ic_history))
+            item(LibrarySection.Books, stringResource(R.string.section_books), res(R.drawable.ic_library_books))
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             LibrarySection.LEARN_LANGUAGES.forEach { tag ->
-                item(LibrarySection.Learn(tag), "Aprender ${Languages.nameInSpanish(tag)}") { LanguageBadge(tag) }
+                item(LibrarySection.Learn(tag), stringResource(R.string.section_learn, Languages.nameInSentence(tag))) { LanguageBadge(tag) }
             }
-            item(LibrarySection.LearnOther, "Aprender otros idiomas", res(R.drawable.ic_language))
+            item(LibrarySection.LearnOther, stringResource(R.string.section_learn_other), res(R.drawable.ic_language))
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             state.systemShelves.forEach { shelf ->
                 val icon = when (shelf.kind) {
@@ -464,21 +505,21 @@ private fun LibraryDrawer(
                     LibraryRepository.TO_READ -> R.drawable.ic_schedule
                     else -> R.drawable.ic_done_all
                 }
-                item(LibrarySection.OnShelf(shelf.id), shelf.name, res(icon))
+                item(LibrarySection.OnShelf(shelf.id), Labels.shelf(shelf), res(icon))
             }
-            item(LibrarySection.Collections, "Colecciones", res(R.drawable.ic_folder))
-            item(LibrarySection.Trash, "Papelera", res(R.drawable.ic_delete))
+            item(LibrarySection.Collections, stringResource(R.string.section_collections), res(R.drawable.ic_folder))
+            item(LibrarySection.Trash, stringResource(R.string.section_trash), res(R.drawable.ic_delete))
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             NavigationDrawerItem(
-                label = { Text("En el dispositivo") }, icon = res(R.drawable.ic_find_in_page), selected = false, onClick = onDeviceDocuments,
+                label = { Text(stringResource(R.string.section_on_device)) }, icon = res(R.drawable.ic_find_in_page), selected = false, onClick = onDeviceDocuments,
                 modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
             )
             NavigationDrawerItem(
-                label = { Text("Vocabulario") }, icon = res(R.drawable.ic_translate), selected = false, onClick = onVocabulary,
+                label = { Text(stringResource(R.string.section_vocabulary)) }, icon = res(R.drawable.ic_translate), selected = false, onClick = onVocabulary,
                 modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
             )
             NavigationDrawerItem(
-                label = { Text("Ajustes") }, icon = res(R.drawable.ic_settings), selected = false, onClick = onSettings,
+                label = { Text(stringResource(R.string.section_settings)) }, icon = res(R.drawable.ic_settings), selected = false, onClick = onSettings,
                 modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
             )
             Spacer(Modifier.height(12.dp))
@@ -509,14 +550,14 @@ private fun SubFilterBar(state: CatalogUiState, vm: CatalogViewModel) {
     ) { content() }
     @Composable
     fun levels() = chips {
-        FilterChip(selected = f.levels.isEmpty(), onClick = vm::clearLevels, label = { Text("Todos los niveles") })
+        FilterChip(selected = f.levels.isEmpty(), onClick = vm::clearLevels, label = { Text(stringResource(R.string.catalog_all_levels)) })
         CefrLevel.entries.forEach { level ->
             FilterChip(selected = level in f.levels, onClick = { vm.toggleLevel(level) }, label = { Text(level.name) })
         }
     }
     @Composable
     fun translateTo() = chips {
-        Text("Traducir al", style = MaterialTheme.typography.labelLarge)
+        Text(stringResource(R.string.catalog_translate_to), style = MaterialTheme.typography.labelLarge)
         var open by remember { mutableStateOf(false) }
         Box {
             AssistChip(onClick = { open = true }, label = { Text(Languages.name(state.translationLanguage)) })
@@ -531,7 +572,7 @@ private fun SubFilterBar(state: CatalogUiState, vm: CatalogViewModel) {
         is LibrarySection.Learn -> { levels(); translateTo() }
         LibrarySection.LearnOther -> {
             if (state.otherLanguages.size > 1) chips {
-                FilterChip(selected = f.language == null, onClick = { vm.setOtherLanguage(null) }, label = { Text("Todos los idiomas") })
+                FilterChip(selected = f.language == null, onClick = { vm.setOtherLanguage(null) }, label = { Text(stringResource(R.string.catalog_all_languages)) })
                 state.otherLanguages.forEach { tag ->
                     FilterChip(selected = f.language == tag, onClick = { vm.setOtherLanguage(tag) }, label = { Text(Languages.name(tag)) })
                 }
@@ -541,7 +582,7 @@ private fun SubFilterBar(state: CatalogUiState, vm: CatalogViewModel) {
         }
         LibrarySection.Collections -> if (state.collections.isNotEmpty()) {
             chips {
-                FilterChip(selected = f.collectionId == null, onClick = { vm.setCollection(null) }, label = { Text("Todas") })
+                FilterChip(selected = f.collectionId == null, onClick = { vm.setCollection(null) }, label = { Text(stringResource(R.string.catalog_all_collections)) })
                 state.collections.forEach { c ->
                     FilterChip(
                         selected = f.collectionId == c.id,
@@ -552,7 +593,7 @@ private fun SubFilterBar(state: CatalogUiState, vm: CatalogViewModel) {
             }
             state.collections.firstOrNull { it.id == f.collectionId }?.let { c ->
                 TextButton(onClick = { vm.deleteCollection(c.id) }, modifier = Modifier.padding(horizontal = 8.dp)) {
-                    Text("Borrar la colección «${c.name}» (los libros no se borran)")
+                    Text(stringResource(R.string.catalog_delete_collection, c.name))
                 }
             }
         }
@@ -590,12 +631,15 @@ private fun BookCover(
     onEdit: () -> Unit,
     onShare: () -> Unit,
     onAction: (TranslationAction) -> Unit,
+    onViewOriginal: () -> Unit,
 ) {
     val s = item.summary
     var menu by remember { mutableStateOf(false) }
+    val bookDescription = stringResource(R.string.catalog_book_description, s.title, Languages.name(s.learningLanguage), s.cefrLevel.name)
+    val optionsDescription = stringResource(R.string.catalog_book_options, s.title)
     Column(
         Modifier.clickable(onClick = onClick).semantics(mergeDescendants = true) {
-            contentDescription = "${s.title}, ${Languages.name(s.learningLanguage)}, nivel ${s.cefrLevel.name}"
+            contentDescription = bookDescription
         },
     ) {
         Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(6.dp))) {
@@ -624,19 +668,19 @@ private fun BookCover(
                         .clip(CircleShape)
                         .background(Color.Black.copy(alpha = 0.35f))
                         .clickable { menu = true }
-                        .semantics { contentDescription = "Opciones de «${s.title}»" },
+                        .semantics { contentDescription = optionsDescription },
                 ) {
                     Icon(painterResource(R.drawable.ic_more_vert), contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                 }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     if (item.trashed) {
-                        DropdownMenuItem(text = { Text("Restaurar") }, onClick = { menu = false; onRestore() })
-                        onDeleteForever?.let { DropdownMenuItem(text = { Text("Borrar definitivamente") }, onClick = { menu = false; it() }) }
+                        DropdownMenuItem(text = { Text(stringResource(R.string.catalog_restore)) }, onClick = { menu = false; onRestore() })
+                        onDeleteForever?.let { DropdownMenuItem(text = { Text(stringResource(R.string.catalog_delete_forever)) }, onClick = { menu = false; it() }) }
                     } else {
                         shelves.forEach { shelf ->
                             val inShelf = s.id in shelf.bookIds
                             DropdownMenuItem(
-                                text = { Text(shelf.name) },
+                                text = { Text(Labels.shelf(shelf)) },
                                 leadingIcon = { Checkbox(checked = inShelf, onCheckedChange = null) },
                                 onClick = { onShelf(shelf, !inShelf) },
                             )
@@ -645,14 +689,20 @@ private fun BookCover(
                             !LanguageTags.sameLanguage(s.learningLanguage, translationTarget)
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Traducir entero al ${Languages.nameInSpanish(translationTarget)}") },
+                                text = { Text(stringResource(R.string.catalog_translate_whole_book, Languages.nameInSentence(translationTarget))) },
                                 onClick = { menu = false; onAction(TranslationAction.Retry(s.id, translationTarget)) },
                             )
                         }
                         HorizontalDivider()
-                        DropdownMenuItem(text = { Text("Editar") }, onClick = { menu = false; onEdit() })
-                        DropdownMenuItem(text = { Text("Compartir libro") }, onClick = { menu = false; onShare() })
-                        DropdownMenuItem(text = { Text("Enviar a la papelera") }, onClick = { menu = false; onTrash() })
+                        if (item.original?.viewable == true) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.catalog_view_original, item.original.format.uppercase())) },
+                                onClick = { menu = false; onViewOriginal() },
+                            )
+                        }
+                        DropdownMenuItem(text = { Text(stringResource(R.string.common_edit)) }, onClick = { menu = false; onEdit() })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.catalog_share_book)) }, onClick = { menu = false; onShare() })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.catalog_move_to_trash)) }, onClick = { menu = false; onTrash() })
                     }
                 }
             }
@@ -720,29 +770,20 @@ private fun GeneratedCover(title: String, language: String) {
 private fun WhatsAppHelpDialog(onOpenWhatsApp: (() -> Unit)?, onSearch: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Libro recibido por WhatsApp") },
+        title = { Text(stringResource(R.string.whatsapp_help_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("La forma más sencilla:", style = MaterialTheme.typography.labelLarge)
-                Text(
-                    "1. En WhatsApp, abre el chat y toca el archivo.\n" +
-                        "2. Elige «Abrir con» › LinguaReader.\n" +
-                        "Si se abre con otra app, mantén pulsado el mensaje y usa «Compartir» › LinguaReader.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Text("O desde aquí:", style = MaterialTheme.typography.labelLarge)
-                Text(
-                    "«Buscar el archivo» abre el selector; si la carpeta de WhatsApp sale vacía, mira en «Recientes» " +
-                        "o en «Documentos», o busca el nombre del libro con la lupa.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                Text(stringResource(R.string.whatsapp_help_easiest), style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.whatsapp_help_steps), style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.whatsapp_help_from_here), style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.whatsapp_help_picker), style = MaterialTheme.typography.bodyMedium)
             }
         },
-        confirmButton = { TextButton(onClick = onSearch) { Text("Buscar el archivo") } },
+        confirmButton = { TextButton(onClick = onSearch) { Text(stringResource(R.string.whatsapp_help_find_file)) } },
         dismissButton = {
             Row {
-                onOpenWhatsApp?.let { TextButton(onClick = it) { Text("Abrir WhatsApp") } }
-                TextButton(onClick = onDismiss) { Text("Cerrar") }
+                onOpenWhatsApp?.let { TextButton(onClick = it) { Text(stringResource(R.string.whatsapp_help_open)) } }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_close)) }
             }
         },
     )
@@ -754,26 +795,22 @@ private fun UrlDialog(initial: String, onConfirm: (String) -> Unit, onDismiss: (
     val valid = url.trim().let { it.startsWith("http://") || it.startsWith("https://") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Importar página web") },
+        title = { Text(stringResource(R.string.url_dialog_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    "Se descarga solo el texto principal del artículo (sin menús ni comentarios). " +
-                        "También puedes usar «Compartir» desde el navegador.",
-                    style = MaterialTheme.typography.bodySmall,
-                )
+                Text(stringResource(R.string.url_dialog_hint), style = MaterialTheme.typography.bodySmall)
                 OutlinedTextField(
                     value = url,
                     onValueChange = { url = it },
-                    label = { Text("Dirección (https://…)") },
+                    label = { Text(stringResource(R.string.url_dialog_address)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
         },
-        confirmButton = { TextButton(onClick = { onConfirm(url.trim()) }, enabled = valid) { Text("Importar") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+        confirmButton = { TextButton(onClick = { onConfirm(url.trim()) }, enabled = valid) { Text(stringResource(R.string.common_import)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
     )
 }
 
@@ -787,45 +824,45 @@ sealed interface TranslationAction {
 
 @Composable
 private fun TranslationPausedRow(bookId: String, pause: ImportedBookRepository.TranslationPause, onAction: (TranslationAction) -> Unit) {
-    val language = Languages.nameInSpanish(pause.target)
+    val language = Languages.nameInSentence(pause.target)
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         val fraction = if (pause.total == 0) 0f else pause.done.toFloat() / pause.total
         Text(
-            if (pause.total == 0) "Traducción al $language pausada" else
-                "Traducción al $language pausada: ${(fraction * 100).toInt()} % (${pause.done}/${pause.total} frases)",
+            if (pause.total == 0) stringResource(R.string.translation_paused, language) else
+                stringResource(R.string.translation_paused_progress, language, (fraction * 100).toInt(), pause.done, pause.total),
             style = MaterialTheme.typography.labelMedium,
         )
         if (pause.total > 0) LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
-        TextButton(onClick = { onAction(TranslationAction.Retry(bookId, pause.target)) }) { Text("Continuar traducción") }
+        TextButton(onClick = { onAction(TranslationAction.Retry(bookId, pause.target)) }) { Text(stringResource(R.string.translation_continue)) }
     }
 }
 
 @Composable
 private fun TranslationJobRow(bookId: String, job: BookTranslationState, onAction: (TranslationAction) -> Unit) {
-    val language = Languages.nameInSpanish(job.target)
+    val language = Languages.nameInSentence(job.target)
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         when (job) {
             is BookTranslationState.Preparing -> {
-                Text("Preparando la traducción al $language…", style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.translation_preparing, language), style = MaterialTheme.typography.labelMedium)
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
             is BookTranslationState.Running -> {
                 val fraction = if (job.total == 0) 0f else job.done.toFloat() / job.total
                 Text(
-                    "Traduciendo al $language: ${(fraction * 100).toInt()} % (${job.done}/${job.total} frases)",
+                    stringResource(R.string.translation_running, language, (fraction * 100).toInt(), job.done, job.total),
                     style = MaterialTheme.typography.labelMedium,
                 )
                 LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
             }
             is BookTranslationState.Failed ->
-                Text(job.message, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+                Text(job.message.asString(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
         }
         Row {
             if (job is BookTranslationState.Failed) {
-                TextButton(onClick = { onAction(TranslationAction.Retry(bookId, job.target)) }) { Text("Reintentar") }
-                TextButton(onClick = { onAction(TranslationAction.Dismiss(bookId)) }) { Text("Cerrar") }
+                TextButton(onClick = { onAction(TranslationAction.Retry(bookId, job.target)) }) { Text(stringResource(R.string.common_retry)) }
+                TextButton(onClick = { onAction(TranslationAction.Dismiss(bookId)) }) { Text(stringResource(R.string.common_close)) }
             } else {
-                TextButton(onClick = { onAction(TranslationAction.Cancel(bookId)) }) { Text("Cancelar traducción") }
+                TextButton(onClick = { onAction(TranslationAction.Cancel(bookId)) }) { Text(stringResource(R.string.translation_cancel)) }
             }
         }
     }
@@ -852,12 +889,14 @@ private fun BookCard(
     onRestore: () -> Unit,
     onDeleteForever: (() -> Unit)?,
     onAction: (TranslationAction) -> Unit,
+    onViewOriginal: () -> Unit,
 ) {
     val s = item.summary
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    val bookDescription = stringResource(R.string.catalog_book_description, s.title, Languages.name(s.learningLanguage), s.cefrLevel.name)
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).semantics(mergeDescendants = true) {
-            contentDescription = "${s.title}, ${Languages.name(s.learningLanguage)}, nivel ${s.cefrLevel.name}"
+            contentDescription = bookDescription
         },
     ) {
         Row(Modifier.padding(10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -890,7 +929,11 @@ private fun BookCard(
                     Text(s.authors.joinToString(", "), style = MaterialTheme.typography.bodyMedium, color = muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Text(
-                    listOfNotNull(Languages.name(s.learningLanguage), "≈ ${s.estimatedMinutes} min", "Importado".takeIf { item.imported && !item.fromLibrary })
+                    listOfNotNull(
+                        Languages.name(s.learningLanguage),
+                        stringResource(R.string.catalog_minutes, s.estimatedMinutes),
+                        stringResource(R.string.catalog_imported).takeIf { item.imported && !item.fromLibrary },
+                    )
                         .joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,
                     color = muted,
@@ -899,7 +942,7 @@ private fun BookCard(
                 if (item.progress != null) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         LinearProgressIndicator(progress = { item.progress }, modifier = Modifier.weight(1f))
-                        Text("${(item.progress * 100).toInt()} %", style = MaterialTheme.typography.labelSmall, color = muted)
+                        Text(stringResource(R.string.common_percent, (item.progress * 100).toInt()), style = MaterialTheme.typography.labelSmall, color = muted)
                     }
                 }
                 val job = item.translationJob
@@ -922,6 +965,7 @@ private fun BookCard(
                         onShare = onShare,
                         onTrash = onTrash,
                         onAction = onAction,
+                        onViewOriginal = onViewOriginal,
                     )
                 }
             }
@@ -937,12 +981,12 @@ private fun TrashActions(onRestore: () -> Unit, onDeleteForever: (() -> Unit)?) 
     Row(verticalAlignment = Alignment.CenterVertically) {
         TextButton(onClick = onRestore) {
             Icon(painterResource(R.drawable.ic_restore), contentDescription = null, modifier = Modifier.size(18.dp))
-            Text(" Restaurar")
+            Text(" " + stringResource(R.string.catalog_restore))
         }
         if (onDeleteForever != null) {
-            TextButton(onClick = onDeleteForever) { Text("Borrar") }
+            TextButton(onClick = onDeleteForever) { Text(stringResource(R.string.common_delete)) }
         } else {
-            Text("Incluido en la app", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.catalog_included_in_app), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -959,26 +1003,28 @@ private fun BookActions(
     onShare: () -> Unit,
     onTrash: () -> Unit,
     onAction: (TranslationAction) -> Unit,
+    onViewOriginal: () -> Unit,
 ) {
     val s = item.summary
     fun shelf(kind: String) = shelves.firstOrNull { it.kind == kind }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         listOf(
-            Triple(LibraryRepository.TO_READ, R.drawable.ic_schedule, "Para leer"),
-            Triple(LibraryRepository.READ, R.drawable.ic_done_all, "Leído"),
-            Triple(LibraryRepository.FAVORITES, R.drawable.ic_star, "Favorito"),
+            Triple(LibraryRepository.TO_READ, R.drawable.ic_schedule, R.string.catalog_action_to_read),
+            Triple(LibraryRepository.READ, R.drawable.ic_done_all, R.string.catalog_action_read),
+            Triple(LibraryRepository.FAVORITES, R.drawable.ic_star, R.string.catalog_action_favorite),
         ).forEach { (kind, icon, label) ->
             val target = shelf(kind) ?: return@forEach
             val on = s.id in target.bookIds
-            ActionIcon(icon, if (on) "Quitar de «${target.name}»" else label, active = on) { onShelf(target, !on) }
+            val description = if (on) stringResource(R.string.catalog_remove_from_shelf, Labels.shelf(target)) else stringResource(label)
+            ActionIcon(icon, description, active = on) { onShelf(target, !on) }
         }
 
         var collectionMenu by remember { mutableStateOf(false) }
         Box {
-            ActionIcon(R.drawable.ic_folder, "Agregar a una colección", active = collections.any { s.id in it.bookIds }) { collectionMenu = true }
+            ActionIcon(R.drawable.ic_folder, stringResource(R.string.catalog_add_to_collection), active = collections.any { s.id in it.bookIds }) { collectionMenu = true }
             DropdownMenu(expanded = collectionMenu, onDismissRequest = { collectionMenu = false }) {
                 DropdownMenuItem(
-                    text = { Text("Crear colección…") },
+                    text = { Text(stringResource(R.string.catalog_create_collection)) },
                     leadingIcon = { Icon(painterResource(R.drawable.ic_add), contentDescription = null) },
                     onClick = { collectionMenu = false; onNewCollection() },
                 )
@@ -998,16 +1044,23 @@ private fun BookActions(
         var more by remember { mutableStateOf(false) }
         Box {
             IconButton(onClick = { more = true }, modifier = Modifier.size(40.dp)) {
-                Icon(painterResource(R.drawable.ic_more_vert), contentDescription = "Más opciones de «${s.title}»", modifier = Modifier.size(20.dp))
+                Icon(painterResource(R.drawable.ic_more_vert), contentDescription = stringResource(R.string.catalog_more_options, s.title), modifier = Modifier.size(20.dp))
             }
             DropdownMenu(expanded = more, onDismissRequest = { more = false }) {
+                if (item.original?.viewable == true) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.catalog_view_original, item.original.format.uppercase())) },
+                        leadingIcon = { Icon(painterResource(R.drawable.ic_find_in_page), contentDescription = null) },
+                        onClick = { more = false; onViewOriginal() },
+                    )
+                }
                 DropdownMenuItem(
-                    text = { Text("Editar") },
+                    text = { Text(stringResource(R.string.common_edit)) },
                     leadingIcon = { Icon(painterResource(R.drawable.ic_edit), contentDescription = null) },
                     onClick = { more = false; onEdit() },
                 )
                 DropdownMenuItem(
-                    text = { Text("Compartir libro") },
+                    text = { Text(stringResource(R.string.catalog_share_book)) },
                     leadingIcon = { Icon(painterResource(R.drawable.ic_share), contentDescription = null) },
                     onClick = { more = false; onShare() },
                 )
@@ -1015,14 +1068,14 @@ private fun BookActions(
                     item.translationPause == null && !LanguageTags.sameLanguage(s.learningLanguage, translationTarget)
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Traducir entero al ${Languages.nameInSpanish(translationTarget)}") },
+                        text = { Text(stringResource(R.string.catalog_translate_whole_book, Languages.nameInSentence(translationTarget))) },
                         leadingIcon = { Icon(painterResource(R.drawable.ic_translate), contentDescription = null) },
                         onClick = { more = false; onAction(TranslationAction.Retry(s.id, translationTarget)) },
                     )
                 }
                 HorizontalDivider()
                 DropdownMenuItem(
-                    text = { Text("Enviar a la papelera") },
+                    text = { Text(stringResource(R.string.catalog_move_to_trash)) },
                     leadingIcon = { Icon(painterResource(R.drawable.ic_delete), contentDescription = null) },
                     onClick = { more = false; onTrash() },
                 )
@@ -1066,12 +1119,12 @@ private fun FoundDocumentsBanner(count: Int, onOpen: () -> Unit, onDismiss: () -
             Icon(painterResource(R.drawable.ic_find_in_page), contentDescription = null)
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                 Text(
-                    if (count == 1) "Hemos encontrado 1 documento en tu móvil" else "Hemos encontrado $count documentos en tu móvil",
+                    pluralStringResource(R.plurals.found_documents_title, count, count),
                     style = MaterialTheme.typography.titleSmall,
                 )
-                Text("Tócalo para verlos y abrir el que quieras", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.found_documents_hint), style = MaterialTheme.typography.bodySmall)
             }
-            IconButton(onClick = onDismiss) { Icon(painterResource(R.drawable.ic_close), contentDescription = "Cerrar aviso") }
+            IconButton(onClick = onDismiss) { Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.common_close_notice)) }
         }
     }
 }
@@ -1092,11 +1145,11 @@ private fun StartHereCard(item: CatalogItem, cover: ImageBitmap?, onOpen: () -> 
                 else GeneratedCover(s.title, s.learningLanguage)
             }
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                Text("¿Por dónde empiezo?", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Text(stringResource(R.string.start_here_title), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
                 Text(s.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text("${s.cefrLevel.name} · ≈ ${s.estimatedMinutes} min", style = MaterialTheme.typography.bodySmall)
+                Text("${s.cefrLevel.name} · ${stringResource(R.string.catalog_minutes, s.estimatedMinutes)}", style = MaterialTheme.typography.bodySmall)
             }
-            Text("Empezar", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(R.string.start_here_start), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         }
     }
 }

@@ -193,7 +193,7 @@ class AndroidTtsEngine @Inject constructor(
                 VoiceInfo(
                     id = v.name,
                     languageTag = v.locale.toLanguageTag(),
-                    displayName = "${v.locale.getDisplayName(Locale.forLanguageTag("es"))} · ${v.name}",
+                    displayName = "${v.locale.getDisplayName(Locale.getDefault())} · ${v.name}",
                     requiresNetwork = v.isNetworkConnectionRequired,
                     quality = v.quality,
                 )

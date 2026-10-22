@@ -1,26 +1,28 @@
 package com.linguareader.ui.catalog
 
+import androidx.annotation.StringRes
+import com.linguareader.R
 import com.linguareader.core.model.BookSummary
 import java.text.Collator
 import java.text.Normalizer
 import java.util.Locale
 
 /** Estado de lectura de un libro, para filtrar en la búsqueda. */
-enum class ReadStatus(val label: String) {
-    ALL("Todos"),
-    NOT_STARTED("Sin empezar"),
-    READING("Leyendo"),
-    FINISHED("Terminados"),
+enum class ReadStatus(@StringRes val label: Int) {
+    ALL(R.string.search_status_all),
+    NOT_STARTED(R.string.search_status_not_started),
+    READING(R.string.search_status_reading),
+    FINISHED(R.string.search_status_finished),
 }
 
-enum class SortOrder(val label: String) {
+enum class SortOrder(@StringRes val label: Int) {
     /** El orden de cada apartado (importados recientes primero; en «Leyendo ahora», el último leído). */
-    DEFAULT("Predeterminado"),
-    TITLE("Título"),
-    AUTHOR("Autor"),
-    LEVEL("Nivel"),
-    RECENT("Leídos hace poco"),
-    SHORTEST("Más cortos"),
+    DEFAULT(R.string.search_sort_default),
+    TITLE(R.string.search_sort_title),
+    AUTHOR(R.string.search_sort_author),
+    LEVEL(R.string.search_sort_level),
+    RECENT(R.string.search_sort_recent),
+    SHORTEST(R.string.search_sort_shortest),
 }
 
 /** Búsqueda de la biblioteca (lupa de la cabecera). Vacía = sin filtrar. */

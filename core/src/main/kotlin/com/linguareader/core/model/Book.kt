@@ -16,6 +16,12 @@ data class MediaRef(
     val sha256: String?,
 )
 
+/** Fichero publicado en remoto, con tamaño y sha256 para verificar la descarga. */
+data class RemoteFile(val url: String, val sizeBytes: Long?, val sha256: String?)
+
+/** Narración pregrabada de un libro: pista de audio continua + subtítulos ASS de karaoke con el tiempo de cada palabra. */
+data class NarrationRef(val audio: RemoteFile, val timings: RemoteFile)
+
 data class ContentLicense(
     val id: String,
     val name: String?,
@@ -38,6 +44,8 @@ data class Book(
     val cover: MediaRef?,
     val chapters: List<Chapter>,
     val glossary: List<GlossaryEntry>,
+    /** Narración pregrabada que se puede descargar; null si el libro no tiene. */
+    val narration: NarrationRef? = null,
 ) {
     /** Todos los pasajes en orden de lectura. */
     val passages: List<Passage> by lazy { chapters.flatMap { it.passages } }

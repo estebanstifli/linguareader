@@ -66,6 +66,10 @@ Leyenda: ✅ hecho y verificado · 🟡 parcial · ⬜ pendiente
 
 ## Fase 4 — Contenido e idiomas ⬜
 
+- ✅ Narración pregrabada opcional por libro (mp3 + ASS de karaoke): el libro declara las URL, la app la descarga al
+  abrirlo y la usa en lugar del TTS con resaltado por palabra; si falla, sigue con el TTS. Primer libro: *The Three
+  Little Pigs*. Ver [CONTENT_FORMAT.md](CONTENT_FORMAT.md#narración-pregrabada-opcional).
+
 - ✅ Lector paginado a pantalla completa ([READER.md](READER.md)): páginas exactas, gestos (deslizar, bordes,
   centro, pulsación larga), barras superior e inferior, búsqueda, índice, «Acerca del documento», compartir TXT,
   orientación, tema sepia, modo con o sin voz (pregunta inicial), controles compactos y voz con pantalla apagada.
@@ -77,6 +81,19 @@ Leyenda: ✅ hecho y verificado · 🟡 parcial · ⬜ pendiente
 - ✅ Importación de libros del usuario ([IMPORT.md](IMPORT.md)): EPUB, PDF con texto, MOBI/AZW3 sin
   DRM, DOCX, ODT, RTF, FB2, HTML, TXT, Markdown, SRT/VTT, páginas web y texto compartido/pegado.
   Parsers propios (sin Readium), segmentación de frases por locale, «Abrir con…»/«Compartir».
+- ✅ Miniatura de la primera página como portada de los documentos del usuario: PDF (`PdfRenderer` al importar),
+  ODT (`Thumbnails/thumbnail.png`), DOCX (`docProps/thumbnail` si Word la guardó) y una «página de texto»
+  dibujada para TXT/RTF/HTML/MD/DOCX sin miniatura. Caché en disco `cacheDir/covers/` para todas las portadas.
+- ✅ Visor del PDF original ([IMPORT.md](IMPORT.md#ver-el-original)): al pulsar un PDF, «Modo lectura» o «Ver original»
+  (recordable; Ajustes › Examinar archivos). Scroll vertical continuo, zoom con dos dedos y doble toque, salto de
+  página. Sin copia del fichero: referencia con permiso persistente y «Buscar el fichero» si se pierde. Los PDF
+  escaneados y los de Examinar archivos se pueden ver sin importar.
+- ✅ Fase 2 del visor PDF: «Ver original» de un libro importado se abre en el lector con voz, resaltado de
+  frase/palabra sobre las páginas, la vista siguiendo a la voz y tocar una palabra para traducirla. Cajas por
+  palabra con `TextPosition` de PdfBox alineadas con los tokens (`WordBoxAligner`), calculadas en segundo plano
+  al importar y guardadas en la carpeta del libro (`pdf-words.bin`).
+- ⬜ Visor por teselas para zoom fuerte nítido en páginas grandes (hoy una página se dibuja a 6 Mpx como mucho).
+- ⬜ HTML original en `WebView` (opcional). DOCX/ODT/RTF con su formato no se planean: harían falta motores pesados.
 - ⬜ OCR (ML Kit, en el dispositivo) para PDF/DjVu escaneados.
 - ⬜ Detección automática del idioma de un libro importado sin metadatos.
 - ✅ Decisión: PdfBox-Android va siempre incluido en el APK (no como pack descargable). Pendiente
@@ -90,7 +107,12 @@ Leyenda: ✅ hecho y verificado · 🟡 parcial · ⬜ pendiente
 - ⬜ Traducción de palabras con contexto (ML Kit traduce el texto aislado; la ficha muestra también la frase).
 - ⬜ Expresiones discontinuas ("wake him up"), más idiomas, RTL.
 - ⬜ Pantalla de vocabulario con repaso.
-- ⬜ Mover los textos de UI a `strings.xml` para localizar la interfaz (hoy, español en código).
+- ✅ Interfaz localizable ([I18N.md](I18N.md)): todos los textos en `strings.xml`, inglés como idioma base y español
+  como primer idioma adicional; la app sale en el idioma del dispositivo y admite el «Idioma de la app» de Android 13+.
+  Mensajes de los ViewModels y motores como `UiText`; comprobación con `tools/check_hardcoded_strings.py`.
+- ⬜ Más idiomas de interfaz (francés, alemán…) y ficha de Play Store traducida, antes de publicar.
+- ⬜ Mensajes técnicos de `core`/`importer`/descargas en español (se ven como «Detalle técnico»): pasarlos a inglés o
+  a motivos tipados si molestan.
 
 ## Deuda técnica conocida
 

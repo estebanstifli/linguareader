@@ -36,6 +36,7 @@ class LazyClipPlayer(private val factory: () -> ClipPlayer) : ClipPlayer {
     override fun clear() { delegate?.clear() }
     override fun pause() { delegate?.pause() }
     override fun seekToTag(tag: Int): Boolean = delegate?.seekToTag(tag) ?: false
+    override fun seekTo(tag: Int, positionMs: Long): Boolean = delegate?.seekTo(tag, positionMs) ?: false
     override fun position(): ClipPosition? = delegate?.position()
 
     override fun setPlaybackSpeed(speed: Float) {

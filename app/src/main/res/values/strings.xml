@@ -1,4 +1,622 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Idioma base de la interfaz: inglés. Cada cadena nueva va también a values-es/strings.xml (docs/I18N.md). -->
 <resources>
-    <string name="app_name">LinguaReader</string>
+    <string name="app_name" translatable="false">LinguaReader</string>
+
+    <!-- Etiquetas comunes (ui/common/Common.kt) -->
+    <string name="label_display_mode_on_tap">Translation on tap</string>
+    <string name="label_display_mode_below">Translation under each sentence</string>
+    <string name="label_display_mode_on_tap_hint">Only the book text; tap a word to see its translation and its sentence\'s</string>
+    <string name="label_display_mode_below_hint">Each sentence with its translation below</string>
+    <string name="label_highlight_background">Background</string>
+    <string name="label_highlight_underline">Underline</string>
+    <string name="label_highlight_marker">Marker</string>
+    <string name="label_theme_system">System</string>
+    <string name="label_theme_light">Light</string>
+    <string name="label_theme_dark">Dark</string>
+    <string name="label_theme_sepia">Sepia</string>
+    <string name="label_justify_left">Left</string>
+    <string name="label_justify_justified">Justified</string>
+    <string name="label_justify_hyphenated">Justified + hyphens</string>
+    <string name="label_orientation_portrait">Portrait</string>
+    <string name="label_orientation_landscape">Landscape</string>
+    <string name="label_orientation_auto">Automatic</string>
+    <string name="label_term_word">Word</string>
+    <string name="label_term_phrasal_verb">Phrasal verb</string>
+    <string name="label_term_expression">Expression</string>
+    <string name="label_term_contraction">Contraction</string>
+    <string name="translation_unavailable_no_entry">No %1$s translation available in this book.</string>
+    <string name="translation_unavailable_same_language">The translation language is the same as the book\'s.</string>
+    <string name="translation_unavailable_pair">This language pair is not supported.</string>
+    <string name="translation_unavailable_offline">Requires a connection (not available offline).</string>
+    <string name="translation_unavailable_engine_error">The translator failed.</string>
+    <string name="translation_unavailable_model_missing">The translator for this language needs to be downloaded (≈40 MB).</string>
+    <string name="audio_unavailable_no_engine">No text-to-speech (TTS) engine available. You can read and translate without audio.</string>
+    <string name="audio_unavailable_voice_missing">The %1$s voice is missing. Install it to listen to the text; meanwhile you can read and translate.</string>
+    <string name="audio_unavailable_language">The speech engine doesn\'t support %1$s. You can read and translate without audio.</string>
+    <string name="audio_unavailable_voice_not_found">The selected voice is no longer installed.</string>
+    <string name="audio_unavailable_synthesis_error">The speech engine failed.</string>
+    <string name="audio_unavailable_model_missing">The Supertonic model isn\'t installed. Download it in Settings &gt; Speech engine or go back to the system voice.</string>
+    <string name="audio_unavailable_out_of_memory">Not enough memory for Supertonic on this device. Try the system voice.</string>
+
+    <!-- Comunes -->
+    <string name="common_cancel">Cancel</string>
+    <string name="common_close">Close</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_edit">Edit</string>
+    <string name="common_retry">Retry</string>
+    <string name="common_import">Import</string>
+    <string name="common_menu">Menu</string>
+    <string name="common_search">Search</string>
+    <string name="common_back">Back</string>
+    <string name="common_save">Save</string>
+    <string name="common_close_notice">Dismiss notice</string>
+    <string name="common_percent">%1$d%%</string>
+    <string name="shelf_favorites">Favorites</string>
+    <string name="shelf_to_read">To read</string>
+    <string name="shelf_read">Read</string>
+
+    <!-- Biblioteca (ui/catalog/CatalogScreen.kt) -->
+    <string name="section_reading">Reading now</string>
+    <string name="section_books">Books</string>
+    <string name="section_learn">Learn %1$s</string>
+    <string name="section_learn_other">Learn other languages</string>
+    <string name="section_collections">Collections</string>
+    <string name="section_trash">Trash</string>
+    <string name="section_on_device">On this device</string>
+    <string name="section_vocabulary">Vocabulary</string>
+    <string name="section_settings">Settings</string>
+    <string name="catalog_delete_forever">Delete permanently</string>
+    <string name="catalog_delete_forever_message">“%1$s” will be removed from the device. You can import it again whenever you like.</string>
+    <string name="catalog_search_active">Search (a search is active)</string>
+    <string name="catalog_view_list">View as list</string>
+    <string name="catalog_view_covers">View covers</string>
+    <string name="catalog_import_book">Import book</string>
+    <string name="catalog_import_from_file">From a file…</string>
+    <string name="catalog_import_from_whatsapp">Received via WhatsApp…</string>
+    <string name="catalog_import_from_telegram">Received via Telegram…</string>
+    <string name="catalog_import_from_web">From a web page…</string>
+    <string name="catalog_import_paste">Paste copied text</string>
+    <string name="catalog_import_also_hint">Also: open the file in WhatsApp, Telegram or your email and choose “Open with” or “Share” › LinguaReader.</string>
+    <string name="catalog_share_book">Share book</string>
+    <string name="catalog_empty_filtered">No books match the search or filters. Try changing them or clear them with ✕.</string>
+    <string name="catalog_empty_books">You don\'t have any books yet. Open one of the documents on your phone (menu › On this device), download graded readers in Settings › Libraries or use + to import an EPUB, PDF, TXT, FB2, Word, HTML or subtitle file.</string>
+    <string name="catalog_empty_reading">You haven\'t started any books yet. The ones you open will appear here, most recent first.</string>
+    <string name="catalog_empty_trash">The trash is empty.</string>
+    <string name="catalog_empty_shelf">There are no books on this shelf. Add them from a cover\'s ⋮ menu or from the reader: ⋮ menu › Add to…</string>
+    <string name="catalog_empty_collections">There are no books in collections. Create one with a book\'s folder icon (list view) or from the reader: ⋮ menu › Add to… › New collection.</string>
+    <string name="catalog_empty_language">There are no books in this language. Download its graded readers library in Settings › Libraries or import your own with +.</string>
+    <string name="catalog_empty_generic">There are no books here yet.</string>
+    <string name="catalog_all_levels">All levels</string>
+    <string name="catalog_translate_to">Translate to</string>
+    <string name="catalog_all_languages">All languages</string>
+    <string name="catalog_all_collections">All</string>
+    <string name="catalog_delete_collection">Delete the “%1$s” collection (the books are not deleted)</string>
+    <string name="catalog_book_description">%1$s, %2$s, level %3$s</string>
+    <string name="catalog_book_options">Options for “%1$s”</string>
+    <string name="catalog_more_options">More options for “%1$s”</string>
+    <string name="catalog_restore">Restore</string>
+    <string name="catalog_translate_whole_book">Translate the whole book into %1$s</string>
+    <string name="catalog_view_original">View original (%1$s)</string>
+    <string name="catalog_move_to_trash">Move to trash</string>
+    <string name="catalog_minutes">≈ %1$d min</string>
+    <string name="catalog_imported">Imported</string>
+    <string name="catalog_included_in_app">Included in the app</string>
+    <string name="catalog_action_to_read">To read</string>
+    <string name="catalog_action_read">Read</string>
+    <string name="catalog_action_favorite">Favorite</string>
+    <string name="catalog_remove_from_shelf">Remove from “%1$s”</string>
+    <string name="catalog_add_to_collection">Add to a collection</string>
+    <string name="catalog_create_collection">Create collection…</string>
+    <string name="whatsapp_help_title">Book received via WhatsApp</string>
+    <string name="whatsapp_help_easiest">The easiest way:</string>
+    <string name="whatsapp_help_steps">1. In WhatsApp, open the chat and tap the file.\n2. Choose “Open with” › LinguaReader.\nIf it opens with another app, long-press the message and use “Share” › LinguaReader.</string>
+    <string name="whatsapp_help_from_here">Or from here:</string>
+    <string name="whatsapp_help_picker">“Find the file” opens the file picker; if the WhatsApp folder is empty, look in “Recent” or “Documents”, or search for the book\'s name with the magnifier.</string>
+    <string name="whatsapp_help_find_file">Find the file</string>
+    <string name="whatsapp_help_open">Open WhatsApp</string>
+    <string name="url_dialog_title">Import web page</string>
+    <string name="url_dialog_hint">Only the main text of the article is downloaded (no menus or comments). You can also use “Share” from your browser.</string>
+    <string name="url_dialog_address">Address (https://…)</string>
+    <string name="translation_paused">Translation into %1$s paused</string>
+    <string name="translation_paused_progress">Translation into %1$s paused: %2$d%% (%3$d/%4$d sentences)</string>
+    <string name="translation_continue">Continue translation</string>
+    <string name="translation_preparing">Preparing the translation into %1$s…</string>
+    <string name="translation_running">Translating into %1$s: %2$d%% (%3$d/%4$d sentences)</string>
+    <string name="translation_cancel">Cancel translation</string>
+    <plurals name="found_documents_title">
+        <item quantity="one">We found %1$d document on your phone</item>
+        <item quantity="other">We found %1$d documents on your phone</item>
+    </plurals>
+    <string name="found_documents_hint">Tap to see them and open the one you want</string>
+    <string name="start_here_title">Where do I start?</string>
+    <string name="start_here_start">Start</string>
+    <string name="common_quoted">“%1$s”</string>
+
+    <!-- Búsqueda en la biblioteca (ui/catalog/CatalogSearch*.kt) -->
+    <string name="search_status_all">All</string>
+    <string name="search_status_not_started">Not started</string>
+    <string name="search_status_reading">Reading</string>
+    <string name="search_status_finished">Finished</string>
+    <string name="search_sort_default">Default</string>
+    <string name="search_sort_title">Title</string>
+    <string name="search_sort_author">Author</string>
+    <string name="search_sort_level">Level</string>
+    <string name="search_sort_recent">Recently read</string>
+    <string name="search_sort_shortest">Shortest</string>
+    <string name="search_placeholder">Title or author</string>
+    <string name="search_clear_text">Clear text</string>
+    <string name="search_group_status">Status</string>
+    <string name="search_group_language">Language</string>
+    <string name="search_language_all">All</string>
+    <string name="search_group_sort">Sort by</string>
+    <string name="search_clear">Clear</string>
+    <string name="search_no_results">No results</string>
+    <plurals name="search_see_books">
+        <item quantity="one">See %1$d book</item>
+        <item quantity="other">See %1$d books</item>
+    </plurals>
+    <string name="search_remove">Remove search</string>
+    <string name="search_sorted_by">by %1$s</string>
+
+    <!-- Editar libro (ui/catalog/BookEditScreen.kt) -->
+    <string name="book_edit_title">Edit book</string>
+    <string name="book_edit_failed">Couldn\'t open the book</string>
+    <string name="book_edit_field_title">Title</string>
+    <string name="book_edit_field_author">Author</string>
+    <string name="book_edit_field_language">Book language</string>
+    <string name="book_edit_language_hint">The language the text is written in: it decides the voice that reads it and the language it\'s translated from.</string>
+    <string name="book_edit_field_level">Level</string>
+    <string name="book_edit_reset">Restore original details</string>
+
+    <!-- Cómo abrir un original (ui/catalog/OpenModeSheet.kt) -->
+    <string name="open_mode_reader">Reading mode</string>
+    <string name="open_mode_reader_detail">Text adapted to the screen, with voice, highlighting and translation on tap.</string>
+    <string name="open_mode_original_detail">The pages as they are, with images and layout. Pinch to zoom.</string>
+    <string name="open_mode_remember">Remember my choice for %1$s files</string>
+    <string name="common_saving">Saving…</string>
+    <string name="common_technical_detail">Technical detail: %1$s</string>
+
+    <!-- Importación (ui/catalog/ImportDialog.kt, ImportViewModel.kt) -->
+    <string name="import_reading_document">Reading the document…</string>
+    <string name="import_downloading">Downloading %1$s…</string>
+    <string name="import_preparing_text">Preparing the text…</string>
+    <string name="import_error_unsupported">This file format can\'t be imported.</string>
+    <string name="import_error_drm">The file is protected (DRM or password). Only unprotected files can be imported.</string>
+    <string name="import_error_no_text">The document has no readable text.</string>
+    <string name="import_error_corrupt">The file couldn\'t be read: it may be damaged.</string>
+    <string name="import_error_read_file">The file couldn\'t be read.</string>
+    <string name="import_error_save">The book couldn\'t be saved.</string>
+    <string name="import_title_importing">Importing</string>
+    <string name="import_failed_title">Couldn\'t import</string>
+    <string name="import_failed_can_view">You can still view it in its original format.</string>
+    <string name="import_view_pdf">View PDF</string>
+    <plurals name="import_chapters">
+        <item quantity="one">%1$d chapter</item>
+        <item quantity="other">%1$d chapters</item>
+    </plurals>
+    <plurals name="import_paragraphs">
+        <item quantity="one">%1$d paragraph</item>
+        <item quantity="other">%1$d paragraphs</item>
+    </plurals>
+    <string name="import_already_imported">This file is already in your library: it will be replaced.</string>
+    <string name="import_text_language">Text language</string>
+    <string name="import_language_unknown">The document doesn\'t state its language: choose the right one so the voice and sentence splitting work well.</string>
+    <string name="import_translation_into">Translation into %1$s</string>
+    <string name="import_translate_while_reading">While I read</string>
+    <string name="import_translate_while_reading_detail">Each passage is translated when you reach it. You can start reading right away.</string>
+    <string name="import_translate_now">Translate the whole book now</string>
+    <plurals name="import_translate_now_detail">
+        <item quantity="one">In the background and on the device; it takes time depending on the size (%1$d paragraph). Afterwards you can read without waiting or a connection.</item>
+        <item quantity="other">In the background and on the device; it takes time depending on the size (%1$d paragraphs). Afterwards you can read without waiting or a connection.</item>
+    </plurals>
+    <string name="import_level_cefr">Level (CEFR)</string>
+    <string name="catalog_load_error">Error loading the library</string>
+
+    <!-- En el dispositivo (ui/catalog/DeviceDocumentsScreen.kt) -->
+    <string name="device_docs_group_format">Format</string>
+    <string name="device_docs_group_author">Author</string>
+    <string name="device_docs_group_folder">Folder</string>
+    <string name="device_docs_pdf_choice">Import it to read it with voice and translation, or view it as it is without adding it to the library.</string>
+    <string name="device_docs_import_to_read">Import to read</string>
+    <string name="device_docs_just_view">Just view</string>
+    <string name="device_docs_scan_options">Search options</string>
+    <string name="device_docs_empty">No documents found yet.</string>
+    <string name="device_docs_empty_hint">Look for the books you already have on your phone in Settings › Browse files.</string>
+    <string name="scan_title">Browse files</string>
+    <string name="device_docs_search_placeholder">Search by title, author or file</string>
+    <string name="device_docs_all_count">All (%1$d)</string>
+    <string name="device_docs_unknown_author">Unknown author</string>
+    <string name="device_docs_row_description">%1$s, %2$s. Tap to open</string>
+    <string name="common_not_now">Not now</string>
+    <string name="common_continue">Continue</string>
+    <string name="common_preparing">Preparing…</string>
+    <string name="common_downloading">Downloading…</string>
+    <string name="common_downloading_or_wifi">Downloading (or waiting for Wi-Fi)…</string>
+    <string name="common_downloading_progress">Downloading %1$s of %2$s</string>
+    <string name="common_pending">Pending</string>
+    <string name="common_download">Download</string>
+    <string name="common_checking">Checking…</string>
+    <string name="common_install">Install</string>
+    <plurals name="common_books">
+        <item quantity="one">%1$d book</item>
+        <item quantity="other">%1$d books</item>
+    </plurals>
+
+    <!-- Primera apertura (ui/onboarding/Onboarding.kt) -->
+    <string name="onboarding_step">Step %1$d of %2$d</string>
+    <string name="onboarding_purpose_title">What will you use LinguaReader for?</string>
+    <string name="onboarding_purpose_body">We\'ll set up the app based on your choice. You can change it in Settings at any time.</string>
+    <string name="onboarding_purpose_read">Read my books and documents</string>
+    <string name="onboarding_purpose_read_detail">Finds the EPUB, PDF, FB2, Word, TXT… files you already have on your phone and opens them in a comfortable reader, without voice.</string>
+    <string name="onboarding_purpose_learn">Learn a language</string>
+    <string name="onboarding_purpose_learn_detail">Graded readers by level, a voice that reads with the word highlighted, and translation on tap.</string>
+    <string name="onboarding_purpose_both">Both</string>
+    <string name="onboarding_purpose_both_detail">Sets up the language you want to learn and also finds your documents.</string>
+    <string name="onboarding_learn_title">Which language do you want to learn?</string>
+    <string name="onboarding_learn_body">We\'ll download its library of graded readers (A1 to B2) so you can read and listen offline.</string>
+    <string name="onboarding_native_title">What\'s your language?</string>
+    <string name="onboarding_native_body">Words and sentences will be translated into this language, on the phone itself and offline (Google ML Kit translator).</string>
+    <string name="onboarding_native_same">It\'s the same language you\'re going to learn: choose another one to be able to translate.</string>
+    <string name="onboarding_wifi_only">Download translators only over Wi-Fi (≈40 MB per language)</string>
+    <string name="onboarding_level_a1">I\'m starting from scratch, or nearly</string>
+    <string name="onboarding_level_a2">I understand simple, everyday sentences</string>
+    <string name="onboarding_level_b1">I can get by on everyday topics</string>
+    <string name="onboarding_level_b2">I read general texts quite fluently</string>
+    <string name="onboarding_level_title">What\'s your level of %1$s?</string>
+    <string name="onboarding_level_title_generic">What\'s your level in the language?</string>
+    <string name="onboarding_level_body">We\'ll show you books at your level first. You can always see the others.</string>
+    <string name="onboarding_level_unsure">I don\'t know</string>
+    <string name="onboarding_continue_download">Continue and download</string>
+    <string name="onboarding_level_footer">When you continue, the library and translators start downloading in the background; you can keep using the app.</string>
+    <string name="onboarding_summary_title">Here\'s what we\'ve set up</string>
+    <string name="onboarding_summary_body">Anything still downloading continues in the background: you can start now.</string>
+    <string name="onboarding_library_of">%1$s library</string>
+    <string name="onboarding_library_ready">Ready · %1$s</string>
+    <string name="onboarding_preparing_books">Preparing books: %1$d of %2$d</string>
+    <string name="onboarding_no_library">There\'s no library for this language</string>
+    <string name="onboarding_library_pending">Pending · %1$s</string>
+    <string name="onboarding_translator_of">%1$s translator</string>
+    <string name="onboarding_translator_ready">Ready, works offline</string>
+    <string name="onboarding_voice_in">%1$s voice</string>
+    <string name="onboarding_voice_ready">Ready (system voice)</string>
+    <string name="onboarding_voice_missing">It needs to be installed in the phone\'s speech engine</string>
+    <string name="onboarding_voice_no_engine">There\'s no speech engine on the phone: you\'ll be able to read and translate without audio</string>
+    <string name="onboarding_language_to_learn">Language to learn</string>
+    <string name="onboarding_language_not_chosen">Not chosen: you can download libraries in Settings › Libraries</string>
+    <string name="onboarding_your_documents">Your documents</string>
+    <plurals name="onboarding_searching_found">
+        <item quantity="one">Searching… %1$d found</item>
+        <item quantity="other">Searching… %1$d found</item>
+    </plurals>
+    <plurals name="onboarding_found_on_phone">
+        <item quantity="one">%1$d found on the phone</item>
+        <item quantity="other">%1$d found on the phone</item>
+    </plurals>
+    <string name="onboarding_scan_not_done">Not searched: you can do it whenever you like in Settings › Browse files</string>
+    <string name="onboarding_scan_no_permission">No permission: you can grant it in Settings › Browse files</string>
+    <string name="onboarding_start_reading">Start reading</string>
+
+    <!-- Descargas y estados de los motores (engine/, data/scan) -->
+    <string name="library_failed">Couldn\'t download the library (%1$s)</string>
+    <string name="translator_download_failed">Couldn\'t download the translator (%1$s)</string>
+    <string name="translator_download_failed_wifi">Couldn\'t download the translator (no Wi-Fi?). %1$s</string>
+    <string name="scan_failed">Error while browsing the files (%1$s)</string>
+    <string name="book_translation_failed">Translation error (%1$s)</string>
+    <string name="book_translation_pair_unsupported">The on-device translator doesn\'t support this language pair.</string>
+    <string name="book_translation_model_failed">Couldn\'t download the translator (%1$s). Check your connection or the “Wi-Fi only” option.</string>
+    <string name="book_translation_partial">%1$d of %2$d sentences couldn\'t be translated. They\'ll be retried when you read.</string>
+    <string name="model_folder_inaccessible">Can\'t access the model folder: %1$s</string>
+    <string name="model_folder_create_failed">Couldn\'t create the model folder.</string>
+    <string name="model_no_space">Not enough space: %1$d MB needed and %2$d MB free.</string>
+    <string name="model_download_interrupted_resumable">Download interrupted: %1$s. You can resume it.</string>
+    <string name="model_download_interrupted">Download interrupted: %1$s</string>
+    <string name="model_download_error">Download error: %1$s</string>
+    <string name="model_files_corrupt">Corrupt or incomplete files: %1$s</string>
+    <string name="model_verify_error">Verification error: %1$s</string>
+    <string name="model_repo_not_configured">This build has no package repository configured (packsRepo).</string>
+    <string name="voice_pack_catalog_unavailable">Voice pack catalog not available.</string>
+    <string name="common_more_options">More options</string>
+    <string name="common_and_separator">" and "</string>
+
+    <!-- Lector (ui/reader/ReaderScreen.kt) -->
+    <string name="reader_trash_message">“%1$s” will leave the library. You can restore it from the library\'s Trash.</string>
+    <string name="reader_view_as_text">View as text</string>
+    <string name="reader_view_original_pdf">View the original PDF</string>
+    <string name="reader_index">Contents, bookmarks and vocabulary</string>
+    <string name="reader_search_book">Search in the book</string>
+    <string name="reader_tts_off">Turn off reading aloud</string>
+    <string name="reader_tts_on">Turn on reading aloud</string>
+    <string name="reader_settings">Reading settings</string>
+    <string name="reader_chapter_page">page %1$d/%2$d</string>
+    <string name="reader_share_file">Share file</string>
+    <string name="reader_add_to">Add to…</string>
+    <string name="reader_about">About this document</string>
+    <string name="reader_back_to_menu">Back to menu</string>
+    <string name="reader_new_collection_menu">New collection…</string>
+    <string name="reader_page_of">Page %1$d of %2$d</string>
+    <string name="reader_page_short">%1$d of %2$d</string>
+    <string name="reader_orientation">Orientation: %1$s</string>
+    <string name="reader_bookmark_remove">Remove bookmark from this page</string>
+    <string name="reader_bookmark_add">Bookmark this page</string>
+    <string name="reader_search_hint">Type at least two letters. It ignores case and accents.</string>
+    <string name="reader_search_no_results">No results.</string>
+    <string name="reader_search_too_many">More than %1$d results (showing the first ones)</string>
+    <plurals name="reader_search_results">
+        <item quantity="one">%1$d result</item>
+        <item quantity="other">%1$d results</item>
+    </plurals>
+    <string name="about_authors">Authors</string>
+    <string name="about_language">Language</string>
+    <string name="about_level">Level</string>
+    <string name="about_genre">Genre</string>
+    <string name="about_origin">Origin</string>
+    <string name="about_origin_imported">Imported by you</string>
+    <string name="about_chapters">Chapters</string>
+    <string name="about_passages">Passages</string>
+    <string name="about_pages">Pages (at the current text size)</string>
+    <string name="about_words">Words</string>
+    <string name="about_listening_time">Estimated read-aloud time</string>
+    <string name="about_progress">Progress</string>
+    <string name="about_translations">Included translations</string>
+    <string name="about_glossary_entries">Glossary entries</string>
+    <string name="about_shelves">In</string>
+    <string name="about_adaptation">Adaptation</string>
+    <string name="about_license">License</string>
+    <string name="about_license_link">License (link)</string>
+    <string name="about_source">Source</string>
+    <string name="about_identifier">Identifier</string>
+    <string name="collection_new_title">New collection</string>
+    <string name="collection_name">Name</string>
+    <string name="collection_create_and_add">Create and add</string>
+    <string name="reader_translator_missing">To translate you need the %1$s translator (≈%2$d MB, downloaded once and works offline).</string>
+    <string name="reader_retry_download">Retry download</string>
+    <string name="reader_tts_error_code">The speech engine failed (code %1$s). Press play to try again.</string>
+    <string name="reader_open_settings">Open settings</string>
+    <string name="reader_install_voice">Install voice</string>
+
+    <!-- Ficha de palabra y frase (ui/reader/ReaderSheets.kt, WordPopup.kt) -->
+    <string name="word_listen">Listen to word</string>
+    <string name="word_lemma">Lemma: %1$s</string>
+    <string name="word_base_form">Base form: %1$s</string>
+    <string name="word_examples">Examples</string>
+    <string name="word_in_sentence">In the sentence</string>
+    <string name="word_saved">Saved</string>
+    <string name="word_read_from_here">Read from here</string>
+    <string name="reader_resume">Resume reading</string>
+    <string name="sentence_title">Sentence</string>
+    <string name="sentence_listen">Listen to sentence</string>
+    <string name="translation_machine">Machine translation</string>
+    <string name="word_more_info">More information</string>
+    <string name="word_saved_in_vocabulary">Saved in vocabulary</string>
+    <string name="word_save_to_vocabulary">Save to vocabulary</string>
+    <string name="word_play_from_here">Play from here</string>
+
+    <!-- Índice del libro (ui/reader/ReaderSheets.kt) -->
+    <string name="index_tab_chapters">Chapters</string>
+    <string name="index_tab_bookmarks">Bookmarks (%1$d)</string>
+    <string name="index_tab_vocabulary">Vocabulary (%1$d)</string>
+    <string name="index_bookmarks_empty">No bookmarks yet. While reading, tap the middle of the page and press the bookmark in the bottom bar to bookmark the page.</string>
+    <string name="index_page">Page %1$d</string>
+    <string name="index_delete_bookmark">Delete bookmark</string>
+    <string name="index_vocabulary_empty">You haven\'t saved any words from this book yet. Long-press a word and tap “Save”.</string>
+
+    <!-- Controles de reproducción (ui/reader/PlayerControls.kt) -->
+    <string name="player_choose_voice">Choose voice</string>
+    <string name="player_previous_sentence">Previous sentence</string>
+    <string name="player_repeat_sentence">Repeat sentence</string>
+    <string name="player_pause">Pause</string>
+    <string name="player_play">Play</string>
+    <string name="player_next_sentence">Next sentence</string>
+    <string name="player_speed">Speed %1$s</string>
+    <string name="player_no_audio">No audio</string>
+    <string name="player_generating_audio">Generating audio…</string>
+    <string name="player_sync_supertonic_word">Synthetic voice (Supertonic) · word sync (forced alignment)</string>
+    <string name="player_sync_supertonic_sentence">Synthetic voice (Supertonic) · sentence sync: the engine gives no word timings</string>
+    <string name="player_sync_word">Word sync (engine events)</string>
+    <string name="player_sync_sentence_here">Sentence sync for this sentence</string>
+    <string name="player_sync_sentence">Sentence sync (the engine sends no word timings)</string>
+    <string name="player_ready">Ready</string>
+    <string name="player_sentence_status">Sentence %1$d of %2$d · %3$s</string>
+    <string name="player_voice">Voice</string>
+    <string name="voice_automatic">Automatic</string>
+    <string name="voice_automatic_detail">The best voice installed for offline use</string>
+    <string name="voice_needs_network">Needs a connection</string>
+
+    <!-- Lector paginado y PDF (ui/reader, ui/viewer) -->
+    <string name="reader_next_page">Next page</string>
+    <string name="reader_previous_page">Previous page</string>
+    <string name="reader_toggle_controls">Show or hide controls</string>
+    <string name="reader_translate_sentence">Translate sentence</string>
+    <string name="preparing_title">Preparing to read…</string>
+    <string name="preparing_detail">Generating the first sentences so the voice starts without gaps.</string>
+    <string name="pdf_layout_preparing">Preparing voice and translation over the PDF…</string>
+    <string name="pdf_layout_failed">The text couldn\'t be placed over the pages: you can read, but without highlighting or translation on tap.</string>
+    <string name="pdf_layout_low_coverage">This PDF barely matches its text (complex layout): highlighting may be missing in places.</string>
+    <string name="pdf_password_protected">This PDF is password-protected and can\'t be shown.</string>
+    <string name="pdf_unreadable">The PDF couldn\'t be opened: it\'s damaged or not a valid PDF.</string>
+    <string name="pdf_open_reader">Open in reading mode</string>
+    <string name="pdf_original_missing">The original PDF can\'t be found. It may have been moved or deleted, or the app may no longer have permission to read it.</string>
+    <string name="pdf_find_file">Find the file</string>
+    <string name="pdf_go_to_page">Go to page</string>
+    <string name="pdf_page_jump_description">Page %1$d of %2$d. Tap to jump to another page</string>
+
+    <!-- Ajustes (ui/settings/SettingsScreen.kt) -->
+    <string name="settings_page_language">Language and translation</string>
+    <string name="settings_page_libraries">Libraries</string>
+    <string name="settings_page_reading">Reading</string>
+    <string name="settings_page_appearance">Text and theme</string>
+    <string name="settings_page_voice">Voice and audio</string>
+    <string name="settings_page_about">About</string>
+    <string name="settings_summary_language">Your language: %1$s · offline translation</string>
+    <string name="settings_summary_libraries">Graded readers A1–B2 to download</string>
+    <string name="settings_summary_files">Find books and documents on your phone</string>
+    <string name="settings_summary_reading">%1$s · %2$s highlighting</string>
+    <string name="settings_summary_appearance">%1$s theme · text at %2$d%%</string>
+    <string name="settings_summary_voice_off">Reading aloud turned off</string>
+    <string name="settings_summary_voice_system">System voice (Android)</string>
+    <string name="settings_summary_about">Version %1$s and licenses</string>
+    <string name="settings_group_content">Content</string>
+    <string name="settings_group_reading">Reading</string>
+    <string name="settings_group_app">App</string>
+    <string name="settings_system_voices_hint">System voices are installed from Android settings; offline voices are preferred.</string>
+    <string name="settings_open_tts_settings">Open text-to-speech settings</string>
+    <string name="settings_about_text">LinguaReader %1$s · Offline local library. Icons: Material Icons (Apache 2.0). See docs/ARCHITECTURE.md for licenses.</string>
+    <string name="settings_voice_automatic">Automatic (offline if available)</string>
+    <string name="settings_voice_needs_network">%1$s · needs a network</string>
+    <string name="settings_display_mode">Display mode</string>
+    <string name="settings_highlight">Highlighting</string>
+    <string name="settings_while_reading">While reading</string>
+    <string name="settings_finger_pointer">Pointing finger over the word</string>
+    <string name="settings_auto_page">Turn pages automatically when reading aloud</string>
+    <string name="settings_show_illustrations">Show illustrations</string>
+    <string name="settings_keep_screen_on">Keep the screen on while I read</string>
+    <string name="settings_pause_on_word">Pause when looking up a word</string>
+    <string name="settings_auto_continue">Continue with the next passage</string>
+    <string name="settings_reduce_motion">Reduce motion</string>
+    <string name="settings_open_pdf">When opening a PDF</string>
+    <string name="settings_open_pdf_ask">Ask</string>
+    <string name="settings_open_pdf_original">Original</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_text">Text</string>
+    <string name="settings_text_size">Size</string>
+    <string name="settings_line_height">Line spacing</string>
+    <string name="settings_alignment">Alignment</string>
+    <string name="settings_large_screens">Large screens</string>
+    <string name="settings_double_page">Two pages in landscape</string>
+    <string name="settings_tts_mode">Learning mode with voice (TTS)</string>
+    <string name="settings_read_screen_off">Keep reading with the screen off</string>
+    <string name="settings_pauses">Reading pauses</string>
+    <string name="settings_pause_sentences">Between sentences</string>
+    <string name="settings_pause_paragraphs">Between paragraphs</string>
+    <string name="settings_normalize_speech">Read numbers and abbreviations as words (Supertonic voice)</string>
+
+    <!-- Examinar archivos (ui/settings/ScanFilesSection.kt) -->
+    <string name="scan_on_open">Search when the app opens</string>
+    <string name="scan_on_open_detail">In the background, at most every 6 hours</string>
+    <string name="scan_where">Where to search</string>
+    <string name="scan_whole_device">The whole device</string>
+    <string name="scan_whole_device_detail">Internal storage and SD cards</string>
+    <string name="scan_downloads">Downloads</string>
+    <string name="scan_downloads_detail">The Download folder</string>
+    <string name="scan_internal_storage">Internal storage</string>
+    <string name="scan_chosen_folder">Chosen folder</string>
+    <string name="scan_add_folder">Add a folder</string>
+    <string name="scan_what">What to search for</string>
+    <string name="scan_small_txt_hint">.txt files under 1 KB (notes, logs from other apps) aren\'t counted as documents.</string>
+    <string name="scan_other_options">Other options</string>
+    <string name="scan_hidden">Hidden files</string>
+    <string name="scan_hidden_detail">Folders and files whose name starts with a dot</string>
+    <string name="scan_excluded_folders">Excluded folders</string>
+    <string name="scan_excluded_none">None</string>
+    <string name="scan_exclude">Exclude…</string>
+    <string name="scan_stat_documents">Documents</string>
+    <string name="scan_stat_authors">Authors</string>
+    <string name="scan_stat_formats">Formats</string>
+    <string name="scan_running">Searching… %1$d folders, %2$d documents</string>
+    <string name="scan_stop">Stop</string>
+    <string name="scan_last_result">Last search: %1$d documents (%2$d new)</string>
+    <string name="scan_last_result_removed">Last search: %1$d documents (%2$d new, %3$d no longer there)</string>
+    <string name="scan_never">This device hasn\'t been searched yet.</string>
+    <string name="scan_last_date">Last search: %1$s</string>
+    <string name="scan_now">Search now</string>
+    <string name="scan_view_documents">View documents</string>
+    <string name="scan_permission_missing">Permission to read your files is missing</string>
+    <string name="scan_permission_all_files">Android asks you to turn on “Allow access to manage all files” to search for books on the whole device or in Downloads. LinguaReader only reads them to show them to you; it doesn\'t change or send them. If you\'d rather not grant it, add specific folders below.</string>
+    <string name="scan_permission_storage">Searching for books on the device needs permission to read storage. LinguaReader only reads them to show them to you; it doesn\'t change or send them.</string>
+    <string name="scan_open_permission_settings">Open permission settings</string>
+    <string name="scan_allow">Allow</string>
+    <string name="scan_remove_item">Remove “%1$s”</string>
+    <string name="scan_offer_title">Shall we look for books on your phone?</string>
+    <string name="scan_offer_body">LinguaReader can find the books and documents you already have (EPUB, PDF, FB2, Kindle, Word, TXT…) and sort them by format, author and folder so you can open them from the library.</string>
+    <string name="scan_offer_all_files">Android will ask you to turn on “Allow access to manage all files”. They\'re only read to show them to you: they aren\'t changed or sent anywhere.</string>
+    <string name="scan_offer_storage">You\'ll be asked for permission to read storage. They\'re only read to show them to you: they aren\'t changed or sent anywhere.</string>
+    <string name="scan_offer_search">Find books</string>
+    <string name="scan_offer_footer">You can change this at any time in Settings › Browse files.</string>
+    <string name="common_remove">Remove</string>
+
+    <!-- Modelos descargables (ajustes de voz, alineación y paquetes) -->
+    <string name="model_not_installed">Not installed · %1$s</string>
+    <string name="model_not_installed_partial">Not installed · %1$s (%2$s downloaded, it will resume)</string>
+    <string name="model_download_size">Download (%1$s)</string>
+    <string name="model_progress">%1$s of %2$s</string>
+    <string name="model_installed_on_disk">Installed · %1$s on disk</string>
+    <string name="model_installed">Installed · %1$s</string>
+    <string name="model_unpacking">Unpacking and verifying…</string>
+    <string name="model_verifying">Verifying…</string>
+
+    <!-- Motor de voz (ui/settings/TtsEngineSection.kt) -->
+    <string name="tts_engine_title">Speech engine</string>
+    <string name="tts_engine_system">System voice (Android TTS)</string>
+    <string name="tts_engine_system_detail">No downloads. Word highlighting if the installed engine sends events.</string>
+    <string name="tts_engine_supertonic_detail">Offline neural voice on the phone\'s CPU. One-time download of %1$s. Sentence highlighting; word highlighting with an optional alignment model (below).</string>
+    <string name="tts_model_title">Supertonic 3 model</string>
+    <string name="tts_model_wifi_hint">Wi‑Fi recommended. It\'s stored in the app\'s storage and deleted when you uninstall it.</string>
+    <string name="tts_model_verifying">Verifying integrity (sha256)…</string>
+    <string name="tts_model_installed_loaded">Installed · %1$s on disk · loaded in memory</string>
+    <string name="tts_model_verify">Verify</string>
+    <string name="tts_voices_hint">F = female voices, M = male. All are multilingual (31 languages, including English, French and Spanish).</string>
+    <string name="tts_quality">Quality (synthesis steps)</string>
+    <string name="tts_quality_normal">Normal</string>
+    <string name="tts_quality_high">High</string>
+    <string name="tts_test_voice">Test voice (language)</string>
+    <string name="tts_test_install_first">Install the model to test it.</string>
+    <string name="tts_test_running">Synthesizing (%1$s)… the first time loads the model.</string>
+    <string name="tts_test_sample">Pre-generated voice sample (voice pack, without loading the model).</string>
+    <string name="tts_cache_usage">Audio and alignment cache: %1$s of %2$s</string>
+    <string name="tts_cache_hint">Each generated sentence is saved with its alignment and isn\'t redone when rereading or going back a page, until the limit is exceeded (the least used is deleted). About 5 MB per minute of audio.</string>
+    <string name="tts_cache_clear">Clear cache</string>
+    <string name="tts_license_note">Code: MIT. Weights: %1$s (use restrictions). Project archived by Supertone, unsupported. The generated audio is a synthetic voice.</string>
+    <string name="tts_license_title">Model license</string>
+    <string name="tts_license_text">The Supertonic 3 weights are distributed under the %1$s license. By downloading them you accept its use restrictions (Attachment A), including: not using it for illegal purposes, to harm minors, to impersonate people without their consent, to spread harmful misinformation or to harass; and not presenting the generated audio as if it weren\'t machine-generated.\n\nSource: huggingface.co/%2$s (revision %3$s). Size: %4$s. Full text: %5$s</string>
+    <string name="tts_license_accept">I accept and download</string>
+    <string name="tts_metrics_load">Model load: %1$d ms (verification %2$d ms, %3$d threads)</string>
+    <string name="tts_metrics_synthesis">Synthesis: %1$d ms · Audio: %2$s s · RTF %3$s</string>
+    <string name="tts_metrics_steps">Steps: %1$d · Voice %2$s · Process memory (PSS): %3$s MB</string>
+    <string name="tts_metrics_average">Average RTF over %1$d syntheses: %2$s</string>
+
+    <!-- Sincronía por palabra (ui/settings/WordAlignmentSection.kt) -->
+    <string name="alignment_title">Word sync (Supertonic voice)</string>
+    <string name="alignment_intro">Supertonic doesn\'t provide word timings. With an alignment model installed for the reading language, the app aligns each sentence in the background and highlights the word being spoken. Without a model, or if the alignment isn\'t reliable, the whole sentence is highlighted. Optional; only used with the Supertonic voice.</string>
+    <string name="alignment_current_language">%1$s · current reading language</string>
+    <string name="alignment_model_license">%1$s · license %2$s</string>
+    <string name="alignment_non_commercial">Non-commercial license: for personal, non-commercial use only.</string>
+    <string name="alignment_footer">The models are Meta wav2vec2 networks (%1$s), converted to ONNX and quantized to int8 with the project\'s script. Licenses: %2$s. They\'re stored in the app\'s storage.</string>
+
+    <!-- Bibliotecas (ui/settings/LibrarySection.kt) -->
+    <string name="libraries_title">Graded reader libraries</string>
+    <string name="libraries_intro">A1 to B2 books adapted for learning each language, with cover and glossary. They\'re downloaded once and read offline.</string>
+    <string name="libraries_none">No libraries available.</string>
+    <string name="library_not_downloaded">Not downloaded · %1$s</string>
+    <string name="library_installed">Installed · %1$s</string>
+    <string name="library_installed_update">Installed · %1$s · a new version is available (%2$s)</string>
+    <string name="library_update">Update</string>
+
+    <!-- Paquetes (ui/settings/PacksSection.kt) -->
+    <string name="packs_title">Package downloads</string>
+    <string name="packs_intro">Pre-generated voices and alignment models are downloaded from github.com/%1$s (release %2$s). It\'s public: no account or token needed.</string>
+    <string name="packs_voices_title">Voice pack (Supertonic)</string>
+    <string name="packs_voices_detail">Samples of each voice and already-synthesized “preparing to read” phrases. Only downloaded when the model is installed.</string>
+
+    <!-- Traducción (ui/settings/TranslationSection.kt) -->
+    <string name="translation_wifi_only">Download only over Wi-Fi</string>
+    <string name="translation_your_language">Your language</string>
+    <string name="translation_intro">Your native language: words and sentences are translated into it. By default it\'s your phone\'s. Translation happens on the device itself with Google ML Kit and works offline once each language\'s model is downloaded (≈40 MB).</string>
+    <string name="translation_other_downloaded">Other downloaded languages</string>
+    <string name="translation_learning_language">Language you\'re learning</string>
+    <string name="translation_model_downloaded">%1$s — downloaded</string>
+    <string name="translation_model_not_downloaded">%1$s — not downloaded</string>
+
+    <!-- Vocabulario (ui/vocabulary/VocabularyScreen.kt) -->
+    <string name="vocabulary_empty">You haven\'t saved any words yet. Tap a word while reading and press “Save”.</string>
+    <string name="vocabulary_no_translation">No %1$s translation in the book</string>
+    <string name="vocabulary_delete">Delete %1$s</string>
+
+    <!-- Notificación de lectura (engine/audio/ReadingService.kt) -->
+    <string name="notification_channel_reading">Reading aloud</string>
+    <string name="notification_reading_aloud">Reading aloud</string>
+
+    <!-- Compartir libro como TXT (data/content/BookExporter.kt) -->
+    <string name="export_default_name">book</string>
+    <string name="export_license">License: %1$s</string>
 </resources>

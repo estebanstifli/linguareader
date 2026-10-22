@@ -32,8 +32,8 @@ class ImportDocumentContract : ActivityResultContracts.OpenDocument() {
         val path = when (start) {
             PickerStart.ANY -> return null
             // Android 11+: WhatsApp guarda en Android/media; antes, en la raíz del almacenamiento.
-            PickerStart.WHATSAPP -> if (Build.VERSION.SDK_INT >= 30) "Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Documents"
-            else "WhatsApp/Media/WhatsApp Documents"
+            PickerStart.WHATSAPP -> if (Build.VERSION.SDK_INT >= 30) "Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Documents" // i18n-ignore: ruta de carpeta
+            else "WhatsApp/Media/WhatsApp Documents" // i18n-ignore: ruta de carpeta
             PickerStart.TELEGRAM -> "Download/Telegram"
         }
         return DocumentsContract.buildDocumentUri(EXTERNAL_STORAGE, "primary:$path")

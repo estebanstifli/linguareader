@@ -45,6 +45,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -112,7 +114,7 @@ class ScanViewModel @Inject constructor(
     }
 }
 
-/** Grupos de formatos tal como los ve el usuario (la app distingue más extensiones). */
+/** Grupos de formatos tal como los ve el usuario (la app distingue más extensiones). Nombres de formato: no se traducen. */
 internal val FORMAT_GROUPS: List<Pair<String, Set<String>>> = listOf(
     "EPUB" to setOf("epub"),
     "PDF" to setOf("pdf"),
@@ -122,16 +124,16 @@ internal val FORMAT_GROUPS: List<Pair<String, Set<String>>> = listOf(
     "Web" to setOf("html", "htm", "xhtml", "xht"),
     "Markdown" to setOf("md", "markdown"),
     "TXT" to setOf("txt", "text"),
-    "Subtítulos" to setOf("srt", "vtt"),
+    "SRT/VTT" to setOf("srt", "vtt"),
 )
 
 internal fun formatLabel(format: String): String = FORMAT_GROUPS.firstOrNull { format in it.second }?.first ?: format.uppercase()
 
 /** Las carpetas elegidas con el selector del sistema llegan como URI de árbol: se enseña su ruta legible. */
-internal fun treeLabel(uri: String): String = runCatching {
+internal fun treeLabel(uri: String, internalStorage: String): String = runCatching {
     DocumentsContract.getTreeDocumentId(Uri.parse(uri)).let { id ->
         val (volume, path) = id.substringBefore(':') to id.substringAfter(':', "")
-        (if (volume == "primary") "Memoria interna" else volume) + if (path.isNotEmpty()) "/$path" else ""
+        (if (volume == "primary") internalStorage else volume) + if (path.isNotEmpty()) "/$path" else ""
     }
 }.getOrDefault(uri)
 
@@ -169,24 +171,28 @@ fun ScanFilesSection(onOpenDocuments: () -> Unit, vm: ScanViewModel = hiltViewMo
 
         if (!access && (s.wholeDevice || s.downloads)) PermissionCard(onGrant = requestAccess)
 
-        ToggleRow(R.drawable.ic_schedule, "Buscar al abrir la app", "En segundo plano, como mucho cada 6 horas", s.autoStart) { v ->
+        ToggleRow(R.drawable.ic_schedule, stringResource(R.string.scan_on_open), stringResource(R.string.scan_on_open_detail), s.autoStart) { v ->
             vm.update { it.copy(autoStart = v) }
         }
 
-        GroupTitle("Dónde buscar")
-        ToggleRow(R.drawable.ic_smartphone, "Todo el dispositivo", "Memoria interna y tarjetas SD", s.wholeDevice) { v ->
+        GroupTitle(stringResource(R.string.scan_where))
+        ToggleRow(R.drawable.ic_smartphone, stringResource(R.string.scan_whole_device), stringResource(R.string.scan_whole_device_detail), s.wholeDevice) { v ->
             vm.update { it.copy(wholeDevice = v) }
         }
-        ToggleRow(R.drawable.ic_download, "Descargas", "La carpeta Download", s.downloads) { v -> vm.update { it.copy(downloads = v) } }
+        ToggleRow(R.drawable.ic_download, stringResource(R.string.scan_downloads), stringResource(R.string.scan_downloads_detail), s.downloads) { v ->
+            vm.update { it.copy(downloads = v) }
+        }
+        val internalStorage = stringResource(R.string.scan_internal_storage)
+        val chosenFolder = stringResource(R.string.scan_chosen_folder)
         s.folders.sorted().forEach { uri ->
-            ItemRow(R.drawable.ic_folder, treeLabel(uri), "Carpeta elegida") { vm.removeFolder(uri) }
+            ItemRow(R.drawable.ic_folder, treeLabel(uri, internalStorage), chosenFolder) { vm.removeFolder(uri) }
         }
         TextButton(onClick = { pickFolder.launch(null) }) {
             Icon(painterResource(R.drawable.ic_add), contentDescription = null, modifier = Modifier.size(18.dp))
-            Text(" Añadir una carpeta")
+            Text(" " + stringResource(R.string.scan_add_folder))
         }
 
-        GroupTitle("Qué buscar")
+        GroupTitle(stringResource(R.string.scan_what))
         val active = s.formats.ifEmpty { vm.supportedFormats }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             FORMAT_GROUPS.filter { (_, exts) -> exts.any { it in vm.supportedFormats } }.forEach { (label, exts) ->
@@ -207,26 +213,26 @@ fun ScanFilesSection(onOpenDocuments: () -> Unit, vm: ScanViewModel = hiltViewMo
             }
         }
         Text(
-            "Los .txt de menos de 1 KB (notas, registros de otras apps) no se cuentan como documentos.",
+            stringResource(R.string.scan_small_txt_hint),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        GroupTitle("Otras opciones")
-        ToggleRow(R.drawable.ic_visibility, "Archivos ocultos", "Carpetas y archivos cuyo nombre empieza por un punto", s.includeHidden) { v ->
+        GroupTitle(stringResource(R.string.scan_other_options))
+        ToggleRow(R.drawable.ic_visibility, stringResource(R.string.scan_hidden), stringResource(R.string.scan_hidden_detail), s.includeHidden) { v ->
             vm.update { it.copy(includeHidden = v) }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconBadge(R.drawable.ic_block)
             Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text("Carpetas excluidas", style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.scan_excluded_folders), style = MaterialTheme.typography.bodyLarge)
                 Text(
-                    if (s.exclusions.isEmpty()) "Ninguna" else "${s.exclusions.size}",
+                    if (s.exclusions.isEmpty()) stringResource(R.string.scan_excluded_none) else "${s.exclusions.size}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            TextButton(onClick = { pickExclusion.launch(null) }) { Text("Excluir…") }
+            TextButton(onClick = { pickExclusion.launch(null) }) { Text(stringResource(R.string.scan_exclude)) }
         }
         s.exclusions.sorted().forEach { path -> ItemRow(R.drawable.ic_block, path.substringAfterLast('/'), path) { vm.removeExclusion(path) } }
     }
@@ -252,9 +258,9 @@ private fun StatusPanel(
     Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatTile("Documentos", documents.size.toString(), Modifier.weight(1f))
-                StatTile("Autores", documents.mapNotNull { it.author }.distinct().size.toString(), Modifier.weight(1f))
-                StatTile("Formatos", documents.map { formatLabel(it.format) }.distinct().size.toString(), Modifier.weight(1f))
+                StatTile(stringResource(R.string.scan_stat_documents), documents.size.toString(), Modifier.weight(1f))
+                StatTile(stringResource(R.string.scan_stat_authors), documents.mapNotNull { it.author }.distinct().size.toString(), Modifier.weight(1f))
+                StatTile(stringResource(R.string.scan_stat_formats), documents.map { formatLabel(it.format) }.distinct().size.toString(), Modifier.weight(1f))
             }
             val byFormat = documents.groupingBy { formatLabel(it.format) }.eachCount().entries.sortedByDescending { it.value }
             if (byFormat.isNotEmpty()) {
@@ -274,21 +280,25 @@ private fun StatusPanel(
                 is ScanState.Running -> {
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                     Text(
-                        "Buscando… ${state.folders} carpetas, ${state.found} documentos" +
+                        stringResource(R.string.scan_running, state.folders, state.found) +
                             if (state.currentFolder.isNotEmpty()) "\n${state.currentFolder}" else "",
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    OutlinedButton(onClick = onCancel) { Text("Detener") }
+                    OutlinedButton(onClick = onCancel) { Text(stringResource(R.string.scan_stop)) }
                 }
                 else -> {
                     val line = when (state) {
-                        is ScanState.Finished -> "Última búsqueda: ${state.found} documentos (${state.added} nuevos" +
-                            if (state.removed > 0) ", ${state.removed} ya no están)" else ")"
-                        is ScanState.Failed -> state.message
-                        else -> if (lastScanAt == 0L) "Aún no se ha buscado en este dispositivo."
-                        else "Última búsqueda: " + DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(lastScanAt))
+                        is ScanState.Finished ->
+                            if (state.removed > 0) stringResource(R.string.scan_last_result_removed, state.found, state.added, state.removed)
+                            else stringResource(R.string.scan_last_result, state.found, state.added)
+                        is ScanState.Failed -> state.message.asString()
+                        else -> if (lastScanAt == 0L) stringResource(R.string.scan_never)
+                        else stringResource(
+                            R.string.scan_last_date,
+                            DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(lastScanAt)),
+                        )
                     }
                     Text(
                         line,
@@ -298,9 +308,9 @@ private fun StatusPanel(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = onStart) {
                             Icon(painterResource(R.drawable.ic_search), contentDescription = null, modifier = Modifier.size(18.dp))
-                            Text(" Buscar ahora")
+                            Text(" " + stringResource(R.string.scan_now))
                         }
-                        if (documents.isNotEmpty()) OutlinedButton(onClick = onOpenDocuments) { Text("Ver documentos") }
+                        if (documents.isNotEmpty()) OutlinedButton(onClick = onOpenDocuments) { Text(stringResource(R.string.scan_view_documents)) }
                     }
                 }
             }
@@ -323,20 +333,15 @@ private fun StatTile(label: String, value: String, modifier: Modifier = Modifier
 private fun PermissionCard(onGrant: () -> Unit) {
     Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.tertiaryContainer, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("Falta permiso para leer tus archivos", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onTertiaryContainer)
+            Text(stringResource(R.string.scan_permission_missing), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onTertiaryContainer)
             Text(
-                if (StorageAccess.needsSettingsScreen) {
-                    "Android pide activar «Permitir acceso para gestionar todos los archivos» para buscar libros en todo el " +
-                        "dispositivo o en Descargas. LinguaReader solo los lee para mostrártelos; no los cambia ni los envía. " +
-                        "Si prefieres no darlo, añade carpetas concretas más abajo."
-                } else {
-                    "Para buscar libros en el dispositivo hace falta permiso de lectura del almacenamiento. LinguaReader solo los " +
-                        "lee para mostrártelos; no los cambia ni los envía."
-                },
+                stringResource(if (StorageAccess.needsSettingsScreen) R.string.scan_permission_all_files else R.string.scan_permission_storage),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onTertiaryContainer,
             )
-            Button(onClick = onGrant) { Text(if (StorageAccess.needsSettingsScreen) "Abrir ajustes de permisos" else "Permitir") }
+            Button(onClick = onGrant) {
+                Text(stringResource(if (StorageAccess.needsSettingsScreen) R.string.scan_open_permission_settings else R.string.scan_allow))
+            }
         }
     }
 }
@@ -379,7 +384,7 @@ private fun ItemRow(icon: Int, title: String, subtitle: String, onRemove: () -> 
             Text(title, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        IconButton(onClick = onRemove) { Icon(painterResource(R.drawable.ic_close), contentDescription = "Quitar «$title»") }
+        IconButton(onClick = onRemove) { Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.scan_remove_item, title)) }
     }
 }
 
@@ -421,22 +426,13 @@ fun ScanOfferScreen(step: Int = 0, steps: Int = 0, vm: ScanViewModel = hiltViewM
     ) {
         if (steps > 1) {
             LinearProgressIndicator(progress = { step.toFloat() / steps }, modifier = Modifier.fillMaxWidth())
-            Text("Paso $step de $steps", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.onboarding_step, step, steps), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         IconBadge(R.drawable.ic_find_in_page)
-        Text("¿Buscamos libros en tu móvil?", style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.scan_offer_title), style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.scan_offer_body), style = MaterialTheme.typography.bodyMedium)
         Text(
-            "LinguaReader puede encontrar los libros y documentos que ya tienes (EPUB, PDF, FB2, Kindle, Word, TXT…) y " +
-                "ordenarlos por formato, autor y carpeta para que los abras desde la biblioteca.",
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Text(
-            if (StorageAccess.needsSettingsScreen) {
-                "Android te pedirá activar «Permitir acceso para gestionar todos los archivos». Solo se leen para mostrártelos: " +
-                    "no se cambian ni se envían a ningún sitio."
-            } else {
-                "Se pedirá permiso para leer el almacenamiento. Solo se leen para mostrártelos: no se cambian ni se envían."
-            },
+            stringResource(if (StorageAccess.needsSettingsScreen) R.string.scan_offer_all_files else R.string.scan_offer_storage),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -452,10 +448,10 @@ fun ScanOfferScreen(step: Int = 0, steps: Int = 0, vm: ScanViewModel = hiltViewM
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-        ) { Text("Buscar libros") }
-        TextButton(onClick = { vm.finishOffer(scan = false) }, modifier = Modifier.fillMaxWidth()) { Text("Ahora no") }
+        ) { Text(stringResource(R.string.scan_offer_search)) }
+        TextButton(onClick = { vm.finishOffer(scan = false) }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.common_not_now)) }
         Text(
-            "Puedes cambiarlo cuando quieras en Ajustes › Examinar archivos.",
+            stringResource(R.string.scan_offer_footer),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

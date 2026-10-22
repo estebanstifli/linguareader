@@ -59,6 +59,8 @@ class PdfExtractor(private val context: Context) : DocumentExtractor {
                 title = info?.title?.trim()?.takeIf { it.isNotEmpty() } ?: source.titleFromName,
                 authors = listOfNotNull(info?.author?.trim()?.takeIf { it.isNotEmpty() }),
                 language = pdf.documentCatalog?.language?.trim()?.takeIf { it.isNotEmpty() },
+                cover = PdfFirstPage.render(source.file),
+                pageCount = pdf.numberOfPages,
             )
         }
     }

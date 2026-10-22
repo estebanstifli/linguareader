@@ -56,10 +56,12 @@ class Media3ClipPlayer(context: Context, handleAudioFocus: Boolean) : ClipPlayer
     }
 
     override fun enqueue(tag: Int, path: String) = append {
-        val ms = (File(path).length() - 44) * 1000 / (2 * 44_100)
         val ahead = (player.mediaItemCount - player.currentMediaItemIndex - 1).coerceAtLeast(0)
-        Log.d(TAG, "encolada frase $tag (${ms} ms de audio; elementos por delante en cola: $ahead)")
-        player.addMediaItem(MediaItem.Builder().setMediaId(tag.toString()).setUri(Uri.fromFile(File(path))).build())
+        // `asset:///…` o `file://…` (narración pregrabada) se pasan tal cual; lo demás es un WAV generado en disco.
+        val uri = if ("://" in path) Uri.parse(path) else Uri.fromFile(File(path))
+        if ("://" in path) Log.d(TAG, "encolada pista $tag ($path)")
+        else Log.d(TAG, "encolada frase $tag (${(File(path).length() - 44) * 1000 / (2 * 44_100)} ms de audio; elementos por delante en cola: $ahead)")
+        player.addMediaItem(MediaItem.Builder().setMediaId(tag.toString()).setUri(uri).build())
     }
 
     /** Pausa como silencio en la propia cola de ExoPlayer: precisa y sin grabarla en el audio. */
@@ -93,6 +95,13 @@ class Media3ClipPlayer(context: Context, handleAudioFocus: Boolean) : ClipPlayer
         val index = (0 until player.mediaItemCount).firstOrNull { player.getMediaItemAt(it).mediaId == tag.toString() }
             ?: return false
         player.seekTo(index, 0)
+        return true
+    }
+
+    override fun seekTo(tag: Int, positionMs: Long): Boolean {
+        val index = (0 until player.mediaItemCount).firstOrNull { player.getMediaItemAt(it).mediaId == tag.toString() }
+            ?: return false
+        player.seekTo(index, positionMs.coerceAtLeast(0))
         return true
     }
 

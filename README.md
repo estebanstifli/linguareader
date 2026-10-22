@@ -121,6 +121,18 @@ traducir sin audio.
 
 **Teléfono real con Supertonic:** ver [docs/SUPERTONIC.md §6](docs/SUPERTONIC.md#6-cómo-probarlo-en-un-teléfono-android-real).
 
+## Idiomas de la interfaz
+
+La app sale en el idioma del dispositivo. El **idioma base es el inglés** (`app/src/main/res/values/strings.xml`): es
+el que se ve si el idioma del dispositivo no tiene traducción. De momento hay **español**
+(`values-es/strings.xml`). En Android 13+ también se puede elegir en Ajustes › Apps › LinguaReader › Idioma.
+
+Todas las cadenas de la interfaz están guardadas como recursos de Android para poder traducir la app a otros idiomas.
+Para añadir uno basta con crear `values-xx/strings.xml` con las mismas claves. Reglas, comprobación
+(`python -I tools/check_hardcoded_strings.py`) y pasos en [docs/I18N.md](docs/I18N.md).
+
+El idioma de la interfaz es independiente del idioma de lectura (el del libro) y del idioma de traducción.
+
 ## Estructura
 
 ```
@@ -130,7 +142,7 @@ importer/ Kotlin/JVM puro: extractores de formatos (EPUB, MOBI, DOCX, ODT, RTF, 
         Markdown, SRT/VTT) y constructor de libros importados. Ver docs/IMPORT.md.
 app/    Android: Compose UI, Room, DataStore, Hilt, adaptador Android TTS, libros en assets/books,
         importación (SAF, intents, PDF con PdfBox-Android).
-docs/   ARCHITECTURE.md, CONTENT_FORMAT.md, IMPORT.md, content-pack.schema.json, ROADMAP.md.
+docs/   ARCHITECTURE.md, CONTENT_FORMAT.md, IMPORT.md, I18N.md, content-pack.schema.json, ROADMAP.md.
 tools/  generate_demo_images.py (ilustraciones provisionales + sha256 en manifiestos).
 ```
 

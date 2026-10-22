@@ -2,13 +2,13 @@
   "formatVersion": 1,
   "libraries": {
     "en": {
-      "version": 1,
-      "asset": "library-en-v1.zip",
-      "sizeBytes": 5307523,
-      "sha256": "e25dd345b86a73776d5f0132dfd7aecdde4292526c1a54ac7b3234e41493d408",
+      "version": 2,
+      "asset": "library-en-v2.zip",
+      "sizeBytes": 5307751,
+      "sha256": "414c63714f7315bf6cea90be72ee022a63e99d5583aafb79680442fdddbb68a0",
       "books": 38,
       "words": 474160,
-      "fingerprint": "181301964bae8ce2fd7dc41ed6b7b5a29dca84f66051a46f34b5f7f3d543a1b9"
+      "fingerprint": "7c559cfd64d914d894eda940bfd0d8f9184e2fd8c1861caea36012e684ebfe88"
     },
     "es": {
       "version": 2,

@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.linguareader.R
 import com.linguareader.core.engine.BookRepository
 import com.linguareader.core.engine.TranslationResult
 import com.linguareader.core.engine.VoiceInfo
@@ -14,6 +15,7 @@ import com.linguareader.core.model.DisplayMode
 import com.linguareader.core.model.LanguageTags
 import com.linguareader.core.model.Passage
 import com.linguareader.core.model.UserPreferences
+import com.linguareader.core.narration.NarrationSelector
 import com.linguareader.core.reader.PREFETCH_PAGES_AHEAD
 import com.linguareader.core.reader.PrefetchWindow
 import com.linguareader.core.reader.PlaybackState
@@ -27,6 +29,7 @@ import com.linguareader.core.translation.WordLookup
 import com.linguareader.core.translation.WordLookupService
 import com.linguareader.engine.translation.ModelDownload
 import com.linguareader.engine.translation.TranslationModelManager
+import com.linguareader.data.narration.NarrationLibrary
 import com.linguareader.data.db.BookmarkDao
 import com.linguareader.data.db.BookmarkEntity
 import com.linguareader.data.db.ProgressDao
@@ -43,6 +46,7 @@ import com.linguareader.engine.audio.CuePlayer
 import com.linguareader.engine.packs.VoiceClip
 import com.linguareader.engine.packs.VoicePackManager
 import com.linguareader.engine.supertonic.SupertonicModel
+import com.linguareader.ui.common.UiText
 import com.linguareader.ui.common.toImageBitmap
 import com.linguareader.ui.navigation.ReaderRoute
 import com.linguareader.ui.reader.paging.BookBlocks
@@ -64,6 +68,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onSubscription
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -95,7 +100,7 @@ data class SentenceCardState(
 
 data class ReaderUiState(
     val loading: Boolean = true,
-    val error: String? = null,
+    val error: UiText? = null,
     val book: Book? = null,
     val chapter: Chapter? = null,
     val passage: Passage? = null,
@@ -138,6 +143,8 @@ class ReaderViewModel @Inject constructor(
     private val libraryRepository: LibraryRepository,
     private val exporter: BookExporter,
     private val importedBooks: ImportedBookRepository,
+    private val narrations: NarrationLibrary,
+    private val narrationSelector: NarrationSelector,
     @param:ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
 
@@ -229,7 +236,7 @@ class ReaderViewModel @Inject constructor(
 
     private suspend fun start() {
         val book = runCatching { books.loadBook(bookId) }.getOrElse {
-            _state.update { s -> s.copy(loading = false, error = it.message ?: "No se pudo abrir el libro") }
+            _state.update { s -> s.copy(loading = false, error = UiText.res(R.string.book_edit_failed)) }
             return
         }
         _state.update { it.copy(book = book, totalPassages = book.passages.size) }
@@ -242,6 +249,9 @@ class ReaderViewModel @Inject constructor(
         _anchor.value = TextPos(index, offset)
         pinned = _anchor.value
         seedTranslations(book, prefs.translationLanguage)
+        // Narración pregrabada: si ya está descargada se lee con ella en lugar del motor TTS.
+        narrationSelector.setNarration(narrations.cached(book))
+        if (narrations.needsDownload(book)) awaitNarration(book)
         showPassage(index, offset, autoplay = false, immediate = true)
 
         viewModelScope.launch { bookmarkDao.observeForBook(bookId).collect { list -> _state.update { it.copy(bookmarks = list) } } }
@@ -271,6 +281,18 @@ class ReaderViewModel @Inject constructor(
                 if (isSupertonicActive()) retryAudio()
             }
         }
+    }
+
+    /**
+     * Descarga en segundo plano la narración del libro. Mientras tanto (o si falla) se lee con el motor TTS; cuando
+     * está lista se cambia a ella, pero no a mitad de una lectura: en la siguiente pausa, en el mismo punto.
+     */
+    private fun awaitNarration(book: Book) = viewModelScope.launch {
+        narrations.ready.onSubscription { narrations.download(book) }.first { it == book.id }
+        playback.first { !it.isPlaying }
+        val narration = narrations.cached(book) ?: return@launch
+        narrationSelector.setNarration(narration)
+        retryAudio()
     }
 
     private suspend fun refreshVoices() {

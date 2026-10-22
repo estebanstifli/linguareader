@@ -3,6 +3,7 @@ package com.linguareader.data.content
 import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
+import com.linguareader.R
 import com.linguareader.core.model.Book
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +21,7 @@ class BookExporter @Inject constructor(@param:ApplicationContext private val con
 
     suspend fun exportText(book: Book): Uri = withContext(Dispatchers.IO) {
         val dir = File(context.cacheDir, SHARED_DIR).apply { deleteRecursively(); mkdirs() }
-        val name = book.title.replace(Regex("[^\\p{L}\\p{N} ._-]"), "").trim().ifEmpty { "libro" }.take(80)
+        val name = book.title.replace(Regex("[^\\p{L}\\p{N} ._-]"), "").trim().ifEmpty { context.getString(R.string.export_default_name) }.take(80)
         val file = File(dir, "$name.txt")
         file.bufferedWriter(Charsets.UTF_8).use { out ->
             out.appendLine(book.title)
@@ -38,7 +39,7 @@ class BookExporter @Inject constructor(@param:ApplicationContext private val con
             }
             out.appendLine("—")
             out.appendLine(book.sourceAttribution)
-            out.appendLine("Licencia: ${book.license.name ?: book.license.id}")
+            out.appendLine(context.getString(R.string.export_license, book.license.name ?: book.license.id))
         }
         FileProvider.getUriForFile(context, "${context.packageName}.files", file)
     }

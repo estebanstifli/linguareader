@@ -117,6 +117,11 @@ Detalles, métricas y limitaciones: [SUPERTONIC.md](SUPERTONIC.md).
 - Accesibilidad: descripciones en todos los botones, acción personalizada «Traducir frase» en cada
   bloque de texto (TalkBack), región viva con el estado de sincronía, título de pasaje como encabezado.
 - Orientación bloqueada a portrait en el manifiesto (requisito de producto).
+- **Idioma de la interfaz** ([I18N.md](I18N.md)): recursos estándar de Android, inglés en `values/` (base) y español
+  en `values-es/`; la app sigue el idioma del dispositivo y el «Idioma de la app» de Android 13+
+  (`generateLocaleConfig`). Los textos que nacen en ViewModels o motores viajan como `UiText` y se resuelven al
+  dibujarlos. Se descartó un JSON propio: perdería plurales, lint, el selector del sistema y la compatibilidad con
+  las herramientas de traducción.
 
 ## Persistencia
 

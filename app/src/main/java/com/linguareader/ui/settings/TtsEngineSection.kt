@@ -32,12 +32,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import com.linguareader.R
 import com.linguareader.core.audio.FileAudioCache
 import com.linguareader.core.audio.SynthesisOutcome
 import com.linguareader.core.engine.SpeechRequest
@@ -157,15 +159,22 @@ class TtsSettingsViewModel @Inject constructor(
     }
 
     companion object {
+        // Frases de prueba en el idioma de la voz, no en el de la interfaz.
         val TEST_TEXT = mapOf(
-            "en" to "Hello! This is a short test of the Supertonic voice, running offline on this phone.",
-            "fr" to "Bonjour ! Ceci est un court essai de la voix Supertonic, sans connexion.",
-            "es" to "¡Hola! Esta es una breve prueba de la voz Supertonic, sin conexión.",
+            "en" to "Hello! This is a short test of the Supertonic voice, running offline on this phone.", // i18n-ignore
+            "fr" to "Bonjour ! Ceci est un court essai de la voix Supertonic, sans connexion.", // i18n-ignore
+            "es" to "¡Hola! Esta es una breve prueba de la voz Supertonic, sin conexión.", // i18n-ignore
         )
     }
 }
 
 private fun mb(bytes: Long) = "%d MB".format(Locale.ROOT, bytes / 1_000_000)
+
+/** «No instalado · 400 MB (descargados 120 MB, se reanudará)». */
+@Composable
+internal fun modelNotInstalled(m: ModelState.NotInstalled): String =
+    if (m.partialBytes > 0) stringResource(R.string.model_not_installed_partial, mb(m.totalBytes), mb(m.partialBytes))
+    else stringResource(R.string.model_not_installed, mb(m.totalBytes))
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -179,78 +188,82 @@ fun TtsEngineSection(vm: TtsSettingsViewModel = hiltViewModel()) {
     val scope = rememberCoroutineScope()
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Motor de voz", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+        Text(stringResource(R.string.tts_engine_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
         EngineOption(
             selected = prefs.ttsEngineId == UserPreferences.ANDROID_TTS_ENGINE,
-            title = "Voz del sistema (Android TTS)",
-            subtitle = "Sin descargas. Resaltado por palabra si el motor instalado envía eventos.",
+            title = stringResource(R.string.tts_engine_system),
+            subtitle = stringResource(R.string.tts_engine_system_detail),
             onClick = { vm.selectEngine(UserPreferences.ANDROID_TTS_ENGINE) },
         )
         EngineOption(
             selected = prefs.ttsEngineId == SupertonicModel.ENGINE_ID,
             title = SupertonicModel.DISPLAY_NAME,
-            subtitle = "Voz neuronal sin conexión en la CPU del móvil. Descarga única de ${mb(SupertonicModel.TOTAL_BYTES)}. " +
-                "Resaltado por frase; por palabra con un modelo de alineación opcional (más abajo).",
+            subtitle = stringResource(R.string.tts_engine_supertonic_detail, mb(SupertonicModel.TOTAL_BYTES)),
             onClick = { vm.selectEngine(SupertonicModel.ENGINE_ID) },
         )
 
         Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Modelo Supertonic 3", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.tts_model_title), style = MaterialTheme.typography.titleSmall)
                 when (val m = model) {
                     is ModelState.NotInstalled -> {
-                        Text(
-                            "No instalado · ${mb(m.totalBytes)}" + if (m.partialBytes > 0) " (descargados ${mb(m.partialBytes)}, se reanudará)" else "",
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        Text("Se recomienda Wi‑Fi. Se guarda en el almacenamiento de la app y se borra al desinstalarla.", style = MaterialTheme.typography.bodySmall)
+                        Text(modelNotInstalled(m), style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.tts_model_wifi_hint), style = MaterialTheme.typography.bodySmall)
                         Button(onClick = { if (prefs.supertonicLicenseAccepted) vm.download() else showLicense = true }) {
-                            Text("Descargar (${mb(m.totalBytes - m.partialBytes)})")
+                            Text(stringResource(R.string.model_download_size, mb(m.totalBytes - m.partialBytes)))
                         }
                     }
                     is ModelState.Downloading -> {
                         LinearProgressIndicator(progress = { m.downloadedBytes.toFloat() / m.totalBytes }, modifier = Modifier.fillMaxWidth())
-                        Text("${mb(m.downloadedBytes)} de ${mb(m.totalBytes)} · ${m.currentFile.substringAfterLast('/')}", style = MaterialTheme.typography.bodySmall)
-                        OutlinedButton(onClick = vm::cancel) { Text("Cancelar") }
+                        Text(
+                            stringResource(R.string.model_progress, mb(m.downloadedBytes), mb(m.totalBytes)) + " · ${m.currentFile.substringAfterLast('/')}",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        OutlinedButton(onClick = vm::cancel) { Text(stringResource(R.string.common_cancel)) }
                     }
                     is ModelState.Verifying -> {
                         LinearProgressIndicator(progress = { m.fraction }, modifier = Modifier.fillMaxWidth())
-                        Text("Verificando integridad (sha256)…", style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.tts_model_verifying), style = MaterialTheme.typography.bodySmall)
                     }
                     is ModelState.Installed -> {
-                        Text("Instalado · ${mb(m.bytesOnDisk)} en disco" + if (stats.loaded) " · cargado en memoria" else "", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            stringResource(if (stats.loaded) R.string.tts_model_installed_loaded else R.string.model_installed_on_disk, mb(m.bytesOnDisk)),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick = vm::verify) { Text("Verificar") }
-                            OutlinedButton(onClick = { scope.launch { vm.delete() } }) { Text("Eliminar") }
+                            OutlinedButton(onClick = vm::verify) { Text(stringResource(R.string.tts_model_verify)) }
+                            OutlinedButton(onClick = { scope.launch { vm.delete() } }) { Text(stringResource(R.string.common_remove)) }
                         }
                     }
                     is ModelState.Failed -> {
-                        Text(m.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
-                        Button(onClick = { if (prefs.supertonicLicenseAccepted) vm.download() else showLicense = true }) { Text("Reintentar") }
+                        Text(m.message.asString(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                        Button(onClick = { if (prefs.supertonicLicenseAccepted) vm.download() else showLicense = true }) {
+                            Text(stringResource(R.string.common_retry))
+                        }
                     }
                 }
 
-                Text("Voz", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.player_voice), style = MaterialTheme.typography.labelLarge)
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     SupertonicModel.VOICES.forEach { v ->
                         FilterChip(selected = prefs.supertonicVoice == v, onClick = { vm.setVoice(v) }, label = { Text(v) })
                     }
                 }
-                Text("F = voces femeninas, M = masculinas. Todas son multilingües (31 idiomas, incluidos inglés, francés y español).", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.tts_voices_hint), style = MaterialTheme.typography.bodySmall)
 
-                Text("Calidad (pasos de síntesis)", style = MaterialTheme.typography.labelLarge)
-                val stepOptions = listOf(5 to "Normal", 8 to "Alta")
+                Text(stringResource(R.string.tts_quality), style = MaterialTheme.typography.labelLarge)
+                val stepOptions = listOf(5 to R.string.tts_quality_normal, 8 to R.string.tts_quality_high)
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     stepOptions.forEachIndexed { i, (steps, label) ->
                         SegmentedButton(
                             selected = prefs.supertonicSteps == steps,
                             onClick = { vm.setSteps(steps) },
                             shape = SegmentedButtonDefaults.itemShape(i, stepOptions.size),
-                        ) { Text("$label ($steps)") }
+                        ) { Text("${stringResource(label)} ($steps)") }
                     }
                 }
 
-                Text("Probar voz (idioma)", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.tts_test_voice), style = MaterialTheme.typography.labelLarge)
                 val installed = model is ModelState.Installed
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("en", "fr", "es").forEach { lang ->
@@ -260,28 +273,29 @@ fun TtsEngineSection(vm: TtsSettingsViewModel = hiltViewModel()) {
                     }
                 }
                 when (val t = test) {
-                    VoiceTestState.Idle -> if (!installed) Text("Instala el modelo para probarlo.", style = MaterialTheme.typography.bodySmall)
-                    is VoiceTestState.Running -> Text("Sintetizando (${Languages.name(t.language)})… la primera vez carga el modelo.", style = MaterialTheme.typography.bodySmall)
+                    VoiceTestState.Idle -> if (!installed) Text(stringResource(R.string.tts_test_install_first), style = MaterialTheme.typography.bodySmall)
+                    is VoiceTestState.Running -> Text(
+                        stringResource(R.string.tts_test_running, Languages.name(t.language)),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                     is VoiceTestState.Failed -> Text(t.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     is VoiceTestState.Done -> MetricsText(t.metrics, stats)
-                    is VoiceTestState.Played -> Text("Muestra pregenerada de la voz (paquete de voces, sin cargar el modelo).", style = MaterialTheme.typography.bodySmall)
+                    is VoiceTestState.Played -> Text(stringResource(R.string.tts_test_sample), style = MaterialTheme.typography.bodySmall)
                 }
 
-                Text("Caché de audio y alineación: ${mb(cacheBytes)} de ${prefs.audioCacheMb} MB", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.tts_cache_usage, mb(cacheBytes), "${prefs.audioCacheMb} MB"), style = MaterialTheme.typography.bodySmall)
                 Text(
-                    "Cada frase generada se guarda con su alineación y no se rehace al releer ni al volver atrás de página, " +
-                        "hasta que se supera el límite (se borra lo menos usado). Unos 5 MB por minuto de audio.",
+                    stringResource(R.string.tts_cache_hint),
                     style = MaterialTheme.typography.bodySmall,
                 )
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf(128, 256, 512, 1024).forEach { limit ->
-                        FilterChip(selected = prefs.audioCacheMb == limit, onClick = { vm.setCacheLimit(limit) }, label = { Text("$limit MB") })
+                        FilterChip(selected = prefs.audioCacheMb == limit, onClick = { vm.setCacheLimit(limit) }, label = { Text("$limit MB") }) // i18n-ignore: unidad
                     }
                 }
-                TextButton(onClick = vm::clearCache) { Text("Vaciar caché") }
+                TextButton(onClick = vm::clearCache) { Text(stringResource(R.string.tts_cache_clear)) }
                 Text(
-                    "Código: MIT. Pesos: ${SupertonicModel.LICENSE_NAME} (restricciones de uso). Proyecto archivado por Supertone, sin soporte. " +
-                        "El audio generado es voz sintética.",
+                    stringResource(R.string.tts_license_note, SupertonicModel.LICENSE_NAME),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -292,21 +306,23 @@ fun TtsEngineSection(vm: TtsSettingsViewModel = hiltViewModel()) {
     if (showLicense) {
         AlertDialog(
             onDismissRequest = { showLicense = false },
-            title = { Text("Licencia del modelo") },
+            title = { Text(stringResource(R.string.tts_license_title)) },
             text = {
                 Text(
-                    "Los pesos de Supertonic 3 se distribuyen bajo la licencia ${SupertonicModel.LICENSE_NAME}. " +
-                        "Al descargarlos aceptas sus restricciones de uso (Anexo A), entre ellas: no usarlo para fines ilegales, " +
-                        "para dañar a menores, para suplantar a personas sin su consentimiento, para difundir desinformación dañina " +
-                        "ni para acosar; y no presentar el audio generado como si no fuera generado por máquina.\n\n" +
-                        "Origen: huggingface.co/${SupertonicModel.REPO} (revisión ${SupertonicModel.REVISION.take(7)}). " +
-                        "Tamaño: ${mb(SupertonicModel.TOTAL_BYTES)}. Texto completo: ${SupertonicModel.LICENSE_URL}",
+                    stringResource(
+                        R.string.tts_license_text,
+                        SupertonicModel.LICENSE_NAME,
+                        SupertonicModel.REPO,
+                        SupertonicModel.REVISION.take(7),
+                        mb(SupertonicModel.TOTAL_BYTES),
+                        SupertonicModel.LICENSE_URL,
+                    ),
                 )
             },
             confirmButton = {
-                TextButton(onClick = { showLicense = false; vm.acceptLicenseAndDownload() }) { Text("Acepto y descargar") }
+                TextButton(onClick = { showLicense = false; vm.acceptLicenseAndDownload() }) { Text(stringResource(R.string.tts_license_accept)) }
             },
-            dismissButton = { TextButton(onClick = { showLicense = false }) { Text("Cancelar") } },
+            dismissButton = { TextButton(onClick = { showLicense = false }) { Text(stringResource(R.string.common_cancel)) } },
         )
     }
 }
@@ -315,13 +331,14 @@ fun TtsEngineSection(vm: TtsSettingsViewModel = hiltViewModel()) {
 private fun MetricsText(m: SynthesisMetrics, stats: SupertonicStats) {
     val load = stats.lastLoad
     val avgRtf = stats.history.map { it.rtf }.average()
+    val lines = listOfNotNull(
+        if (m.loadMs != null && load != null) stringResource(R.string.tts_metrics_load, load.loadMs, load.verifyMs, load.threads) else null,
+        stringResource(R.string.tts_metrics_synthesis, m.synthMs, "%.1f".format(Locale.ROOT, m.audioMs / 1000.0), "%.2f".format(Locale.ROOT, m.rtf)),
+        stringResource(R.string.tts_metrics_steps, m.steps, m.voice, m.memoryMb?.toString() ?: "?"),
+        stringResource(R.string.tts_metrics_average, stats.history.size, "%.2f".format(Locale.ROOT, avgRtf)),
+    )
     Text(
-        buildString {
-            if (m.loadMs != null && load != null) append("Carga del modelo: ${load.loadMs} ms (verificación ${load.verifyMs} ms, ${load.threads} hilos)\n")
-            append("Síntesis: ${m.synthMs} ms · Audio: ${"%.1f".format(Locale.ROOT, m.audioMs / 1000.0)} s · RTF ${"%.2f".format(Locale.ROOT, m.rtf)}\n")
-            append("Pasos: ${m.steps} · Voz ${m.voice} · Memoria del proceso (PSS): ${m.memoryMb ?: "?"} MB\n")
-            append("Media de RTF en ${stats.history.size} síntesis: ${"%.2f".format(Locale.ROOT, avgRtf)}")
-        },
+        lines.joinToString("\n"),
         style = MaterialTheme.typography.bodySmall,
     )
 }

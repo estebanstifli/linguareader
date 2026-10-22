@@ -1,0 +1,18 @@
+{
+  "formatVersion": 1,
+  "narrations": {
+    "en/the-three-little-pigs": {
+      "version": 1,
+      "audio": {
+        "asset": "narration-en-the-three-little-pigs-v1.mp3",
+        "sizeBytes": 23878361,
+        "sha256": "e0aee97a704e647f71796163ee39c87ee8156b4926799f0cbd1d029db1894a63"
+      },
+      "timings": {
+        "asset": "narration-en-the-three-little-pigs-v1.ass",
+        "sizeBytes": 74040,
+        "sha256": "4445e47e30ee840c5aff81e508963cb420b19d23ea31fae4d46caecb4fe918c2"
+      }
+    }
+  }
+}

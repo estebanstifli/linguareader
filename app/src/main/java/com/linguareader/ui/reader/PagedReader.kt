@@ -43,11 +43,13 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.unit.dp
+import com.linguareader.R
 import com.linguareader.core.model.Book
 import com.linguareader.core.model.DisplayMode
 import com.linguareader.core.model.UserPreferences
@@ -246,6 +248,9 @@ fun PagedReaderContent(
         var container by remember { mutableStateOf<Rect?>(null) }
         val scope = rememberCoroutineScope()
         val currentOnTap by rememberUpdatedState(onTap)
+        val nextPageLabel = stringResource(R.string.reader_next_page)
+        val previousPageLabel = stringResource(R.string.reader_previous_page)
+        val toggleControlsLabel = stringResource(R.string.reader_toggle_controls)
 
         Box(
             Modifier
@@ -260,9 +265,9 @@ fun PagedReaderContent(
                 }
                 .semantics {
                     customActions = listOf(
-                        CustomAccessibilityAction("Página siguiente") { scope.launchPage(navigator, pager.currentPage + 1); true },
-                        CustomAccessibilityAction("Página anterior") { scope.launchPage(navigator, pager.currentPage - 1); true },
-                        CustomAccessibilityAction("Mostrar u ocultar controles") { currentOnTap(null); true },
+                        CustomAccessibilityAction(nextPageLabel) { scope.launchPage(navigator, pager.currentPage + 1); true },
+                        CustomAccessibilityAction(previousPageLabel) { scope.launchPage(navigator, pager.currentPage - 1); true },
+                        CustomAccessibilityAction(toggleControlsLabel) { currentOnTap(null); true },
                     )
                 },
         ) {
@@ -370,7 +375,7 @@ private fun PageColumn(
                         anchor = anchor,
                         onTap = {},
                         onLongPress = {},
-                        accessibilityActionLabel = "Traducir frase",
+                        accessibilityActionLabel = stringResource(R.string.reader_translate_sentence),
                         onAccessibilityAction = { onSentenceAction(passage.index, firstSentence.id) },
                         modifier = Modifier.fillMaxWidth(),
                         hitRegistry = hits,

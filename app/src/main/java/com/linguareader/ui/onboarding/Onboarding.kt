@@ -2,6 +2,7 @@ package com.linguareader.ui.onboarding
 
 import android.content.Intent
 import android.speech.tts.TextToSpeech
+import android.text.format.Formatter
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -45,6 +46,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -220,7 +223,7 @@ private fun Page(step: Int, steps: Int, title: String, body: String?, content: @
     ) {
         if (steps > 1) {
             LinearProgressIndicator(progress = { step.toFloat() / steps }, modifier = Modifier.fillMaxWidth())
-            Text("Paso $step de $steps", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.onboarding_step, step, steps), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Text(title, style = MaterialTheme.typography.headlineSmall)
         body?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -237,21 +240,21 @@ private fun stepsFor(p: UserPreferences): Int = when (p.purpose) {
 
 @Composable
 private fun PurposeScreen(onChoose: (AppPurpose) -> Unit) {
-    Page(1, 0, "¿Para qué vas a usar LinguaReader?", "Preparamos la app según lo que elijas. Puedes cambiarlo en Ajustes cuando quieras.") {
+    Page(1, 0, stringResource(R.string.onboarding_purpose_title), stringResource(R.string.onboarding_purpose_body)) {
         PurposeCard(
             R.drawable.ic_menu_book,
-            "Leer mis libros y documentos",
-            "Busca los EPUB, PDF, FB2, Word, TXT… que ya tienes en el móvil y ábrelos en un lector cómodo, sin voz.",
+            stringResource(R.string.onboarding_purpose_read),
+            stringResource(R.string.onboarding_purpose_read_detail),
         ) { onChoose(AppPurpose.READ) }
         PurposeCard(
             R.drawable.ic_translate,
-            "Aprender un idioma",
-            "Lecturas graduadas por nivel, voz que lee con la palabra iluminada y traducción al tocar.",
+            stringResource(R.string.onboarding_purpose_learn),
+            stringResource(R.string.onboarding_purpose_learn_detail),
         ) { onChoose(AppPurpose.LEARN) }
         PurposeCard(
             R.drawable.ic_library_books,
-            "Las dos cosas",
-            "Prepara el idioma que quieres aprender y también busca tus documentos.",
+            stringResource(R.string.onboarding_purpose_both),
+            stringResource(R.string.onboarding_purpose_both_detail),
         ) { onChoose(AppPurpose.BOTH) }
     }
 }
@@ -283,7 +286,7 @@ private fun PurposeCard(icon: Int, title: String, body: String, onClick: () -> U
 private fun LearnLanguageScreen(p: UserPreferences, vm: OnboardingViewModel) {
     val catalog by vm.libraryCatalog.collectAsStateWithLifecycle()
     BackHandler { vm.chooseLearnLanguage(null) }
-    Page(2, stepsFor(p), "¿Qué idioma quieres aprender?", "Descargaremos su biblioteca de lecturas graduadas (de A1 a B2) para leer y escuchar sin conexión.") {
+    Page(2, stepsFor(p), stringResource(R.string.onboarding_learn_title), stringResource(R.string.onboarding_learn_body)) {
         if (catalog.isEmpty()) CircularProgressIndicator()
         catalog.toSortedMap().forEach { (lang, info) ->
             Surface(
@@ -294,11 +297,15 @@ private fun LearnLanguageScreen(p: UserPreferences, vm: OnboardingViewModel) {
             ) {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(Languages.name(lang), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    Text("${info.books} libros · ${mb(info.sizeBytes)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "${pluralStringResource(R.plurals.common_books, info.books, info.books)} · ${mb(info.sizeBytes)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }
-        TextButton(onClick = { vm.chooseLearnLanguage(null) }) { Text("Ahora no") }
+        TextButton(onClick = { vm.chooseLearnLanguage(null) }) { Text(stringResource(R.string.common_not_now)) }
     }
 }
 
@@ -313,8 +320,8 @@ private fun NativeLanguageScreen(p: UserPreferences, vm: OnboardingViewModel) {
     var wifiOnly by rememberSaveable { mutableStateOf(p.translationWifiOnly) }
     BackHandler { vm.chooseNativeLanguage(target, wifiOnly) }
     Page(
-        3, stepsFor(p), "¿Cuál es tu idioma?",
-        "Las palabras y frases se traducirán a este idioma, en el propio móvil y sin conexión (traductor de Google ML Kit).",
+        3, stepsFor(p), stringResource(R.string.onboarding_native_title),
+        stringResource(R.string.onboarding_native_body),
     ) {
         var open by remember { mutableStateOf(false) }
         Box {
@@ -328,7 +335,7 @@ private fun NativeLanguageScreen(p: UserPreferences, vm: OnboardingViewModel) {
         val same = p.readingLanguage?.let { LanguageTags.sameLanguage(it, target) } == true
         if (same) {
             Text(
-                "Es el mismo idioma que vas a aprender: elige otro para poder traducir.",
+                stringResource(R.string.onboarding_native_same),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
             )
@@ -338,19 +345,19 @@ private fun NativeLanguageScreen(p: UserPreferences, vm: OnboardingViewModel) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Checkbox(checked = wifiOnly, onCheckedChange = null)
-            Text("Descargar los traductores solo con Wi-Fi (≈40 MB cada idioma)", Modifier.padding(start = 8.dp))
+            Text(stringResource(R.string.onboarding_wifi_only), Modifier.padding(start = 8.dp))
         }
         Button(onClick = { vm.chooseNativeLanguage(target, wifiOnly) }, enabled = !same, modifier = Modifier.fillMaxWidth()) {
-            Text("Continuar")
+            Text(stringResource(R.string.common_continue))
         }
     }
 }
 
 private val LEVEL_HINTS = listOf(
-    CefrLevel.A1 to "Empiezo de cero o casi",
-    CefrLevel.A2 to "Entiendo frases sencillas y habituales",
-    CefrLevel.B1 to "Me defiendo en temas cotidianos",
-    CefrLevel.B2 to "Leo textos generales con bastante soltura",
+    CefrLevel.A1 to R.string.onboarding_level_a1,
+    CefrLevel.A2 to R.string.onboarding_level_a2,
+    CefrLevel.B1 to R.string.onboarding_level_b1,
+    CefrLevel.B2 to R.string.onboarding_level_b2,
 )
 
 @Composable
@@ -358,19 +365,20 @@ private fun LevelScreen(p: UserPreferences, vm: OnboardingViewModel) {
     var level by rememberSaveable { mutableStateOf<CefrLevel?>(null) }
     var unsure by rememberSaveable { mutableStateOf(false) }
     BackHandler { vm.chooseLevel(null) }
-    val lang = p.readingLanguage?.let(Languages::nameInSpanish) ?: "el idioma"
-    Page(4, stepsFor(p), "¿Qué nivel de $lang tienes?", "Te mostraremos primero los libros de tu nivel. Siempre puedes ver los demás.") {
+    val title = p.readingLanguage?.let { stringResource(R.string.onboarding_level_title, Languages.nameInSentence(it)) }
+        ?: stringResource(R.string.onboarding_level_title_generic)
+    Page(4, stepsFor(p), title, stringResource(R.string.onboarding_level_body)) {
         LEVEL_HINTS.forEach { (l, hint) ->
-            LevelRow("${l.name} · $hint", selected = level == l) { level = l; unsure = false }
+            LevelRow("${l.name} · ${stringResource(hint)}", selected = level == l) { level = l; unsure = false }
         }
-        LevelRow("No lo sé", selected = unsure) { level = null; unsure = true }
+        LevelRow(stringResource(R.string.onboarding_level_unsure), selected = unsure) { level = null; unsure = true }
         Button(
             onClick = { vm.chooseLevel(level) },
             enabled = level != null || unsure,
             modifier = Modifier.fillMaxWidth(),
-        ) { Text("Continuar y descargar") }
+        ) { Text(stringResource(R.string.onboarding_continue_download)) }
         Text(
-            "Al continuar empieza en segundo plano la descarga de la biblioteca y de los traductores; puedes seguir usando la app.",
+            stringResource(R.string.onboarding_level_footer),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -405,76 +413,99 @@ private fun SummaryScreen(p: UserPreferences, vm: OnboardingViewModel) {
     LaunchedEffect(lang) { lang?.let { vm.startDownloads(); vm.checkVoice(it) } }
     BackHandler { vm.finish() }
 
-    Page(stepsFor(p), stepsFor(p), "Esto es lo que hemos preparado", "Lo que aún se descarga sigue en segundo plano: puedes empezar ya.") {
+    Page(stepsFor(p), stepsFor(p), stringResource(R.string.onboarding_summary_title), stringResource(R.string.onboarding_summary_body)) {
+        val retry = stringResource(R.string.common_retry)
         if (lang != null) {
             val info = catalog[lang]
+            val libraryTitle = stringResource(R.string.onboarding_library_of, Languages.nameInSentence(lang))
             when (val st = libraryStates[lang] ?: LibraryState.NotInstalled) {
-                is LibraryState.Installed -> Item(R.drawable.ic_library_books, "Biblioteca de ${Languages.nameInSpanish(lang)}", "Lista · ${st.books} libros", Status.DONE)
+                is LibraryState.Installed -> Item(
+                    R.drawable.ic_library_books, libraryTitle,
+                    stringResource(R.string.onboarding_library_ready, pluralStringResource(R.plurals.common_books, st.books, st.books)), Status.DONE,
+                )
                 is LibraryState.Downloading -> Item(
-                    R.drawable.ic_library_books, "Biblioteca de ${Languages.nameInSpanish(lang)}",
-                    "Descargando ${mb(st.bytes)} de ${mb(st.total)}", Status.RUNNING,
+                    R.drawable.ic_library_books, libraryTitle,
+                    stringResource(R.string.common_downloading_progress, mb(st.bytes), mb(st.total)), Status.RUNNING,
                 )
                 is LibraryState.Installing -> Item(
-                    R.drawable.ic_library_books, "Biblioteca de ${Languages.nameInSpanish(lang)}",
-                    if (st.total == 0) "Preparando…" else "Preparando libros: ${st.done} de ${st.total}", Status.RUNNING,
+                    R.drawable.ic_library_books, libraryTitle,
+                    if (st.total == 0) stringResource(R.string.common_preparing) else stringResource(R.string.onboarding_preparing_books, st.done, st.total),
+                    Status.RUNNING,
                 )
-                is LibraryState.Failed -> Item(R.drawable.ic_library_books, "Biblioteca de ${Languages.nameInSpanish(lang)}", st.message, Status.FAILED, "Reintentar") {
+                is LibraryState.Failed -> Item(R.drawable.ic_library_books, libraryTitle, st.message.asString(), Status.FAILED, retry) {
                     vm.retryLibrary(lang)
                 }
                 LibraryState.NotInstalled -> Item(
-                    R.drawable.ic_library_books, "Biblioteca de ${Languages.nameInSpanish(lang)}",
-                    if (info == null) "No hay biblioteca para este idioma" else "Pendiente · ${info.books} libros", Status.PENDING,
+                    R.drawable.ic_library_books, libraryTitle,
+                    if (info == null) stringResource(R.string.onboarding_no_library)
+                    else stringResource(R.string.onboarding_library_pending, pluralStringResource(R.plurals.common_books, info.books, info.books)),
+                    Status.PENDING,
                 )
             }
             vm.neededModels(p).forEach { code ->
-                val title = "Traductor de ${Languages.nameInSpanish(code)}"
+                val title = stringResource(R.string.onboarding_translator_of, Languages.nameInSentence(code))
                 when {
-                    code in downloaded -> Item(R.drawable.ic_translate, title, "Listo, funciona sin conexión", Status.DONE)
+                    code in downloaded -> Item(R.drawable.ic_translate, title, stringResource(R.string.onboarding_translator_ready), Status.DONE)
                     downloads[code] == ModelDownload.Running -> Item(
                         R.drawable.ic_translate, title,
-                        if (p.translationWifiOnly) "Descargando (o esperando Wi-Fi)…" else "Descargando…", Status.RUNNING,
+                        stringResource(if (p.translationWifiOnly) R.string.common_downloading_or_wifi else R.string.common_downloading), Status.RUNNING,
                     )
-                    downloads[code] is ModelDownload.Failed -> Item(R.drawable.ic_translate, title, (downloads[code] as ModelDownload.Failed).message, Status.FAILED, "Reintentar") {
+                    downloads[code] is ModelDownload.Failed -> Item(
+                        R.drawable.ic_translate, title, (downloads[code] as ModelDownload.Failed).message.asString(), Status.FAILED, retry,
+                    ) {
                         vm.retryModel(code)
                     }
-                    else -> Item(R.drawable.ic_translate, title, "Pendiente", Status.PENDING, "Descargar") { vm.retryModel(code) }
+                    else -> Item(
+                        R.drawable.ic_translate, title, stringResource(R.string.common_pending), Status.PENDING, stringResource(R.string.common_download),
+                    ) { vm.retryModel(code) }
                 }
             }
+            val voiceTitle = stringResource(R.string.onboarding_voice_in, Languages.nameInSentence(lang))
             when (voice) {
-                VoiceCheck.Checking -> Item(R.drawable.ic_record_voice_over, "Voz en ${Languages.nameInSpanish(lang)}", "Comprobando…", Status.RUNNING)
-                VoiceCheck.Ready -> Item(R.drawable.ic_record_voice_over, "Voz en ${Languages.nameInSpanish(lang)}", "Lista (voz del sistema)", Status.DONE)
+                VoiceCheck.Checking -> Item(R.drawable.ic_record_voice_over, voiceTitle, stringResource(R.string.common_checking), Status.RUNNING)
+                VoiceCheck.Ready -> Item(R.drawable.ic_record_voice_over, voiceTitle, stringResource(R.string.onboarding_voice_ready), Status.DONE)
                 VoiceCheck.Missing -> Item(
-                    R.drawable.ic_record_voice_over, "Voz en ${Languages.nameInSpanish(lang)}",
-                    "Falta instalarla en el motor de voz del móvil", Status.FAILED, "Instalar",
+                    R.drawable.ic_record_voice_over, voiceTitle,
+                    stringResource(R.string.onboarding_voice_missing), Status.FAILED, stringResource(R.string.common_install),
                 ) {
                     runCatching { context.startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                 }
                 VoiceCheck.NoEngine -> Item(
-                    R.drawable.ic_record_voice_over, "Voz en ${Languages.nameInSpanish(lang)}",
-                    "No hay motor de voz en el móvil: podrás leer y traducir sin audio", Status.FAILED,
+                    R.drawable.ic_record_voice_over, voiceTitle,
+                    stringResource(R.string.onboarding_voice_no_engine), Status.FAILED,
                 )
             }
         } else if (learns) {
-            Item(R.drawable.ic_translate, "Idioma para aprender", "Sin elegir: puedes descargar bibliotecas en Ajustes › Bibliotecas", Status.PENDING)
+            Item(
+                R.drawable.ic_translate, stringResource(R.string.onboarding_language_to_learn),
+                stringResource(R.string.onboarding_language_not_chosen), Status.PENDING,
+            )
         }
         if (reads) {
+            val documentsTitle = stringResource(R.string.onboarding_your_documents)
             when (val st = scanState) {
-                is ScanState.Running -> Item(R.drawable.ic_find_in_page, "Tus documentos", "Buscando… ${st.found} encontrados", Status.RUNNING)
-                is ScanState.Finished -> Item(R.drawable.ic_find_in_page, "Tus documentos", "${st.found} encontrados en el móvil", Status.DONE)
-                is ScanState.Failed -> Item(R.drawable.ic_find_in_page, "Tus documentos", st.message, Status.FAILED)
+                is ScanState.Running -> Item(
+                    R.drawable.ic_find_in_page, documentsTitle,
+                    pluralStringResource(R.plurals.onboarding_searching_found, st.found, st.found), Status.RUNNING,
+                )
+                is ScanState.Finished -> Item(
+                    R.drawable.ic_find_in_page, documentsTitle,
+                    pluralStringResource(R.plurals.onboarding_found_on_phone, st.found, st.found), Status.DONE,
+                )
+                is ScanState.Failed -> Item(R.drawable.ic_find_in_page, documentsTitle, st.message.asString(), Status.FAILED)
                 ScanState.Idle -> Item(
-                    R.drawable.ic_find_in_page, "Tus documentos",
+                    R.drawable.ic_find_in_page, documentsTitle,
                     when {
-                        documents > 0 -> "$documents encontrados en el móvil"
-                        StorageAccess.granted(context) -> "Sin buscar: puedes hacerlo cuando quieras en Ajustes › Examinar archivos"
-                        else -> "Sin permiso: puedes darlo en Ajustes › Examinar archivos"
+                        documents > 0 -> pluralStringResource(R.plurals.onboarding_found_on_phone, documents, documents)
+                        StorageAccess.granted(context) -> stringResource(R.string.onboarding_scan_not_done)
+                        else -> stringResource(R.string.onboarding_scan_no_permission)
                     },
                     if (documents > 0) Status.DONE else Status.PENDING,
                 )
             }
         }
         Spacer(Modifier.height(8.dp))
-        Button(onClick = vm::finish, modifier = Modifier.fillMaxWidth()) { Text("Empezar a leer") }
+        Button(onClick = vm::finish, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.onboarding_start_reading)) }
     }
 }
 
@@ -508,4 +539,5 @@ private fun Item(icon: Int, title: String, detail: String, status: Status, actio
     }
 }
 
-private fun mb(bytes: Long) = "%.1f MB".format(Locale.ROOT, bytes / 1_000_000.0)
+@Composable
+private fun mb(bytes: Long): String = Formatter.formatShortFileSize(LocalContext.current, bytes)

@@ -30,12 +30,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import com.linguareader.R
 import com.linguareader.core.model.LanguageTags
 import com.linguareader.core.model.UserPreferences
 import com.linguareader.data.prefs.UserPreferencesRepository
@@ -98,7 +100,7 @@ private fun WifiOnlyRow(checked: Boolean, onChange: (Boolean) -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Checkbox(checked = checked, onCheckedChange = null)
-        Text("Descargar solo con Wi-Fi", Modifier.padding(start = 8.dp))
+        Text(stringResource(R.string.translation_wifi_only), Modifier.padding(start = 8.dp))
     }
 }
 
@@ -112,13 +114,11 @@ fun TranslationSection(vm: TranslationViewModel = hiltViewModel()) {
     val target = vm.code(current.translationLanguage) ?: current.translationLanguage
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Tu idioma", style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.translation_your_language), style = MaterialTheme.typography.labelLarge)
             LanguagePicker(target, vm.languages) { vm.setTarget(it) }
         }
         Text(
-            "Tu idioma nativo: las palabras y frases se traducen a él. Por defecto es el del móvil. " +
-                "La traducción se hace en el propio dispositivo con Google ML Kit y funciona sin conexión " +
-                "una vez descargado el modelo de cada idioma (≈40 MB).",
+            stringResource(R.string.translation_intro),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -127,12 +127,12 @@ fun TranslationSection(vm: TranslationViewModel = hiltViewModel()) {
 
         val others = downloaded.filter { it != target }.sortedBy(::languageName)
         if (others.isNotEmpty()) {
-            Text("Otros idiomas descargados", style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.translation_other_downloaded), style = MaterialTheme.typography.labelLarge)
             others.forEach { code -> ModelRow(code, true, downloads[code], vm) }
         }
         val reading = current.readingLanguage?.let(vm::code)
         if (reading != null && reading != target && reading !in downloaded) {
-            Text("Idioma que aprendes", style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.translation_learning_language), style = MaterialTheme.typography.labelLarge)
             ModelRow(reading, false, downloads[reading], vm)
         }
     }
@@ -143,19 +143,19 @@ private fun ModelRow(code: String, installed: Boolean, download: ModelDownload?,
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "${languageName(code)} — ${if (installed) "descargado" else "no descargado"}",
+                stringResource(if (installed) R.string.translation_model_downloaded else R.string.translation_model_not_downloaded, languageName(code)),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f),
             )
             when {
                 download == ModelDownload.Running -> Unit
-                installed && !LanguageTags.sameLanguage(code, "en") -> TextButton(onClick = { vm.delete(code) }) { Text("Borrar") }
-                !installed -> OutlinedButton(onClick = { vm.download(code) }) { Text("Descargar") }
+                installed && !LanguageTags.sameLanguage(code, "en") -> TextButton(onClick = { vm.delete(code) }) { Text(stringResource(R.string.common_delete)) }
+                !installed -> OutlinedButton(onClick = { vm.download(code) }) { Text(stringResource(R.string.common_download)) }
             }
         }
         when (download) {
             ModelDownload.Running -> LinearProgressIndicator(Modifier.fillMaxWidth())
-            is ModelDownload.Failed -> Text(download.message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            is ModelDownload.Failed -> Text(download.message.asString(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             null -> Unit
         }
     }

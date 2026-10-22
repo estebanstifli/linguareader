@@ -2,6 +2,7 @@ package com.linguareader.ui.catalog
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.linguareader.R
 import com.linguareader.core.model.CefrLevel
 import com.linguareader.data.content.BookImportService
 import com.linguareader.data.content.ImportDraft
@@ -12,6 +13,7 @@ import com.linguareader.engine.translation.BookTranslationService
 import com.linguareader.engine.translation.TranslationModelManager
 import com.linguareader.core.model.LanguageTags
 import com.linguareader.importer.ImportException
+import com.linguareader.ui.common.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,7 +26,7 @@ import javax.inject.Inject
 
 sealed interface ImportUiState {
     data object Idle : ImportUiState
-    data class Reading(val label: String) : ImportUiState
+    data class Reading(val label: UiText) : ImportUiState
     data class Review(
         val draft: ImportDraft,
         val title: String,
@@ -41,7 +43,11 @@ sealed interface ImportUiState {
         /** Solo tiene sentido ofrecer traducción si el idioma del libro y el de traducción difieren. */
         val canTranslate: Boolean get() = !LanguageTags.sameLanguage(language, translationTarget)
     }
-    data class Failed(val message: String) : ImportUiState
+    /**
+     * [message]: el motivo, traducido. [detail]: el mensaje técnico del importador, si aporta algo.
+     * [viewUri]: el fichero no se puede importar pero sí ver con su formato (PDF escaneado, sin texto).
+     */
+    data class Failed(val message: UiText, val detail: String? = null, val viewUri: android.net.Uri? = null) : ImportUiState
     data class Done(val bookId: String, val language: String) : ImportUiState
 }
 
@@ -69,9 +75,9 @@ class ImportViewModel @Inject constructor(
         job?.cancel()
         _state.value = ImportUiState.Reading(
             when (request) {
-                is ImportRequest.Document -> "Leyendo el documento…"
-                is ImportRequest.WebPage -> "Descargando ${request.url}…"
-                is ImportRequest.Text -> "Preparando el texto…"
+                is ImportRequest.Document -> UiText.res(R.string.import_reading_document)
+                is ImportRequest.WebPage -> UiText.res(R.string.import_downloading, request.url)
+                is ImportRequest.Text -> UiText.res(R.string.import_preparing_text)
             },
         )
         job = viewModelScope.launch {
@@ -94,9 +100,21 @@ class ImportViewModel @Inject constructor(
                     translationTarget = prefs.translationLanguage,
                 )
             } catch (e: ImportException) {
-                ImportUiState.Failed(e.message ?: "No se pudo importar")
+                val viewable = request is ImportRequest.Document && e.reason == ImportException.Reason.NO_TEXT && service.isPdf(request.uri)
+                ImportUiState.Failed(
+                    message = UiText.res(
+                        when (e.reason) {
+                            ImportException.Reason.UNSUPPORTED_FORMAT -> R.string.import_error_unsupported
+                            ImportException.Reason.DRM_PROTECTED -> R.string.import_error_drm
+                            ImportException.Reason.NO_TEXT -> R.string.import_error_no_text
+                            ImportException.Reason.CORRUPT -> R.string.import_error_corrupt
+                        },
+                    ),
+                    detail = e.message.takeIf { e.reason != ImportException.Reason.NO_TEXT },
+                    viewUri = (request as? ImportRequest.Document)?.uri?.takeIf { viewable },
+                )
             } catch (e: Exception) {
-                ImportUiState.Failed("No se pudo leer el fichero: ${e.message}")
+                ImportUiState.Failed(UiText.res(R.string.import_error_read_file), detail = e.message)
             }
         }
     }
@@ -115,7 +133,7 @@ class ImportViewModel @Inject constructor(
                 }
                 ImportUiState.Done(id, review.language)
             } catch (e: Exception) {
-                ImportUiState.Failed(e.message ?: "No se pudo guardar el libro")
+                ImportUiState.Failed(UiText.res(R.string.import_error_save), detail = e.message)
             }
         }
     }

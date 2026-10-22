@@ -2,12 +2,14 @@ package com.linguareader.engine.packs
 
 import android.content.Context
 import android.util.Log
+import com.linguareader.R
 import com.linguareader.core.model.LanguageTags
 import com.linguareader.di.ApplicationScope
 import com.linguareader.engine.supertonic.DownloadResult
 import com.linguareader.engine.supertonic.ModelFile
 import com.linguareader.engine.supertonic.ModelState
 import com.linguareader.engine.supertonic.SupertonicModelManager
+import com.linguareader.ui.common.UiText
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -75,7 +77,7 @@ class VoicePackManager @Inject constructor(
         if (job?.isActive == true) return
         val c = catalog
         _state.value = when {
-            c == null -> ModelState.Failed("Catálogo del paquete de voces no disponible.")
+            c == null -> ModelState.Failed(UiText.res(R.string.voice_pack_catalog_unavailable))
             installedVersion() == "${c.version}:${c.sha256}" -> ModelState.Installed(c.sizeBytes, dir.path)
             else -> ModelState.NotInstalled(c.sizeBytes, 0)
         }
@@ -93,7 +95,7 @@ class VoicePackManager @Inject constructor(
         job = appScope.launch(Dispatchers.IO) {
             try {
                 if (!source.configured) {
-                    _state.value = ModelState.Failed("Repositorio de paquetes no configurado.")
+                    _state.value = ModelState.Failed(UiText.res(R.string.model_repo_not_configured))
                     return@launch
                 }
                 _state.value = ModelState.Downloading(0, c.sizeBytes, c.asset)
@@ -103,7 +105,7 @@ class VoicePackManager @Inject constructor(
                     _state.value = ModelState.Downloading(p.downloadedBytes, p.totalBytes, c.asset)
                 }
                 if (result is DownloadResult.Failed) {
-                    _state.value = ModelState.Failed("Descarga interrumpida: ${result.message}")
+                    _state.value = ModelState.Failed(UiText.res(R.string.model_download_interrupted, result.message))
                     return@launch
                 }
                 _state.value = ModelState.Verifying(0f)
@@ -115,7 +117,7 @@ class VoicePackManager @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 if (e is java.io.IOException) Log.w(TAG, "Paquete de voces: ${e.message}") else Log.e(TAG, "Paquete de voces", e)
-                _state.value = ModelState.Failed(e.message ?: e.javaClass.simpleName)
+                _state.value = ModelState.Failed(UiText.res(R.string.model_download_error, e.message ?: e.javaClass.simpleName))
             }
         }
     }

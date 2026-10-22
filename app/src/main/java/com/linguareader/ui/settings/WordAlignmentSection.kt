@@ -16,11 +16,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import com.linguareader.R
 import com.linguareader.core.model.LanguageTags
 import com.linguareader.core.model.UserPreferences
 import com.linguareader.data.prefs.UserPreferencesRepository
@@ -69,16 +71,14 @@ fun WordAlignmentSection(vm: WordAlignmentViewModel = hiltViewModel()) {
     val models = vm.catalog.sortedByDescending { it.language == reading }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Sincronía por palabra (voz Supertonic)", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+        Text(stringResource(R.string.alignment_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
         Text(
-            "Supertonic no entrega tiempos por palabra. Con un modelo de alineación instalado para el idioma de lectura, " +
-                "la app alinea cada frase en segundo plano y resalta la palabra que suena. Sin modelo, o si la alineación no es fiable, " +
-                "se resalta la frase entera. Opcional; se usa solo con la voz Supertonic.",
+            stringResource(R.string.alignment_intro),
             style = MaterialTheme.typography.bodySmall,
         )
         if (!vm.hostingConfigured) {
             Text(
-                "Esta compilación no tiene configurado el repositorio de paquetes.",
+                stringResource(R.string.model_repo_not_configured),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
             )
@@ -88,43 +88,46 @@ fun WordAlignmentSection(vm: WordAlignmentViewModel = hiltViewModel()) {
             Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        Languages.name(spec.language) + if (spec.language == reading) " · idioma de lectura actual" else "",
+                        if (spec.language == reading) stringResource(R.string.alignment_current_language, Languages.name(spec.language)) else Languages.name(spec.language),
                         style = MaterialTheme.typography.titleSmall,
                     )
-                    Text("${spec.name} · licencia ${spec.license}", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.alignment_model_license, spec.name, spec.license), style = MaterialTheme.typography.bodySmall)
                     if (spec.nonCommercial) {
-                        Text("Licencia no comercial: solo para uso personal y no comercial.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.alignment_non_commercial), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     when (val m = state) {
                         is ModelState.NotInstalled -> {
                             Text(
-                                "No instalado · ${mb(m.totalBytes)}" + if (m.partialBytes > 0) " (descargados ${mb(m.partialBytes)}, se reanudará)" else "",
+                                if (m.partialBytes > 0) stringResource(R.string.model_not_installed_partial, mb(m.totalBytes), mb(m.partialBytes))
+                                else stringResource(R.string.model_not_installed, mb(m.totalBytes)),
                                 style = MaterialTheme.typography.bodyMedium,
                             )
-                            Button(onClick = { vm.download(spec.id) }, enabled = vm.hostingConfigured) { Text("Descargar (${mb(m.totalBytes - m.partialBytes)})") }
+                            Button(onClick = { vm.download(spec.id) }, enabled = vm.hostingConfigured) { Text(stringResource(R.string.model_download_size, mb(m.totalBytes - m.partialBytes))) }
                         }
                         is ModelState.Downloading -> {
                             LinearProgressIndicator(progress = { m.downloadedBytes.toFloat() / m.totalBytes.coerceAtLeast(1) }, modifier = Modifier.fillMaxWidth())
-                            Text("${mb(m.downloadedBytes)} de ${mb(m.totalBytes)}", style = MaterialTheme.typography.bodySmall)
-                            OutlinedButton(onClick = { vm.cancel(spec.id) }) { Text("Cancelar") }
+                            Text(stringResource(R.string.model_progress, mb(m.downloadedBytes), mb(m.totalBytes)), style = MaterialTheme.typography.bodySmall)
+                            OutlinedButton(onClick = { vm.cancel(spec.id) }) { Text(stringResource(R.string.common_cancel)) }
                         }
-                        is ModelState.Verifying -> Text("Verificando…", style = MaterialTheme.typography.bodySmall)
+                        is ModelState.Verifying -> Text(stringResource(R.string.model_verifying), style = MaterialTheme.typography.bodySmall)
                         is ModelState.Installed -> {
-                            Text("Instalado · ${mb(m.bytesOnDisk)} en disco", style = MaterialTheme.typography.bodyMedium)
-                            Row { OutlinedButton(onClick = { scope.launch { vm.delete(spec.id).join() } }) { Text("Eliminar") } }
+                            Text(stringResource(R.string.model_installed_on_disk, mb(m.bytesOnDisk)), style = MaterialTheme.typography.bodyMedium)
+                            Row { OutlinedButton(onClick = { scope.launch { vm.delete(spec.id).join() } }) { Text(stringResource(R.string.common_remove)) } }
                         }
                         is ModelState.Failed -> {
-                            Text(m.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
-                            Button(onClick = { vm.download(spec.id) }, enabled = vm.hostingConfigured) { Text("Reintentar") }
+                            Text(m.message.asString(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                            Button(onClick = { vm.download(spec.id) }, enabled = vm.hostingConfigured) { Text(stringResource(R.string.common_retry)) }
                         }
                     }
                 }
             }
         }
         Text(
-            "Los modelos son redes wav2vec2 de Meta (${vm.catalog.joinToString { it.source }}), convertidas a ONNX y " +
-                "cuantizadas a int8 con el script del proyecto. Licencias: ${vm.catalog.map { it.license }.distinct().joinToString(", ")}. " +
-                "Se guardan en el almacenamiento de la app.",
+            stringResource(
+                R.string.alignment_footer,
+                vm.catalog.joinToString { it.source },
+                vm.catalog.map { it.license }.distinct().joinToString(", "),
+            ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

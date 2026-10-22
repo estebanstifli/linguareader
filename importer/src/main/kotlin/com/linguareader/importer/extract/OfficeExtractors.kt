@@ -100,7 +100,20 @@ class DocxExtractor : DocumentExtractor {
             authors = listOfNotNull(meta("creator")),
             language = meta("language") ?: defaultLanguage?.takeIf { it.isNotBlank() },
             chapters = out.finish(),
+            cover = thumbnail(zip),
         )
+    }
+
+    /**
+     * Vista previa de la primera página que Word guarda si se marcó «Guardar miniatura»
+     * (relación `…/metadata/thumbnail` del paquete). Solo JPEG/PNG: los EMF/WMF no se decodifican.
+     */
+    private fun thumbnail(zip: ZipArchive): ExtractedImage? {
+        val target = zip.text("_rels/.rels")?.let(EpubExtractor::xml)?.byLocalName("Relationship")
+            ?.firstOrNull { it.attr("Type").endsWith("/metadata/thumbnail") }?.attr("Target")
+            ?: return null
+        val bytes = zip.bytes(target.removePrefix("/")) ?: return null
+        return ExtractedImage(bytes).takeIf { ImageTypes.extension(bytes) in setOf("jpg", "png") }
     }
 
     /** Ids de estilo que son título de nivel 1–2 (por nombre canónico o nivel de esquema). */
@@ -193,6 +206,8 @@ class OdtExtractor : DocumentExtractor {
             authors = listOfNotNull(meta("creator") ?: meta("initial-creator")),
             language = meta("language"),
             chapters = out.finish(),
+            // LibreOffice guarda siempre una miniatura PNG de la primera página.
+            cover = zip.bytes("Thumbnails/thumbnail.png")?.takeIf { ImageTypes.extension(it) == "png" }?.let { ExtractedImage(it) },
         )
     }
 }

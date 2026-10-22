@@ -1,6 +1,8 @@
 package com.linguareader.importer.extract
 
 import com.linguareader.core.model.CefrLevel
+import com.linguareader.core.model.NarrationRef
+import com.linguareader.core.model.RemoteFile
 import com.linguareader.importer.DocumentExtractor
 import com.linguareader.importer.DocumentSource
 import com.linguareader.importer.ExtractedBlock
@@ -82,7 +84,25 @@ class EpubExtractor : DocumentExtractor {
             chapters = withoutFillerPages(chapters, cover),
             cover = cover,
             level = level(metadata),
+            narration = narration(metadata),
         )
+    }
+
+    /**
+     * Narración pregrabada declarada en el OPF (libros de la biblioteca, tools/build_epub.py):
+     * `<meta property="linguareader:narration-audio">https://â€¦</meta>`, `-audio-size`, `-audio-sha256` y lo mismo con
+     * `timings` (ASS de karaoke). Sin las dos URL https no hay narración.
+     */
+    private fun narration(metadata: Element?): NarrationRef? {
+        metadata ?: return null
+        val values = metadata.byLocalName("meta")
+            .filter { it.attr("property").substringBefore(':') == "linguareader" }
+            .associate { it.attr("property").substringAfter(':') to it.text().trim() }
+        fun file(kind: String): RemoteFile? {
+            val url = values["narration-$kind"]?.takeIf { it.startsWith("https://") } ?: return null
+            return RemoteFile(url, values["narration-$kind-size"]?.toLongOrNull(), values["narration-$kind-sha256"]?.lowercase())
+        }
+        return NarrationRef(file("audio") ?: return null, file("timings") ?: return null)
     }
 
     /** Nivel MCER declarado: `<meta property="schema:educationalLevel">A1</meta>` o `<dc:subject>CEFR A1</dc:subject>`. */

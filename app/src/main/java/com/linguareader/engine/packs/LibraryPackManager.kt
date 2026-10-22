@@ -3,12 +3,14 @@ package com.linguareader.engine.packs
 import android.content.Context
 import android.util.Log
 import com.linguareader.BuildConfig
+import com.linguareader.R
 import com.linguareader.core.model.CefrLevel
 import com.linguareader.core.model.LanguageTags
 import com.linguareader.data.content.BookImportService
 import com.linguareader.di.ApplicationScope
 import com.linguareader.engine.supertonic.DownloadResult
 import com.linguareader.engine.supertonic.ModelFile
+import com.linguareader.ui.common.UiText
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -30,7 +32,7 @@ sealed interface LibraryState {
     data class Downloading(val bytes: Long, val total: Long) : LibraryState
     data class Installing(val done: Int, val total: Int) : LibraryState
     data class Installed(val version: Int, val books: Int, val updateAvailable: Boolean) : LibraryState
-    data class Failed(val message: String) : LibraryState
+    data class Failed(val message: UiText) : LibraryState
 }
 
 /**
@@ -121,7 +123,7 @@ class LibraryPackManager @Inject constructor(
                 val result = source.downloader(listOf(file), tag) { it.path }.download(tmp) { p ->
                     set(lang, LibraryState.Downloading(p.downloadedBytes, p.totalBytes))
                 }
-                if (result is DownloadResult.Failed) throw java.io.IOException("Descarga interrumpida: ${result.message}")
+                if (result is DownloadResult.Failed) throw java.io.IOException(result.message)
                 install(lang, File(tmp, info.asset), File(tmp, "staging"))
                 set(lang, null)
             } catch (e: CancellationException) {
@@ -129,7 +131,7 @@ class LibraryPackManager @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 if (e is java.io.IOException) Log.w(TAG, "Biblioteca $lang: ${e.message}") else Log.e(TAG, "Biblioteca $lang", e)
-                set(lang, LibraryState.Failed(e.message ?: e.javaClass.simpleName))
+                set(lang, LibraryState.Failed(UiText.res(R.string.library_failed, e.message ?: e.javaClass.simpleName)))
             } finally {
                 tmp.deleteRecursively()
             }

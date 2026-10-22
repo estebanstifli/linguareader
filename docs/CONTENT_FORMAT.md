@@ -120,6 +120,43 @@ library-<idioma>-v<N>.zip
   OpenAI `gpt-image-2.5-flare`) compartida por todas las traducciones; el título y el nivel se
   componen por idioma (600×900, JPEG ≈ 90 KB).
 
+## Narración pregrabada (opcional)
+
+Un libro puede declarar una narración de calidad generada fuera del móvil: **una pista de audio continua** (mp3, con
+sus voces, pausas y efectos ya grabados) y un **ASS de karaoke** (`{\k}`/`{\kf}` en centésimas) con el tiempo de cada
+palabra. La app la descarga en segundo plano al abrir el libro y, cuando está lista, la usa en lugar del motor TTS
+(en la siguiente pausa, en el mismo punto). Si no hay red, falla la descarga o el ASS no casa con el texto (< 90 % de
+las palabras), se sigue con el TTS sin avisos.
+
+- **En el manifiesto**: `"narration": { "audio": {url, sizeBytes, sha256}, "timings": {url, sizeBytes, sha256} }`.
+  Solo URL `https`; una narración mal declarada se ignora sin invalidar el libro.
+- **En el EPUB de la biblioteca** (lo escribe `tools/build_epub.py`; el prefijo `linguareader:` se declara en
+  `<package prefix>` solo si hay narración, así los demás EPUB no cambian):
+  ```xml
+  <meta property="linguareader:narration-audio">https://…/narration-en-the-three-little-pigs-v1.mp3</meta>
+  <meta property="linguareader:narration-audio-size">23878361</meta>
+  <meta property="linguareader:narration-audio-sha256">…</meta>
+  <meta property="linguareader:narration-timings">https://…/narration-en-the-three-little-pigs-v1.ass</meta>
+  <meta property="linguareader:narration-timings-size">74040</meta>
+  <meta property="linguareader:narration-timings-sha256">…</meta>
+  ```
+- **Texto**: el ASS no necesita ids. Sus palabras se casan con los tokens del libro (`NarrationAligner`: sin
+  mayúsculas, puntuación ni diacríticos, con variantes de grafía y palabras omitidas o añadidas). Las palabras sin
+  tiempo propio reparten el hueco entre sus vecinas.
+- **Solo libros de la biblioteca** (`u-lib-…`): un EPUB importado por el usuario con estos `<meta>` no provoca descargas.
+- **En el dispositivo**: `filesDir/narrations/<bookId>/` (nombres con el sha256); se borra con el libro.
+
+Publicar (hoy, adjuntos de la release `library-v1` con nombres planos `narration-<idioma>-<slug>-v<N>.<ext>`):
+
+```powershell
+python -I tools\publish_narration.py --lang en --slug the-three-little-pigs --audio narracion.mp3 --ass narracion.ass --upload
+python -I tools\build_library.py --lang en --upload      # el EPUB del libro cambia → la biblioteca sube de versión
+```
+
+`publish_narration.py` registra tamaño y sha256 en `content/graded-books/narrations.json` (versionado). Para migrar a
+otro alojamiento basta con subir allí los mismos ficheros, cambiar `NARRATION_BASE_URL` en `tools/build_epub.py` y
+regenerar las bibliotecas: la app reimporta solo los libros cambiados y conserva progreso, marcadores y vocabulario.
+
 ## Validación
 
 `./gradlew :core:test` ejecuta `SampleContentTest` sobre los libros empaquetados: parseo, carpeta =

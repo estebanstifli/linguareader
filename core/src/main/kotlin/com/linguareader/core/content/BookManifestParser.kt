@@ -7,6 +7,8 @@ import com.linguareader.core.model.ContentLicense
 import com.linguareader.core.model.GlossaryEntry
 import com.linguareader.core.model.GlossaryExample
 import com.linguareader.core.model.MediaRef
+import com.linguareader.core.model.NarrationRef
+import com.linguareader.core.model.RemoteFile
 import com.linguareader.core.model.TermKind
 import com.linguareader.core.text.PassageBuilder
 import com.linguareader.core.text.SentenceInput
@@ -119,7 +121,15 @@ object BookManifestParser {
             cover = dto.cover?.let(::media),
             chapters = chapters,
             glossary = glossary,
+            narration = dto.narration?.let(::narration),
         )
+    }
+
+    /** Una narración mal declarada se ignora (el libro se lee con el TTS), no invalida el libro. */
+    private fun narration(dto: NarrationDto): NarrationRef? {
+        fun file(f: RemoteFileDto) = RemoteFile(f.url, f.sizeBytes, f.sha256?.lowercase())
+            .takeIf { f.url.startsWith("https://") && (f.sha256 == null || SHA256_PATTERN.matches(f.sha256.lowercase())) }
+        return NarrationRef(file(dto.audio) ?: return null, file(dto.timings) ?: return null)
     }
 
     private fun media(dto: MediaDto): MediaRef {

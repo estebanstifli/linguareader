@@ -11,6 +11,8 @@ import com.linguareader.core.engine.BookRepository
 import com.linguareader.core.engine.StreamingSpeechEngine
 import com.linguareader.core.engine.TranslationEngine
 import com.linguareader.core.engine.UnavailableAlignmentEngine
+import com.linguareader.core.narration.NarrationSelector
+import com.linguareader.core.reader.NarratedReaderAudioController
 import com.linguareader.core.reader.ReaderAudioController
 import com.linguareader.core.reader.RenderedReaderAudioController
 import com.linguareader.core.reader.SpeechPauses
@@ -69,6 +71,7 @@ class EngineSettingsHolder @Inject constructor() {
     @Volatile var pauses: SpeechPauses = SpeechPauses()
     @Volatile var audioCacheBytes: Long = 256L * 1024 * 1024
     @Volatile var normalizeSpeech: Boolean = true
+    @Volatile var autoContinue: Boolean = true
 }
 
 /**
@@ -195,11 +198,17 @@ object TtsEngineModule {
             engines = registry,
             defaultEngineId = streaming.id,
             dispatcher = main,
+            narrated = NarratedReaderAudioController(
+                player = LazyClipPlayer { Media3ClipPlayer(context, handleAudioFocus = true) },
+                dispatcher = main,
+                continuous = { settings.autoContinue },
+            ),
         )
     }
 
     @Provides fun readerAudioController(s: SwitchingReaderAudioController): ReaderAudioController = s
     @Provides fun engineSelector(s: SwitchingReaderAudioController): TtsEngineSelector = s
+    @Provides fun narrationSelector(s: SwitchingReaderAudioController): NarrationSelector = s
 }
 
 @Module

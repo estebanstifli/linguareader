@@ -1,8 +1,11 @@
 package com.linguareader.ui.common
 
 import android.graphics.BitmapFactory
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.stringResource
+import com.linguareader.R
 import com.linguareader.core.content.MediaResult
 import com.linguareader.core.engine.EngineUnavailableReason
 import com.linguareader.core.engine.TranslationResult
@@ -11,93 +14,123 @@ import com.linguareader.core.model.HighlightStyle
 import com.linguareader.core.model.LanguageTags
 import com.linguareader.core.model.TermKind
 import com.linguareader.core.model.ThemeMode
+import com.linguareader.core.model.ScreenOrientation
+import com.linguareader.core.model.TextJustification
+import com.linguareader.data.library.LibraryRepository
+import com.linguareader.data.library.Shelf
 import java.util.Locale
 
 object Languages {
     /** Idiomas de traducción ofrecidos en la UI (los datos pueden no existir para todos). */
     val translationTargets = listOf("es", "en", "fr", "de", "it", "pt", "nl", "ca")
 
-    fun name(tag: String?): String = when (tag?.let(LanguageTags::primary)) {
-        null -> "Todos"
-        "es" -> "Español"
-        "en" -> "English"
-        "fr" -> "Français"
-        else -> Locale.forLanguageTag(tag).getDisplayName(Locale.forLanguageTag("es")).replaceFirstChar { it.uppercase() }
-    }
+    /** Idioma de la interfaz (el del dispositivo o el elegido en los ajustes de Android 13+). */
+    private val uiLocale: Locale get() = Locale.getDefault()
 
-    fun nameInSpanish(tag: String): String = when (LanguageTags.primary(tag)) {
-        "es" -> "español"; "en" -> "inglés"; "fr" -> "francés"
-        else -> Locale.forLanguageTag(tag).getDisplayLanguage(Locale.forLanguageTag("es"))
-    }
+    /** Nombre de [tag] para mostrarlo suelto (selectores, chips): «Spanish» / «Español». */
+    fun name(tag: String): String =
+        Locale.forLanguageTag(tag).getDisplayName(uiLocale).replaceFirstChar { it.titlecase(uiLocale) }
+
+    /** Nombre de [tag] dentro de una frase, con la mayúscula propia del idioma: «Spanish» / «español». */
+    fun nameInSentence(tag: String): String = Locale.forLanguageTag(tag).getDisplayLanguage(uiLocale)
 }
 
 object Labels {
-    fun displayMode(mode: DisplayMode) = when (mode) {
-        DisplayMode.TRANSLATION_ON_TAP -> "Traducción al tocar"
-        DisplayMode.TRANSLATION_BELOW -> "Traducción bajo cada frase"
+    /** Las estanterías fijas se guardan con un nombre en español; se muestran con el del idioma de la app. */
+    @Composable
+    fun shelf(shelf: Shelf): String = when (shelf.kind) {
+        LibraryRepository.FAVORITES -> stringResource(R.string.shelf_favorites)
+        LibraryRepository.TO_READ -> stringResource(R.string.shelf_to_read)
+        LibraryRepository.READ -> stringResource(R.string.shelf_read)
+        else -> shelf.name
     }
 
-    fun displayModeHint(mode: DisplayMode) = when (mode) {
-        DisplayMode.TRANSLATION_ON_TAP -> "Solo el texto del libro; toca una palabra para ver su traducción y la de su frase"
-        DisplayMode.TRANSLATION_BELOW -> "Cada frase con su traducción debajo"
-    }
+    @Composable
+    fun displayMode(mode: DisplayMode) = stringResource(
+        when (mode) {
+            DisplayMode.TRANSLATION_ON_TAP -> R.string.label_display_mode_on_tap
+            DisplayMode.TRANSLATION_BELOW -> R.string.label_display_mode_below
+        }
+    )
 
-    fun highlight(style: HighlightStyle) = when (style) {
-        HighlightStyle.BACKGROUND -> "Fondo"
-        HighlightStyle.UNDERLINE -> "Subrayado"
-        HighlightStyle.MARKER -> "Marcador"
-    }
+    @Composable
+    fun displayModeHint(mode: DisplayMode) = stringResource(
+        when (mode) {
+            DisplayMode.TRANSLATION_ON_TAP -> R.string.label_display_mode_on_tap_hint
+            DisplayMode.TRANSLATION_BELOW -> R.string.label_display_mode_below_hint
+        }
+    )
 
-    fun theme(mode: ThemeMode) = when (mode) {
-        ThemeMode.SYSTEM -> "Sistema"
-        ThemeMode.LIGHT -> "Claro"
-        ThemeMode.DARK -> "Oscuro"
-        ThemeMode.SEPIA -> "Sepia"
-    }
+    @Composable
+    fun highlight(style: HighlightStyle) = stringResource(
+        when (style) {
+            HighlightStyle.BACKGROUND -> R.string.label_highlight_background
+            HighlightStyle.UNDERLINE -> R.string.label_highlight_underline
+            HighlightStyle.MARKER -> R.string.label_highlight_marker
+        }
+    )
 
-    fun justification(mode: com.linguareader.core.model.TextJustification) = when (mode) {
-        com.linguareader.core.model.TextJustification.LEFT -> "Izquierda"
-        com.linguareader.core.model.TextJustification.JUSTIFIED -> "Justificado"
-        com.linguareader.core.model.TextJustification.JUSTIFIED_HYPHENATED -> "Justif. + guiones"
-    }
+    @Composable
+    fun theme(mode: ThemeMode) = stringResource(
+        when (mode) {
+            ThemeMode.SYSTEM -> R.string.label_theme_system
+            ThemeMode.LIGHT -> R.string.label_theme_light
+            ThemeMode.DARK -> R.string.label_theme_dark
+            ThemeMode.SEPIA -> R.string.label_theme_sepia
+        }
+    )
 
-    fun orientation(mode: com.linguareader.core.model.ScreenOrientation) = when (mode) {
-        com.linguareader.core.model.ScreenOrientation.PORTRAIT -> "Vertical"
-        com.linguareader.core.model.ScreenOrientation.LANDSCAPE -> "Horizontal"
-        com.linguareader.core.model.ScreenOrientation.AUTO -> "Automática"
-    }
+    @Composable
+    fun justification(mode: TextJustification) = stringResource(
+        when (mode) {
+            TextJustification.LEFT -> R.string.label_justify_left
+            TextJustification.JUSTIFIED -> R.string.label_justify_justified
+            TextJustification.JUSTIFIED_HYPHENATED -> R.string.label_justify_hyphenated
+        }
+    )
 
-    fun termKind(kind: TermKind) = when (kind) {
-        TermKind.WORD -> "Palabra"
-        TermKind.PHRASAL_VERB -> "Phrasal verb"
-        TermKind.EXPRESSION -> "Expresión"
-        TermKind.CONTRACTION -> "Contracción"
-    }
+    @Composable
+    fun orientation(mode: ScreenOrientation) = stringResource(
+        when (mode) {
+            ScreenOrientation.PORTRAIT -> R.string.label_orientation_portrait
+            ScreenOrientation.LANDSCAPE -> R.string.label_orientation_landscape
+            ScreenOrientation.AUTO -> R.string.label_orientation_auto
+        }
+    )
 
+    @Composable
+    fun termKind(kind: TermKind) = stringResource(
+        when (kind) {
+            TermKind.WORD -> R.string.label_term_word
+            TermKind.PHRASAL_VERB -> R.string.label_term_phrasal_verb
+            TermKind.EXPRESSION -> R.string.label_term_expression
+            TermKind.CONTRACTION -> R.string.label_term_contraction
+        }
+    )
+
+    @Composable
     fun unavailable(reason: TranslationResult.Reason, target: String) = when (reason) {
-        TranslationResult.Reason.NO_ENTRY -> "Traducción al ${Languages.nameInSpanish(target)} no disponible en este libro."
-        TranslationResult.Reason.SAME_LANGUAGE -> "El idioma de traducción es el mismo que el del libro."
-        TranslationResult.Reason.LANGUAGE_PAIR_UNSUPPORTED -> "Este par de idiomas no está soportado."
-        TranslationResult.Reason.OFFLINE -> "Requiere conexión (no disponible sin red)."
-        TranslationResult.Reason.ENGINE_ERROR -> "El traductor ha fallado."
-        TranslationResult.Reason.MODEL_MISSING -> "Falta descargar el traductor de este idioma (≈40 MB)."
+        TranslationResult.Reason.NO_ENTRY ->
+            stringResource(R.string.translation_unavailable_no_entry, Languages.nameInSentence(target))
+        TranslationResult.Reason.SAME_LANGUAGE -> stringResource(R.string.translation_unavailable_same_language)
+        TranslationResult.Reason.LANGUAGE_PAIR_UNSUPPORTED -> stringResource(R.string.translation_unavailable_pair)
+        TranslationResult.Reason.OFFLINE -> stringResource(R.string.translation_unavailable_offline)
+        TranslationResult.Reason.ENGINE_ERROR -> stringResource(R.string.translation_unavailable_engine_error)
+        TranslationResult.Reason.MODEL_MISSING -> stringResource(R.string.translation_unavailable_model_missing)
     }
 
+    @Composable
     fun audioUnavailable(reason: EngineUnavailableReason, languageTag: String): String {
-        val lang = Languages.nameInSpanish(languageTag)
+        val lang = Languages.nameInSentence(languageTag)
         return when (reason) {
             EngineUnavailableReason.ENGINE_NOT_INSTALLED, EngineUnavailableReason.INIT_FAILED ->
-                "No hay motor de voz (TTS) disponible. Puedes leer y traducir sin audio."
-            EngineUnavailableReason.LANGUAGE_DATA_MISSING ->
-                "Falta la voz en $lang. Instálala para escuchar el texto; mientras tanto puedes leer y traducir."
-            EngineUnavailableReason.LANGUAGE_NOT_SUPPORTED ->
-                "El motor de voz no soporta el $lang. Puedes leer y traducir sin audio."
-            EngineUnavailableReason.VOICE_NOT_FOUND -> "La voz elegida ya no está instalada."
-            EngineUnavailableReason.SYNTHESIS_ERROR -> "El motor de voz ha fallado."
-            EngineUnavailableReason.MODEL_NOT_INSTALLED ->
-                "El modelo de Supertonic no está instalado. Descárgalo en Ajustes > Motor de voz o vuelve a la voz del sistema."
-            EngineUnavailableReason.OUT_OF_MEMORY ->
-                "No hay memoria suficiente para Supertonic en este dispositivo. Prueba con la voz del sistema."
+                stringResource(R.string.audio_unavailable_no_engine)
+            EngineUnavailableReason.LANGUAGE_DATA_MISSING -> stringResource(R.string.audio_unavailable_voice_missing, lang)
+            EngineUnavailableReason.LANGUAGE_NOT_SUPPORTED -> stringResource(R.string.audio_unavailable_language, lang)
+            EngineUnavailableReason.VOICE_NOT_FOUND -> stringResource(R.string.audio_unavailable_voice_not_found)
+            EngineUnavailableReason.SYNTHESIS_ERROR -> stringResource(R.string.audio_unavailable_synthesis_error)
+            EngineUnavailableReason.MODEL_NOT_INSTALLED -> stringResource(R.string.audio_unavailable_model_missing)
+            EngineUnavailableReason.OUT_OF_MEMORY -> stringResource(R.string.audio_unavailable_out_of_memory)
         }
     }
 }

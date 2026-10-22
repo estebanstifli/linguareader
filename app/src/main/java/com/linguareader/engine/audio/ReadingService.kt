@@ -77,7 +77,7 @@ class ReadingService : Service() {
     private fun notification(title: String): Notification {
         val manager = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            manager.createNotificationChannel(NotificationChannel(CHANNEL, "Lectura en voz alta", NotificationManager.IMPORTANCE_LOW))
+            manager.createNotificationChannel(NotificationChannel(CHANNEL, getString(R.string.notification_channel_reading), NotificationManager.IMPORTANCE_LOW))
         }
         val open = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
@@ -89,12 +89,12 @@ class ReadingService : Service() {
         )
         return NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_volume_up)
-            .setContentTitle(title.ifBlank { "LinguaReader" })
-            .setContentText("Leyendo en voz alta")
+            .setContentTitle(title.ifBlank { getString(R.string.app_name) })
+            .setContentText(getString(R.string.notification_reading_aloud))
             .setContentIntent(open)
             .setOngoing(true)
             .setSilent(true)
-            .addAction(R.drawable.ic_pause, "Pausar", pause)
+            .addAction(R.drawable.ic_pause, getString(R.string.player_pause), pause)
             .build()
     }
 

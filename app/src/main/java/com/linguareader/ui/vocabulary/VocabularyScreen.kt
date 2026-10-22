@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -52,15 +53,15 @@ fun VocabularyScreen(onBack: () -> Unit, vm: VocabularyViewModel = hiltViewModel
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Vocabulario") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Volver") } },
+                title = { Text(stringResource(R.string.section_vocabulary)) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.common_back)) } },
             )
         },
     ) { padding ->
         val list = entries
         if (list != null && list.isEmpty()) {
             Text(
-                "Aún no has guardado palabras. Toca una palabra mientras lees y pulsa «Guardar».",
+                stringResource(R.string.vocabulary_empty),
                 modifier = Modifier.padding(padding).padding(24.dp),
                 style = MaterialTheme.typography.bodyLarge,
             )
@@ -77,12 +78,12 @@ fun VocabularyScreen(onBack: () -> Unit, vm: VocabularyViewModel = hiltViewModel
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(e.term, style = MaterialTheme.typography.titleMedium)
                             Text(
-                                e.translation ?: "Sin traducción al ${Languages.nameInSpanish(e.targetLanguage)} en el libro",
+                                e.translation ?: stringResource(R.string.vocabulary_no_translation, Languages.nameInSentence(e.targetLanguage)),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = if (e.translation == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                             )
-                            e.lemma?.takeIf { it != e.term }?.let { Text("Forma base: $it", style = MaterialTheme.typography.bodySmall) }
-                            Text("«${e.context}»", style = MaterialTheme.typography.bodySmall, fontStyle = FontStyle.Italic)
+                            e.lemma?.takeIf { it != e.term }?.let { Text(stringResource(R.string.word_base_form, it), style = MaterialTheme.typography.bodySmall) }
+                            Text(stringResource(R.string.common_quoted, e.context), style = MaterialTheme.typography.bodySmall, fontStyle = FontStyle.Italic)
                             Text(
                                 "${e.bookTitle} · ${Languages.name(e.sourceLanguage)} → ${Languages.name(e.targetLanguage)}",
                                 style = MaterialTheme.typography.labelSmall,
@@ -90,7 +91,7 @@ fun VocabularyScreen(onBack: () -> Unit, vm: VocabularyViewModel = hiltViewModel
                             )
                         }
                         IconButton(onClick = { vm.delete(e.id) }) {
-                            Icon(painterResource(R.drawable.ic_delete), contentDescription = "Borrar ${e.term}")
+                            Icon(painterResource(R.drawable.ic_delete), contentDescription = stringResource(R.string.vocabulary_delete, e.term))
                         }
                     }
                 }

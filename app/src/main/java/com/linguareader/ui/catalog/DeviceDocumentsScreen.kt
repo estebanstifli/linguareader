@@ -1,6 +1,8 @@
 package com.linguareader.ui.catalog
 
 import android.net.Uri
+import android.text.format.Formatter
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -17,7 +19,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,7 +41,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -68,18 +74,42 @@ class DeviceDocumentsViewModel @Inject constructor(
 
     /** Importa el documento con el flujo de siempre: la biblioteca muestra el diálogo y abre el libro. */
     fun open(doc: DeviceDocumentEntity) {
-        val uri = if (doc.location.startsWith("content://")) Uri.parse(doc.location) else Uri.fromFile(File(doc.location))
-        pending.offer(ImportRequest.Document(uri))
+        pending.offer(ImportRequest.Document(uriOf(doc)))
     }
+
+    fun uriOf(doc: DeviceDocumentEntity): Uri =
+        if (doc.location.startsWith("content://")) Uri.parse(doc.location) else Uri.fromFile(File(doc.location))
 }
 
-private enum class Grouping(val label: String) { FORMAT("Formato"), AUTHOR("Autor"), FOLDER("Carpeta") }
+private enum class Grouping(@StringRes val label: Int) {
+    FORMAT(R.string.device_docs_group_format),
+    AUTHOR(R.string.device_docs_group_author),
+    FOLDER(R.string.device_docs_group_folder),
+}
 
 /** Documentos encontrados en el dispositivo (Ajustes › Examinar archivos), clasificados para elegir qué abrir. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DeviceDocumentsScreen(onBack: () -> Unit, onOpenScanSettings: () -> Unit, vm: DeviceDocumentsViewModel = hiltViewModel()) {
+fun DeviceDocumentsScreen(
+    onBack: () -> Unit,
+    onOpenScanSettings: () -> Unit,
+    onViewPdf: (uri: String, title: String) -> Unit = { _, _ -> },
+    vm: DeviceDocumentsViewModel = hiltViewModel(),
+) {
     val documents by vm.documents.collectAsStateWithLifecycle(initialValue = null)
+    var choosing by remember { mutableStateOf<DeviceDocumentEntity?>(null) }
+    choosing?.let { doc ->
+        // Un PDF se puede mirar sin importarlo; importarlo da el modo lectura (voz y traducción).
+        AlertDialog(
+            onDismissRequest = { choosing = null },
+            title = { Text(doc.title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+            text = { Text(stringResource(R.string.device_docs_pdf_choice)) },
+            confirmButton = { TextButton(onClick = { choosing = null; vm.open(doc) }) { Text(stringResource(R.string.device_docs_import_to_read)) } },
+            dismissButton = {
+                TextButton(onClick = { choosing = null; onViewPdf(vm.uriOf(doc).toString(), doc.title) }) { Text(stringResource(R.string.device_docs_just_view)) }
+            },
+        )
+    }
     var grouping by rememberSaveable { mutableStateOf(Grouping.FORMAT) }
     var format by rememberSaveable { mutableStateOf<String?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
@@ -87,10 +117,12 @@ fun DeviceDocumentsScreen(onBack: () -> Unit, onOpenScanSettings: () -> Unit, vm
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("En el dispositivo") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Volver") } },
+                title = { Text(stringResource(R.string.section_on_device)) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.common_back)) } },
                 actions = {
-                    IconButton(onClick = onOpenScanSettings) { Icon(painterResource(R.drawable.ic_settings), contentDescription = "Opciones de búsqueda") }
+                    IconButton(onClick = onOpenScanSettings) {
+                        Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.device_docs_scan_options))
+                    }
                 },
             )
         },
@@ -99,20 +131,20 @@ fun DeviceDocumentsScreen(onBack: () -> Unit, onOpenScanSettings: () -> Unit, vm
         Column(Modifier.fillMaxSize().padding(padding)) {
             if (all.isEmpty()) {
                 Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Aún no hay documentos encontrados.", style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.device_docs_empty), style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        "Busca los libros que ya tienes en el móvil desde Ajustes › Examinar archivos.",
+                        stringResource(R.string.device_docs_empty_hint),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    androidx.compose.material3.Button(onClick = onOpenScanSettings) { Text("Examinar archivos") }
+                    androidx.compose.material3.Button(onClick = onOpenScanSettings) { Text(stringResource(R.string.scan_title)) }
                 }
                 return@Column
             }
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                placeholder = { Text("Buscar por título, autor o archivo") },
+                placeholder = { Text(stringResource(R.string.device_docs_search_placeholder)) },
                 leadingIcon = { Icon(painterResource(R.drawable.ic_search), contentDescription = null) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
@@ -123,7 +155,7 @@ fun DeviceDocumentsScreen(onBack: () -> Unit, onOpenScanSettings: () -> Unit, vm
                         selected = grouping == g,
                         onClick = { grouping = g },
                         shape = SegmentedButtonDefaults.itemShape(i, Grouping.entries.size),
-                    ) { Text(g.label) }
+                    ) { Text(stringResource(g.label)) }
                 }
             }
             val formats = all.map { formatLabel(it.format) }.distinct().sorted()
@@ -131,7 +163,7 @@ fun DeviceDocumentsScreen(onBack: () -> Unit, onOpenScanSettings: () -> Unit, vm
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                FilterChip(selected = format == null, onClick = { format = null }, label = { Text("Todos (${all.size})") })
+                FilterChip(selected = format == null, onClick = { format = null }, label = { Text(stringResource(R.string.device_docs_all_count, all.size)) })
                 formats.forEach { f ->
                     FilterChip(
                         selected = format == f,
@@ -145,13 +177,14 @@ fun DeviceDocumentsScreen(onBack: () -> Unit, onOpenScanSettings: () -> Unit, vm
                 (format == null || formatLabel(d.format) == format) &&
                     (q.isEmpty() || listOfNotNull(d.title, d.author, d.fileName).any { q in it.lowercase(Locale.ROOT) })
             }
+            val unknownAuthor = stringResource(R.string.device_docs_unknown_author)
             val groups = visible.groupBy { d ->
                 when (grouping) {
                     Grouping.FORMAT -> formatLabel(d.format)
-                    Grouping.AUTHOR -> d.author ?: "Autor desconocido"
+                    Grouping.AUTHOR -> d.author ?: unknownAuthor
                     Grouping.FOLDER -> d.folder.substringAfterLast('/').ifEmpty { d.folder }
                 }
-            }.toSortedMap(compareBy<String> { it == "Autor desconocido" }.thenBy { it.lowercase(Locale.ROOT) })
+            }.toSortedMap(compareBy<String> { it == unknownAuthor }.thenBy { it.lowercase(Locale.ROOT) })
 
             LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 groups.forEach { (name, docs) ->
@@ -164,7 +197,9 @@ fun DeviceDocumentsScreen(onBack: () -> Unit, onOpenScanSettings: () -> Unit, vm
                         )
                     }
                     // Al importar, la app vuelve sola a la biblioteca (PendingImports.arrivals).
-                    items(docs, key = { it.location }) { doc -> DocumentRow(doc, onClick = { vm.open(doc) }) }
+                    items(docs, key = { it.location }) { doc ->
+                        DocumentRow(doc, onClick = { if (doc.format == "pdf") choosing = doc else vm.open(doc) })
+                    }
                 }
             }
         }
@@ -173,12 +208,14 @@ fun DeviceDocumentsScreen(onBack: () -> Unit, onOpenScanSettings: () -> Unit, vm
 
 @Composable
 private fun DocumentRow(doc: DeviceDocumentEntity, onClick: () -> Unit) {
+    val description = stringResource(R.string.device_docs_row_description, doc.title, formatLabel(doc.format))
+    val size = Formatter.formatShortFileSize(LocalContext.current, doc.sizeBytes)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .semantics(mergeDescendants = true) { contentDescription = "${doc.title}, ${formatLabel(doc.format)}. Tocar para abrir" }
+            .semantics(mergeDescendants = true) { contentDescription = description }
             .padding(vertical = 6.dp),
     ) {
         Box(
@@ -195,7 +232,7 @@ private fun DocumentRow(doc: DeviceDocumentEntity, onClick: () -> Unit) {
         Column(Modifier.weight(1f).padding(start = 12.dp)) {
             Text(doc.title, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(
-                listOfNotNull(doc.author, doc.language?.let(Languages::name), size(doc.sizeBytes)).joinToString(" · "),
+                listOfNotNull(doc.author, doc.language?.let(Languages::name), size).joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
@@ -212,7 +249,3 @@ private fun DocumentRow(doc: DeviceDocumentEntity, onClick: () -> Unit) {
     }
 }
 
-private fun size(bytes: Long): String = when {
-    bytes >= 1_000_000 -> "%.1f MB".format(Locale.ROOT, bytes / 1_000_000.0)
-    else -> "${(bytes / 1000).coerceAtLeast(1)} KB"
-}

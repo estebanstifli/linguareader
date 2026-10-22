@@ -32,3 +32,6 @@ tools/fonts/*.ttf
 __pycache__/
 # Descargas temporales de los agentes de libros
 .claude/scratch*/
+
+# Audio de narraciones de prueba (se publican como adjuntos de la release, no en git)
+test_mp3/

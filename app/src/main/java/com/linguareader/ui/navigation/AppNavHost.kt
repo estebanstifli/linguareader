@@ -13,16 +13,20 @@ import com.linguareader.ui.catalog.DeviceDocumentsScreen
 import com.linguareader.ui.reader.ReaderScreen
 import com.linguareader.ui.settings.SettingsPage
 import com.linguareader.ui.settings.SettingsScreen
+import com.linguareader.ui.viewer.PdfViewerScreen
 import com.linguareader.ui.vocabulary.VocabularyScreen
 import kotlinx.serialization.Serializable
 
 @Serializable object CatalogRoute
-@Serializable data class ReaderRoute(val bookId: String)
+/** [original]: abrir directamente el PDF original (con voz y traducción) en lugar del texto. */
+@Serializable data class ReaderRoute(val bookId: String, val original: Boolean = false)
 @Serializable object VocabularyRoute
 /** [page]: nombre de una [SettingsPage] para abrir directamente esa subpantalla; null = índice. */
 @Serializable data class SettingsRoute(val page: String? = null)
 @Serializable object DeviceDocumentsRoute
 @Serializable data class BookEditRoute(val bookId: String)
+/** PDF con su formato original: de un libro importado ([bookId]) o de un fichero sin importar ([uri]). */
+@Serializable data class PdfViewerRoute(val bookId: String? = null, val uri: String? = null, val title: String? = null)
 
 @Composable
 fun AppNavHost(pendingImports: PendingImports) {
@@ -39,10 +43,17 @@ fun AppNavHost(pendingImports: PendingImports) {
                 onOpenSettings = { nav.navigate(SettingsRoute()) },
                 onEditBook = { nav.navigate(BookEditRoute(it)) },
                 onOpenDeviceDocuments = { nav.navigate(DeviceDocumentsRoute) },
+                // El original de un libro importado se abre en el lector: con voz, resaltado y traducción al tocar.
+                onViewOriginal = { id, _ -> nav.navigate(ReaderRoute(id, original = true)) },
+                onViewPdf = { uri -> nav.navigate(PdfViewerRoute(uri = uri)) },
             )
         }
-        composable<ReaderRoute> {
-            ReaderScreen(onBack = { nav.popBackStack() }, onOpenSettings = { nav.navigate(SettingsRoute(SettingsPage.VOICE.name)) })
+        composable<ReaderRoute> { entry ->
+            ReaderScreen(
+                onBack = { nav.popBackStack() },
+                onOpenSettings = { nav.navigate(SettingsRoute(SettingsPage.VOICE.name)) },
+                startInOriginal = entry.toRoute<ReaderRoute>().original,
+            )
         }
         composable<VocabularyRoute> { VocabularyScreen(onBack = { nav.popBackStack() }) }
         composable<SettingsRoute> { entry ->
@@ -53,8 +64,19 @@ fun AppNavHost(pendingImports: PendingImports) {
             }, initialPage = page)
         }
         composable<DeviceDocumentsRoute> {
-            DeviceDocumentsScreen(onBack = { nav.popBackStack() }, onOpenScanSettings = { nav.navigate(SettingsRoute(SettingsPage.FILES.name)) })
+            DeviceDocumentsScreen(
+                onBack = { nav.popBackStack() },
+                onOpenScanSettings = { nav.navigate(SettingsRoute(SettingsPage.FILES.name)) },
+                onViewPdf = { uri, title -> nav.navigate(PdfViewerRoute(uri = uri, title = title)) },
+            )
         }
         composable<BookEditRoute> { BookEditScreen(onBack = { nav.popBackStack() }) }
+        composable<PdfViewerRoute> {
+            PdfViewerScreen(
+                onBack = { nav.popBackStack() },
+                // Del visor al lector sin apilar: «Atrás» vuelve a la biblioteca.
+                onOpenReader = { id -> nav.navigate(ReaderRoute(id)) { popUpTo<PdfViewerRoute> { inclusive = true } } },
+            )
+        }
     }
 }

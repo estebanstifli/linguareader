@@ -68,6 +68,7 @@ class UserPreferencesRepository @Inject constructor(
         val keepScreenOn = booleanPreferencesKey("keep_screen_on")
         val doublePage = booleanPreferencesKey("double_page")
         val libraryGrid = booleanPreferencesKey("library_grid")
+        val originalOpenMode = stringPreferencesKey("original_open_mode")
         val audioCacheMb = intPreferencesKey("audio_cache_mb")
         val translationSetupDone = booleanPreferencesKey("translation_setup_done")
         val translationWifiOnly = booleanPreferencesKey("translation_wifi_only")
@@ -116,6 +117,7 @@ class UserPreferencesRepository @Inject constructor(
             stored[Keys.keepScreenOn] = next.keepScreenOn
             stored[Keys.doublePage] = next.doublePage
             stored[Keys.libraryGrid] = next.libraryGrid
+            stored[Keys.originalOpenMode] = next.originalOpenMode.name
             stored[Keys.audioCacheMb] = next.audioCacheMb
             stored[Keys.translationSetupDone] = next.translationSetupDone
             stored[Keys.translationWifiOnly] = next.translationWifiOnly
@@ -161,6 +163,7 @@ class UserPreferencesRepository @Inject constructor(
             keepScreenOn = p[Keys.keepScreenOn] ?: d.keepScreenOn,
             doublePage = p[Keys.doublePage] ?: d.doublePage,
             libraryGrid = p[Keys.libraryGrid] ?: d.libraryGrid,
+            originalOpenMode = enumOr(p[Keys.originalOpenMode], d.originalOpenMode),
             audioCacheMb = p[Keys.audioCacheMb] ?: d.audioCacheMb,
             translationSetupDone = p[Keys.translationSetupDone] ?: d.translationSetupDone,
             translationWifiOnly = p[Keys.translationWifiOnly] ?: d.translationWifiOnly,

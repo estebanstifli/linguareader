@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -73,12 +74,12 @@ fun WordCardSheet(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(lookup.token.text, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
                 IconButton(onClick = { onSpeak(lookup.token.text) }) {
-                    Icon(painterResource(R.drawable.ic_volume_up), contentDescription = "Escuchar palabra")
+                    Icon(painterResource(R.drawable.ic_volume_up), contentDescription = stringResource(R.string.word_listen))
                 }
             }
             val expressionIsSameEntry = lookup.expression?.let { !it.isMultiToken } == true
             if (!expressionIsSameEntry) {
-                lookup.wordLemma?.let { Text("Lema: $it", style = MaterialTheme.typography.labelLarge) }
+                lookup.wordLemma?.let { Text(stringResource(R.string.word_lemma, it), style = MaterialTheme.typography.labelLarge) }
                 TranslationLine(lookup.word, card.targetLanguage)
             }
 
@@ -86,12 +87,16 @@ fun WordCardSheet(
                 Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.primaryContainer) {
                     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            "${Labels.termKind(match.entry.kind)} · «${match.surface}»",
+                            "${Labels.termKind(match.entry.kind)} · ${stringResource(R.string.common_quoted, match.surface)}",
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
                         if (match.entry.lemma != match.surface.lowercase()) {
-                            Text("Forma base: ${match.entry.lemma}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Text(
+                                stringResource(R.string.word_base_form, match.entry.lemma),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
                         }
                         lookup.expressionTranslation?.let { TranslationLine(it, card.targetLanguage) }
                     }
@@ -101,7 +106,7 @@ fun WordCardSheet(
             val examples = (lookup.expressionTranslation as? TranslationResult.Translated)?.examples.orEmpty() +
                 (lookup.word as? TranslationResult.Translated)?.examples.orEmpty()
             if (examples.isNotEmpty()) {
-                Text("Ejemplos", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.word_examples), style = MaterialTheme.typography.titleSmall)
                 examples.forEach { ex ->
                     Text(ex.text, style = MaterialTheme.typography.bodyMedium)
                     ex.translation?.let { Text(it, style = MaterialTheme.typography.bodySmall, fontStyle = FontStyle.Italic) }
@@ -109,19 +114,19 @@ fun WordCardSheet(
             }
 
             HorizontalDivider()
-            Text("En la frase", style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.word_in_sentence), style = MaterialTheme.typography.titleSmall)
             Text(lookup.sentence.text, style = MaterialTheme.typography.bodyMedium)
             TranslationLine(lookup.sentenceTranslation, card.targetLanguage, italic = true)
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 OutlinedButton(onClick = onSave, enabled = !card.saved) {
                     Icon(painterResource(R.drawable.ic_star), contentDescription = null)
-                    Text(if (card.saved) " Guardada" else " Guardar")
+                    Text(" " + stringResource(if (card.saved) R.string.word_saved else R.string.common_save))
                 }
-                OutlinedButton(onClick = onReadFromHere) { Text("Leer desde aquí") }
+                OutlinedButton(onClick = onReadFromHere) { Text(stringResource(R.string.word_read_from_here)) }
             }
             if (card.pausedForCard) {
-                Button(onClick = onResume, modifier = Modifier.fillMaxWidth()) { Text("Reanudar lectura") }
+                Button(onClick = onResume, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.reader_resume)) }
             }
         }
     }
@@ -136,15 +141,15 @@ fun SentenceCardSheet(card: SentenceCardState, onDismiss: () -> Unit, onSpeak: (
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Frase", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.sentence_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 IconButton(onClick = { onSpeak(card.text) }) {
-                    Icon(painterResource(R.drawable.ic_volume_up), contentDescription = "Escuchar frase")
+                    Icon(painterResource(R.drawable.ic_volume_up), contentDescription = stringResource(R.string.sentence_listen))
                 }
             }
             Text(card.text, style = MaterialTheme.typography.bodyLarge)
             card.translation?.let { TranslationLine(it, card.targetLanguage, italic = true) }
             if (card.pausedForCard) {
-                Button(onClick = onResume, modifier = Modifier.fillMaxWidth()) { Text("Reanudar lectura") }
+                Button(onClick = onResume, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.reader_resume)) }
             }
         }
     }
@@ -163,7 +168,7 @@ private fun TranslationLine(result: TranslationResult, target: String, italic: B
             result.partOfSpeech?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             // Distinguir lo revisado (incluido en el libro) de lo calculado por la máquina.
             if (result.providerId == MlKitTranslationEngine.ID) {
-                Text("Traducción automática", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.translation_machine), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         is TranslationResult.Unavailable -> Text(
@@ -221,7 +226,11 @@ fun IndexSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.88f).navigationBarsPadding()) {
             PrimaryTabRow(selectedTabIndex = tab) {
-                listOf("Capítulos", "Marcadores (${bookmarks.size})", "Vocabulario (${vocabulary.size})").forEachIndexed { i, label ->
+                listOf(
+                    stringResource(R.string.index_tab_chapters),
+                    stringResource(R.string.index_tab_bookmarks, bookmarks.size),
+                    stringResource(R.string.index_tab_vocabulary, vocabulary.size),
+                ).forEachIndexed { i, label ->
                     Tab(selected = tab == i, onClick = { tab = i }, text = { Text(label, maxLines = 1) })
                 }
             }
@@ -256,19 +265,19 @@ fun IndexSheet(
                     }
                 }
                 1 -> if (bookmarks.isEmpty()) {
-                    EmptyTab("Aún no hay marcadores. Mientras lees, toca el centro de la página y pulsa el marcador de la barra inferior para marcar la página.")
+                    EmptyTab(stringResource(R.string.index_bookmarks_empty))
                 } else {
                     LazyColumn(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
                         items(bookmarks, key = { it.id }) { b ->
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { onSelectBookmark(b) }) {
                                 Column(Modifier.weight(1f).padding(vertical = 10.dp)) {
                                     val chapter = book.passages.getOrNull(b.passageIndex)?.let(book::chapterOf)?.title.orEmpty()
-                                    val page = pageOf(b.passageIndex, b.charOffset)?.let { "Página ${it + 1}" }
+                                    val page = pageOf(b.passageIndex, b.charOffset)?.let { stringResource(R.string.index_page, it + 1) }
                                     Text(listOfNotNull(page, chapter.takeIf { it.isNotBlank() }).joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                                     Text(b.excerpt, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
                                 }
                                 IconButton(onClick = { onDeleteBookmark(b.id) }) {
-                                    Icon(painterResource(R.drawable.ic_delete), contentDescription = "Borrar marcador")
+                                    Icon(painterResource(R.drawable.ic_delete), contentDescription = stringResource(R.string.index_delete_bookmark))
                                 }
                             }
                             HorizontalDivider()
@@ -276,7 +285,7 @@ fun IndexSheet(
                     }
                 }
                 else -> if (vocabulary.isEmpty()) {
-                    EmptyTab("Aún no has guardado palabras de este libro. Mantén pulsada una palabra y pulsa «Guardar».")
+                    EmptyTab(stringResource(R.string.index_vocabulary_empty))
                 } else {
                     LazyColumn(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
                         items(vocabulary, key = { it.id }) { v ->

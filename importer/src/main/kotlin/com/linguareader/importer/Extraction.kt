@@ -1,6 +1,7 @@
 package com.linguareader.importer
 
 import com.linguareader.core.model.CefrLevel
+import com.linguareader.core.model.NarrationRef
 import java.io.File
 
 /** Fichero a importar, ya copiado a almacenamiento local (los formatos ZIP necesitan acceso aleatorio). */
@@ -61,6 +62,10 @@ data class ExtractedDocument(
     val cover: ExtractedImage? = null,
     /** Nivel MCER si el documento lo declara (EPUB: meta schema:educationalLevel o dc:subject «CEFR A1»). */
     val level: CefrLevel? = null,
+    /** Narración pregrabada declarada por el documento (EPUB de la biblioteca: meta linguareader:narration-*). */
+    val narration: NarrationRef? = null,
+    /** Páginas del original si el formato las tiene (PDF); orienta al visor del formato original. */
+    val pageCount: Int? = null,
 ) {
     val paragraphCount: Int get() = chapters.sumOf { c -> c.blocks.count { it is ExtractedBlock.Paragraph } }
 }

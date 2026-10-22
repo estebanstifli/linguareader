@@ -80,6 +80,8 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
@@ -109,13 +111,23 @@ import com.linguareader.ui.common.Labels
 import com.linguareader.ui.common.Languages
 import com.linguareader.ui.reader.paging.PagedBook
 import com.linguareader.ui.reader.paging.TextPos
+import java.text.NumberFormat
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ReaderScreen(onBack: () -> Unit, onOpenSettings: () -> Unit = {}, vm: ReaderViewModel = hiltViewModel()) {
+fun ReaderScreen(
+    onBack: () -> Unit,
+    onOpenSettings: () -> Unit = {},
+    startInOriginal: Boolean = false,
+    vm: ReaderViewModel = hiltViewModel(),
+    pdfVm: OriginalPdfViewModel = hiltViewModel(),
+) {
     val ui by vm.state.collectAsStateWithLifecycle()
+    val pdfAvailable by pdfVm.available.collectAsStateWithLifecycle()
+    // «Ver original»: las páginas del PDF en lugar del texto paginado, con la misma voz, traducción y progreso.
+    var originalMode by rememberSaveable { mutableStateOf(startInOriginal) }
     val prefs by vm.preferences.collectAsStateWithLifecycle()
     val playback by vm.playback.collectAsStateWithLifecycle()
     val anchor by vm.anchor.collectAsStateWithLifecycle()
@@ -124,6 +136,7 @@ fun ReaderScreen(onBack: () -> Unit, onOpenSettings: () -> Unit = {}, vm: Reader
     val library by vm.library.collectAsStateWithLifecycle()
     val vocabulary by vm.bookVocabulary.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val shareTitle = stringResource(R.string.catalog_share_book)
     val scope = rememberCoroutineScope()
 
     // Pantalla completa por defecto: los controles salen al tocar el texto (y, sobre una palabra, su minitarjeta).
@@ -160,9 +173,34 @@ fun ReaderScreen(onBack: () -> Unit, onOpenSettings: () -> Unit = {}, vm: Reader
             Box(Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { textArea = it.boundsInRoot() }) {
                 val book = ui.book
                 when {
-                    ui.error != null -> Text(ui.error!!, Modifier.padding(24.dp), color = MaterialTheme.colorScheme.error)
+                    ui.error != null -> Text(ui.error!!.asString(), Modifier.padding(24.dp), color = MaterialTheme.colorScheme.error)
                     // Sin la posición guardada aún no se pagina: se abriría en la página 1 y se perdería el punto de lectura.
                     book == null || anchor == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                    originalMode -> ReaderPdfContent(
+                        pdf = pdfVm,
+                        book = book,
+                        playback = playback,
+                        prefs = prefs,
+                        tappedTokenId = ui.wordCard?.tokenId,
+                        anchor = anchor,
+                        jumps = vm.jumps,
+                        onTap = { hit ->
+                            if (controlsVisible || ui.wordCard != null) {
+                                controlsVisible = false
+                                vm.dismissCards()
+                            } else {
+                                controlsVisible = true
+                                if (hit != null) {
+                                    tappedWord = hit.bounds
+                                    vm.onTokenTap(hit.token.id)
+                                }
+                            }
+                        },
+                        onUserMoved = { pos -> vm.onPageSettled(pos, setOf(pos.passage), user = true) },
+                        onShowText = { originalMode = false },
+                        indicatorPadding = 16.dp,
+                        modifier = Modifier.windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility),
+                    )
                     else -> PagedReaderContent(
                         book = book,
                         prefs = prefs,
@@ -201,7 +239,7 @@ fun ReaderScreen(onBack: () -> Unit, onOpenSettings: () -> Unit = {}, vm: Reader
                     )
                 }
                 // Barra inferior (sobre el texto, encima del reproductor si lo hay).
-                SlideFromEdge(visible = controlsVisible && paged != null, fromBottom = true, modifier = Modifier.align(Alignment.BottomCenter)) {
+                SlideFromEdge(visible = controlsVisible && paged != null && !originalMode, fromBottom = true, modifier = Modifier.align(Alignment.BottomCenter)) {
                     val book = paged
                     if (book != null) Box(Modifier.onSizeChanged { bottomBarHeight = it.height }) {
                         ReaderBottomBar(
@@ -256,14 +294,19 @@ fun ReaderScreen(onBack: () -> Unit, onOpenSettings: () -> Unit = {}, vm: Reader
             Column(Modifier.onSizeChanged { topBarHeight = it.height }) {
                 ReaderTopBar(
                     book = ui.book,
-                    chapterTitle = currentPage?.let { p -> ui.book?.chapters?.getOrNull(p.chapter)?.title },
-                    chapterPage = paged?.let { pb ->
+                    chapterTitle = currentPage?.takeIf { !originalMode }?.let { p -> ui.book?.chapters?.getOrNull(p.chapter)?.title },
+                    chapterPage = paged?.takeIf { !originalMode }?.let { pb ->
                         val range = pb.chapterRange(pager.currentPage)
                         if (range.isEmpty()) null else (pager.currentPage - range.first + 1) to (range.last - range.first + 1)
                     },
                     ttsMode = prefs.ttsMode,
                     library = library,
                     hasIndex = true,
+                    original = if (pdfAvailable || originalMode) originalMode else null,
+                    onToggleOriginal = {
+                        originalMode = !originalMode
+                        vm.dismissCards()
+                    },
                     onBack = onBack,
                     onToggleTts = {
                         val enable = !prefs.ttsMode
@@ -281,7 +324,7 @@ fun ReaderScreen(onBack: () -> Unit, onOpenSettings: () -> Unit = {}, vm: Reader
                                 .putExtra(Intent.EXTRA_STREAM, uri)
                                 .putExtra(Intent.EXTRA_SUBJECT, ui.book?.title)
                                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            context.startActivity(Intent.createChooser(send, "Compartir libro"))
+                            context.startActivity(Intent.createChooser(send, shareTitle))
                         }
                     },
                     onShelf = vm::setInShelf,
@@ -373,7 +416,7 @@ fun ReaderScreen(onBack: () -> Unit, onOpenSettings: () -> Unit = {}, vm: Reader
                 imported = vm.isImported,
                 progress = paged?.let { (pager.currentPage + 1f) / it.size.coerceAtLeast(1) },
                 pageCount = paged?.size,
-                shelves = library.shelves.filter { book.id in it.bookIds }.map { it.name },
+                shelves = library.shelves.filter { book.id in it.bookIds }.map { Labels.shelf(it) },
                 onDismiss = { sheet = ReaderSheet.NONE },
             )
         }
@@ -383,12 +426,12 @@ fun ReaderScreen(onBack: () -> Unit, onOpenSettings: () -> Unit = {}, vm: Reader
         )
         ReaderSheet.TRASH -> AlertDialog(
             onDismissRequest = { sheet = ReaderSheet.NONE },
-            title = { Text("Enviar a la papelera") },
-            text = { Text("«${book?.title.orEmpty()}» saldrá de la biblioteca. Puedes restaurarlo desde la Papelera de la biblioteca.") },
+            title = { Text(stringResource(R.string.catalog_move_to_trash)) },
+            text = { Text(stringResource(R.string.reader_trash_message, book?.title.orEmpty())) },
             confirmButton = {
-                TextButton(onClick = { sheet = ReaderSheet.NONE; vm.moveToTrash(onBack) }) { Text("Enviar a la papelera") }
+                TextButton(onClick = { sheet = ReaderSheet.NONE; vm.moveToTrash(onBack) }) { Text(stringResource(R.string.catalog_move_to_trash)) }
             },
-            dismissButton = { TextButton(onClick = { sheet = ReaderSheet.NONE }) { Text("Cancelar") } },
+            dismissButton = { TextButton(onClick = { sheet = ReaderSheet.NONE }) { Text(stringResource(R.string.common_cancel)) } },
         )
     }
 }
@@ -486,6 +529,9 @@ private fun ReaderTopBar(
     ttsMode: Boolean,
     library: LibraryState,
     hasIndex: Boolean,
+    /** null: sin original que ver; true: se está viendo el PDF; false: el texto. */
+    original: Boolean?,
+    onToggleOriginal: () -> Unit,
     onBack: () -> Unit,
     onToggleTts: () -> Unit,
     onSearch: () -> Unit,
@@ -500,20 +546,28 @@ private fun ReaderTopBar(
     Surface(color = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, shadowElevation = 4.dp) {
         Column(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility).padding(bottom = 10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Volver") }
+                IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.common_back)) }
                 Spacer(Modifier.weight(1f))
+                if (original != null) {
+                    IconButton(onClick = onToggleOriginal) {
+                        Icon(
+                            painterResource(if (original) R.drawable.ic_menu_book else R.drawable.ic_find_in_page),
+                            contentDescription = stringResource(if (original) R.string.reader_view_as_text else R.string.reader_view_original_pdf),
+                        )
+                    }
+                }
                 // Orden: navegar (índice, buscar), escuchar, ajustar, más.
                 if (hasIndex) {
-                    IconButton(onClick = onIndex) { Icon(painterResource(R.drawable.ic_list), contentDescription = "Índice, marcadores y vocabulario") }
+                    IconButton(onClick = onIndex) { Icon(painterResource(R.drawable.ic_list), contentDescription = stringResource(R.string.reader_index)) }
                 }
-                IconButton(onClick = onSearch) { Icon(painterResource(R.drawable.ic_search), contentDescription = "Buscar en el libro") }
+                IconButton(onClick = onSearch) { Icon(painterResource(R.drawable.ic_search), contentDescription = stringResource(R.string.reader_search_book)) }
                 IconButton(onClick = onToggleTts) {
                     Icon(
                         painterResource(if (ttsMode) R.drawable.ic_volume_up else R.drawable.ic_volume_off),
-                        contentDescription = if (ttsMode) "Desactivar lectura en voz alta" else "Activar lectura en voz alta",
+                        contentDescription = stringResource(if (ttsMode) R.string.reader_tts_off else R.string.reader_tts_on),
                     )
                 }
-                IconButton(onClick = onSettings) { Icon(painterResource(R.drawable.ic_settings), contentDescription = "Ajustes de lectura") }
+                IconButton(onClick = onSettings) { Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.reader_settings)) }
                 OverflowMenu(
                     ttsMode = ttsMode,
                     library = library,
@@ -532,7 +586,7 @@ private fun ReaderTopBar(
                 }
                 val chapterLine = listOfNotNull(
                     chapterTitle?.takeIf { it.isNotBlank() },
-                    chapterPage?.let { (n, total) -> "página $n/$total" },
+                    chapterPage?.let { (n, total) -> stringResource(R.string.reader_chapter_page, n, total) },
                 ).joinToString(" - ")
                 if (chapterLine.isNotEmpty()) {
                     Text(chapterLine, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -557,48 +611,50 @@ private fun OverflowMenu(
     var open by remember { mutableStateOf(false) }
     var addMenu by remember { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { open = true; addMenu = false }) { Icon(painterResource(R.drawable.ic_more_vert), contentDescription = "Más opciones") }
+        IconButton(onClick = { open = true; addMenu = false }) {
+            Icon(painterResource(R.drawable.ic_more_vert), contentDescription = stringResource(R.string.common_more_options))
+        }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             if (!addMenu) {
                 DropdownMenuItem(
-                    text = { Text("Compartir archivo") },
+                    text = { Text(stringResource(R.string.reader_share_file)) },
                     leadingIcon = { Icon(painterResource(R.drawable.ic_share), contentDescription = null) },
                     onClick = { open = false; onShare() },
                 )
                 DropdownMenuItem(
-                    text = { Text("Agregar a…") },
+                    text = { Text(stringResource(R.string.reader_add_to)) },
                     leadingIcon = { Icon(painterResource(R.drawable.ic_folder), contentDescription = null) },
                     trailingIcon = { Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null) },
                     onClick = { addMenu = true },
                 )
                 DropdownMenuItem(
-                    text = { Text("Enviar a la papelera") },
+                    text = { Text(stringResource(R.string.catalog_move_to_trash)) },
                     leadingIcon = { Icon(painterResource(R.drawable.ic_delete), contentDescription = null) },
                     onClick = { open = false; onTrash() },
                 )
                 DropdownMenuItem(
-                    text = { Text("Acerca del documento") },
+                    text = { Text(stringResource(R.string.reader_about)) },
                     leadingIcon = { Icon(painterResource(R.drawable.ic_info), contentDescription = null) },
                     onClick = { open = false; onAbout() },
                 )
             } else {
                 DropdownMenuItem(
-                    text = { Text("Agregar a…", fontWeight = FontWeight.SemiBold) },
-                    leadingIcon = { Icon(painterResource(R.drawable.ic_chevron_left), contentDescription = "Volver al menú") },
+                    text = { Text(stringResource(R.string.reader_add_to), fontWeight = FontWeight.SemiBold) },
+                    leadingIcon = { Icon(painterResource(R.drawable.ic_chevron_left), contentDescription = stringResource(R.string.reader_back_to_menu)) },
                     onClick = { addMenu = false },
                 )
                 HorizontalDivider()
                 library.shelves.forEach { shelf ->
                     val member = bookId != null && bookId in shelf.bookIds
                     DropdownMenuItem(
-                        text = { Text(shelf.name) },
+                        text = { Text(Labels.shelf(shelf)) },
                         leadingIcon = { Checkbox(checked = member, onCheckedChange = null) },
                         onClick = { onShelf(shelf.id, !member) },
                     )
                 }
                 HorizontalDivider()
                 DropdownMenuItem(
-                    text = { Text("Nueva colección…") },
+                    text = { Text(stringResource(R.string.reader_new_collection_menu)) },
                     leadingIcon = { Icon(painterResource(R.drawable.ic_add), contentDescription = null) },
                     onClick = { open = false; onNewCollection() },
                 )
@@ -624,6 +680,7 @@ private fun ReaderBottomBar(
     var value by remember { mutableFloatStateOf(page.toFloat()) }
     if (!dragging) value = page.toFloat()
     val shown = value.toInt() + 1
+    val pageDescription = stringResource(R.string.reader_page_of, shown, paged.size)
     Surface(color = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, shadowElevation = 4.dp) {
         Column(
             Modifier
@@ -634,18 +691,21 @@ private fun ReaderBottomBar(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Spacer(Modifier.width(48.dp))
                 Text(
-                    "$shown de ${paged.size}",
+                    stringResource(R.string.reader_page_short, shown, paged.size),
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f).semantics { contentDescription = "Página $shown de ${paged.size}" },
+                    modifier = Modifier.weight(1f).semantics { contentDescription = pageDescription },
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
                 IconButton(onClick = onOrientation) {
-                    Icon(painterResource(R.drawable.ic_screen_rotation), contentDescription = "Orientación: ${Labels.orientation(orientation)}")
+                    Icon(
+                        painterResource(R.drawable.ic_screen_rotation),
+                        contentDescription = stringResource(R.string.reader_orientation, Labels.orientation(orientation)),
+                    )
                 }
                 IconButton(onClick = onBookmark) {
                     Icon(
                         painterResource(if (bookmarked) R.drawable.ic_bookmark else R.drawable.ic_bookmark_border),
-                        contentDescription = if (bookmarked) "Quitar marcador de esta página" else "Marcar esta página",
+                        contentDescription = stringResource(if (bookmarked) R.string.reader_bookmark_remove else R.string.reader_bookmark_add),
                     )
                 }
             }
@@ -686,7 +746,7 @@ private fun SearchSheet(
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                label = { Text("Buscar en el libro") },
+                label = { Text(stringResource(R.string.reader_search_book)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { onQuery(query) }),
@@ -695,11 +755,12 @@ private fun SearchSheet(
             Spacer(Modifier.height(8.dp))
             when {
                 searching -> LinearProgressIndicator(Modifier.fillMaxWidth())
-                hits == null -> Text("Escribe al menos dos letras. No distingue mayúsculas ni acentos.", style = MaterialTheme.typography.bodySmall)
-                hits.isEmpty() -> Text("Sin resultados.", style = MaterialTheme.typography.bodyMedium)
+                hits == null -> Text(stringResource(R.string.reader_search_hint), style = MaterialTheme.typography.bodySmall)
+                hits.isEmpty() -> Text(stringResource(R.string.reader_search_no_results), style = MaterialTheme.typography.bodyMedium)
                 else -> {
                     Text(
-                        if (hits.size >= 200) "Más de 200 resultados (se muestran los primeros)" else "${hits.size} resultados",
+                        if (hits.size >= 200) stringResource(R.string.reader_search_too_many, 200)
+                        else pluralStringResource(R.plurals.reader_search_results, hits.size, hits.size),
                         style = MaterialTheme.typography.labelMedium,
                     )
                     LazyColumn(Modifier.fillMaxWidth().height(420.dp)) {
@@ -738,28 +799,29 @@ private fun AboutSheet(book: Book, imported: Boolean, progress: Float?, pageCoun
             Text(book.title, style = MaterialTheme.typography.headlineSmall)
             book.description?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
             HorizontalDivider()
-            Detail("Autoría", book.authors.joinToString().ifBlank { "—" })
-            Detail("Idioma", Languages.name(book.learningLanguage))
-            Detail("Nivel", book.cefrLevel.name)
-            book.genre?.let { Detail("Género", it) }
-            Detail("Origen", if (imported) "Importado por ti" else "Incluido en la app")
-            Detail("Capítulos", book.chapters.size.toString())
-            Detail("Pasajes", book.passages.size.toString())
-            pageCount?.let { Detail("Páginas (con el tamaño de letra actual)", it.toString()) }
-            Detail("Palabras", "%,d".format(book.wordCount).replace(',', '.'))
-            Detail("Tiempo estimado de lectura en voz alta", "≈ ${Book.estimateMinutes(book.wordCount, book.cefrLevel)} min")
-            progress?.let { Detail("Progreso", "${(it * 100).toInt()} %") }
+            val number = NumberFormat.getIntegerInstance()
+            Detail(stringResource(R.string.about_authors), book.authors.joinToString().ifBlank { "—" })
+            Detail(stringResource(R.string.about_language), Languages.name(book.learningLanguage))
+            Detail(stringResource(R.string.about_level), book.cefrLevel.name)
+            book.genre?.let { Detail(stringResource(R.string.about_genre), it) }
+            Detail(stringResource(R.string.about_origin), stringResource(if (imported) R.string.about_origin_imported else R.string.catalog_included_in_app))
+            Detail(stringResource(R.string.about_chapters), number.format(book.chapters.size))
+            Detail(stringResource(R.string.about_passages), number.format(book.passages.size))
+            pageCount?.let { Detail(stringResource(R.string.about_pages), number.format(it)) }
+            Detail(stringResource(R.string.about_words), number.format(book.wordCount))
+            Detail(stringResource(R.string.about_listening_time), stringResource(R.string.catalog_minutes, Book.estimateMinutes(book.wordCount, book.cefrLevel)))
+            progress?.let { Detail(stringResource(R.string.about_progress), stringResource(R.string.common_percent, (it * 100).toInt())) }
             if (book.fullyTranslatedLanguages.isNotEmpty()) {
-                Detail("Traducciones incluidas", book.fullyTranslatedLanguages.sorted().joinToString { Languages.name(it) })
+                Detail(stringResource(R.string.about_translations), book.fullyTranslatedLanguages.sorted().joinToString { Languages.name(it) })
             }
-            if (book.glossary.isNotEmpty()) Detail("Entradas de glosario", book.glossary.size.toString())
-            if (shelves.isNotEmpty()) Detail("En", shelves.joinToString())
+            if (book.glossary.isNotEmpty()) Detail(stringResource(R.string.about_glossary_entries), number.format(book.glossary.size))
+            if (shelves.isNotEmpty()) Detail(stringResource(R.string.about_shelves), shelves.joinToString())
             HorizontalDivider()
-            book.adaptationCredit?.let { Detail("Adaptación", it) }
-            Detail("Licencia", book.license.name ?: book.license.id)
-            book.license.url?.let { Detail("Licencia (enlace)", it) }
-            Detail("Procedencia", book.sourceAttribution)
-            Detail("Identificador", book.id)
+            book.adaptationCredit?.let { Detail(stringResource(R.string.about_adaptation), it) }
+            Detail(stringResource(R.string.about_license), book.license.name ?: book.license.id)
+            book.license.url?.let { Detail(stringResource(R.string.about_license_link), it) }
+            Detail(stringResource(R.string.about_source), book.sourceAttribution)
+            Detail(stringResource(R.string.about_identifier), book.id)
         }
     }
 }
@@ -777,12 +839,18 @@ internal fun NewCollectionDialog(onCreate: (String) -> Unit, onDismiss: () -> Un
     var name by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Nueva colección") },
+        title = { Text(stringResource(R.string.collection_new_title)) },
         text = {
-            OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nombre") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text(stringResource(R.string.collection_name)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
         },
-        confirmButton = { TextButton(onClick = { onCreate(name) }, enabled = name.isNotBlank()) { Text("Crear y agregar") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
+        confirmButton = { TextButton(onClick = { onCreate(name) }, enabled = name.isNotBlank()) { Text(stringResource(R.string.collection_create_and_add)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
     )
 }
 
@@ -790,13 +858,13 @@ internal fun NewCollectionDialog(onCreate: (String) -> Unit, onDismiss: () -> Un
 @Composable
 private fun TranslationModelBanner(missing: List<String>, downloads: Map<String, ModelDownload>, onDownload: () -> Unit) {
     if (missing.isEmpty()) return
-    val names = missing.joinToString(" y ") { Languages.nameInSpanish(it) }
+    val names = missing.joinToString(stringResource(R.string.common_and_separator)) { Languages.nameInSentence(it) }
     val running = missing.any { downloads[it] == ModelDownload.Running }
-    val error = missing.firstNotNullOfOrNull { (downloads[it] as? ModelDownload.Failed)?.message }
+    val error = missing.firstNotNullOfOrNull { (downloads[it] as? ModelDownload.Failed)?.message }?.asString()
     Surface(color = MaterialTheme.colorScheme.tertiaryContainer, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
-                "Para traducir hace falta el traductor de $names (≈${40 * missing.size} MB, se descarga una vez y funciona sin conexión).",
+                stringResource(R.string.reader_translator_missing, names, 40 * missing.size),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onTertiaryContainer,
             )
@@ -804,7 +872,7 @@ private fun TranslationModelBanner(missing: List<String>, downloads: Map<String,
                 running -> LinearProgressIndicator(Modifier.fillMaxWidth())
                 else -> {
                     error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
-                    TextButton(onClick = onDownload) { Text(if (error != null) "Reintentar descarga" else "Descargar") }
+                    TextButton(onClick = onDownload) { Text(stringResource(if (error != null) R.string.reader_retry_download else R.string.common_download)) }
                 }
             }
         }
@@ -818,7 +886,7 @@ private fun AudioBanner(playback: PlaybackState, onRetry: () -> Unit, onOpenSett
     val readiness = playback.readiness
     val message = when {
         readiness is EngineReadiness.Unavailable -> Labels.audioUnavailable(readiness.reason, readiness.languageTag)
-        playback.status == PlaybackStatus.ERROR -> "El motor de voz ha fallado (código ${playback.errorCode}). Pulsa reproducir para reintentar."
+        playback.status == PlaybackStatus.ERROR -> stringResource(R.string.reader_tts_error_code, playback.errorCode ?: "?")
         else -> return
     }
     Surface(color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.fillMaxWidth()) {
@@ -826,8 +894,8 @@ private fun AudioBanner(playback: PlaybackState, onRetry: () -> Unit, onOpenSett
             Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
             if (readiness is EngineReadiness.Unavailable && readiness.reason.isModelProblem()) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = onOpenSettings) { Text("Abrir ajustes") }
-                    TextButton(onClick = onRetry) { Text("Reintentar") }
+                    TextButton(onClick = onOpenSettings) { Text(stringResource(R.string.reader_open_settings)) }
+                    TextButton(onClick = onRetry) { Text(stringResource(R.string.common_retry)) }
                 }
             } else if (readiness is EngineReadiness.Unavailable) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -837,8 +905,8 @@ private fun AudioBanner(playback: PlaybackState, onRetry: () -> Unit, onOpenSett
                         } catch (_: ActivityNotFoundException) {
                             runCatching { context.startActivity(Intent("com.android.settings.TTS_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                         }
-                    }) { Text("Instalar voz") }
-                    TextButton(onClick = onRetry) { Text("Reintentar") }
+                    }) { Text(stringResource(R.string.reader_install_voice)) }
+                    TextButton(onClick = onRetry) { Text(stringResource(R.string.common_retry)) }
                 }
             }
         }

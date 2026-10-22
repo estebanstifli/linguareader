@@ -26,11 +26,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.linguareader.R
 
 /**
  * Pantalla «Preparando la lectura…»: cubre el lector mientras el motor genera las primeras frases.
@@ -46,10 +48,10 @@ fun PreparingOverlay(reduceMotion: Boolean, title: String) {
         Column(Modifier.fillMaxSize().padding(32.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
             SoundBars(animate = !reduceMotion)
             Spacer(Modifier.height(32.dp))
-            Text("Preparando la lectura…", style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+            Text(stringResource(R.string.preparing_title), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
             if (title.isNotBlank()) Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp))
             Text(
-                "Generando las primeras frases para que la voz arranque sin cortes.",
+                stringResource(R.string.preparing_detail),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -61,14 +63,14 @@ fun PreparingOverlay(reduceMotion: Boolean, title: String) {
 
 @Composable
 private fun SoundBars(animate: Boolean) {
-    val transition = rememberInfiniteTransition(label = "bars")
+    val transition = rememberInfiniteTransition(label = "bars") // i18n-ignore: etiqueta de depuración
     val color = MaterialTheme.colorScheme.primary
     val bars = List(5) { i ->
         transition.animateFloat(
             initialValue = 0.25f,
             targetValue = 1f,
             animationSpec = infiniteRepeatable(tween(durationMillis = 520 + i * 90, easing = LinearEasing), RepeatMode.Reverse),
-            label = "bar$i",
+            label = "bar$i", // i18n-ignore: etiqueta de depuración
         )
     }
     Row(Modifier.height(72.dp).width(120.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {

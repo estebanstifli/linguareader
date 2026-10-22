@@ -21,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -28,6 +29,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import com.linguareader.R
 import com.linguareader.data.prefs.UserPreferencesRepository
 import com.linguareader.engine.packs.GithubPackSource
 import com.linguareader.engine.packs.VoicePackManager
@@ -64,36 +66,35 @@ fun PacksSection(vm: PacksViewModel = hiltViewModel()) {
     val scope = rememberCoroutineScope()
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Descarga de paquetes", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+        Text(stringResource(R.string.packs_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
         Text(
-            "Voces pregeneradas y modelos de alineación se descargan de github.com/${vm.source.repo} (release ${vm.source.tag}). " +
-                "Es público: no hace falta ninguna cuenta ni token.",
+            stringResource(R.string.packs_intro, vm.source.repo, vm.source.tag),
             style = MaterialTheme.typography.bodySmall,
         )
         Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Paquete de voces (Supertonic)", style = MaterialTheme.typography.titleSmall)
-                Text("Muestras de cada voz y frases de «preparando la lectura» ya sintetizadas. Se descarga solo al instalar el modelo.", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.packs_voices_title), style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.packs_voices_detail), style = MaterialTheme.typography.bodySmall)
                 when (val m = voices) {
                     is ModelState.NotInstalled -> {
-                        Text("No instalado · ${mb(m.totalBytes)}", style = MaterialTheme.typography.bodyMedium)
-                        Button(onClick = vm::downloadVoices) { Text("Descargar") }
+                        Text(stringResource(R.string.model_not_installed, mb(m.totalBytes)), style = MaterialTheme.typography.bodyMedium)
+                        Button(onClick = vm::downloadVoices) { Text(stringResource(R.string.common_download)) }
                     }
                     is ModelState.Downloading -> {
                         LinearProgressIndicator(progress = { m.downloadedBytes.toFloat() / m.totalBytes.coerceAtLeast(1) }, modifier = Modifier.fillMaxWidth())
-                        Text("${mb(m.downloadedBytes)} de ${mb(m.totalBytes)}", style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.model_progress, mb(m.downloadedBytes), mb(m.totalBytes)), style = MaterialTheme.typography.bodySmall)
                     }
                     is ModelState.Verifying -> {
                         LinearProgressIndicator(progress = { m.fraction }, modifier = Modifier.fillMaxWidth())
-                        Text("Descomprimiendo y verificando…", style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.model_unpacking), style = MaterialTheme.typography.bodySmall)
                     }
                     is ModelState.Installed -> {
-                        Text("Instalado · ${mb(m.bytesOnDisk)}", style = MaterialTheme.typography.bodyMedium)
-                        OutlinedButton(onClick = { scope.launch { vm.deleteVoices().join() } }) { Text("Eliminar") }
+                        Text(stringResource(R.string.model_installed, mb(m.bytesOnDisk)), style = MaterialTheme.typography.bodyMedium)
+                        OutlinedButton(onClick = { scope.launch { vm.deleteVoices().join() } }) { Text(stringResource(R.string.common_remove)) }
                     }
                     is ModelState.Failed -> {
-                        Text(m.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
-                        Button(onClick = vm::downloadVoices) { Text("Reintentar") }
+                        Text(m.message.asString(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                        Button(onClick = vm::downloadVoices) { Text(stringResource(R.string.common_retry)) }
                     }
                 }
             }

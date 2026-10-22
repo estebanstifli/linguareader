@@ -86,10 +86,21 @@ data class UserPreferences(
     val doublePage: Boolean = true,
     /** Biblioteca en cuadrícula de portadas (true) o en lista de fichas (false). */
     val libraryGrid: Boolean = false,
+    /** Al abrir un documento que se puede ver con su formato (PDF): preguntar, modo lectura o ver el original. */
+    val originalOpenMode: OriginalOpenMode = OriginalOpenMode.ASK,
 ) {
     companion object {
         const val MIN_SPEECH_RATE = 0.5f
         const val MAX_SPEECH_RATE = 1.5f
         const val ANDROID_TTS_ENGINE = "android-tts"
     }
+}
+
+/** Qué hacer al pulsar un documento que tiene visor de su formato original (PDF). */
+enum class OriginalOpenMode {
+    ASK,
+    /** Texto reconstruido: voz, resaltado y traducción. */
+    READER,
+    /** Páginas tal cual, con zoom. */
+    ORIGINAL,
 }

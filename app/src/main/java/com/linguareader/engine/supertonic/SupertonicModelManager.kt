@@ -4,7 +4,9 @@ import android.content.Context
 import android.os.Debug
 import android.os.StatFs
 import android.util.Log
+import com.linguareader.R
 import com.linguareader.di.ApplicationScope
+import com.linguareader.ui.common.UiText
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -24,7 +26,7 @@ sealed interface ModelState {
     data class Downloading(val downloadedBytes: Long, val totalBytes: Long, val currentFile: String) : ModelState
     data class Verifying(val fraction: Float) : ModelState
     data class Installed(val bytesOnDisk: Long, val path: String) : ModelState
-    data class Failed(val message: String) : ModelState
+    data class Failed(val message: UiText) : ModelState
 }
 
 /**
@@ -58,7 +60,7 @@ class SupertonicModelManager @Inject constructor(
         else ModelState.NotInstalled(SupertonicModel.TOTAL_BYTES, if (modelDir.exists()) dir.bytesOnDisk() else 0)
     } catch (e: Exception) {
         Log.w(TAG, "No se pudo leer la carpeta del modelo", e)
-        ModelState.Failed("No se puede acceder a la carpeta del modelo: ${e.message}")
+        ModelState.Failed(UiText.res(R.string.model_folder_inaccessible, e.message.orEmpty()))
     }
 
     fun refresh() {
@@ -71,13 +73,13 @@ class SupertonicModelManager @Inject constructor(
             try {
                 val needed = SupertonicModel.TOTAL_BYTES - (if (modelDir.exists()) SupertonicModelDir(modelDir).bytesOnDisk() else 0)
                 if (!modelDir.mkdirs() && !modelDir.isDirectory) {
-                    _state.value = ModelState.Failed("No se pudo crear la carpeta del modelo.")
+                    _state.value = ModelState.Failed(UiText.res(R.string.model_folder_create_failed))
                     return@launch
                 }
                 // Espacio libre del volumen de datos de la app (el directorio base siempre es accesible).
                 val free = runCatching { StatFs(context.filesDir.path).availableBytes }.getOrElse { context.filesDir.usableSpace }
                 if (free < needed + SAFETY_MARGIN) {
-                    _state.value = ModelState.Failed("Espacio insuficiente: hacen falta ${needed.mb()} MB y hay ${free.mb()} MB libres.")
+                    _state.value = ModelState.Failed(UiText.res(R.string.model_no_space, needed.mb(), free.mb()))
                     return@launch
                 }
                 _state.value = ModelState.Downloading(0, SupertonicModel.TOTAL_BYTES, "")
@@ -86,7 +88,7 @@ class SupertonicModelManager @Inject constructor(
                 }
                 _state.value = when (result) {
                     DownloadResult.Completed -> currentState()
-                    is DownloadResult.Failed -> ModelState.Failed("Descarga interrumpida: ${result.message}. Puedes reanudarla.")
+                    is DownloadResult.Failed -> ModelState.Failed(UiText.res(R.string.model_download_interrupted_resumable, result.message))
                 }
                 Log.i(TAG, "Descarga de Supertonic: $result")
             } catch (e: CancellationException) {
@@ -94,7 +96,7 @@ class SupertonicModelManager @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Fallo en la descarga de Supertonic", e)
-                _state.value = ModelState.Failed("Error al descargar: ${e.message ?: e.javaClass.simpleName}")
+                _state.value = ModelState.Failed(UiText.res(R.string.model_download_error, e.message ?: e.javaClass.simpleName))
             }
         }
     }
@@ -113,10 +115,10 @@ class SupertonicModelManager @Inject constructor(
                 val dir = SupertonicModelDir(modelDir)
                 dir.file(SupertonicModel.MARKER).delete()
                 val bad = dir.verify { done -> _state.value = ModelState.Verifying(done.toFloat() / SupertonicModel.TOTAL_BYTES) }
-                _state.value = if (bad.isEmpty()) currentState() else ModelState.Failed("Ficheros corruptos o incompletos: ${bad.joinToString()}")
+                _state.value = if (bad.isEmpty()) currentState() else ModelState.Failed(UiText.res(R.string.model_files_corrupt, bad.joinToString()))
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
-                _state.value = ModelState.Failed("Error al verificar: ${e.message}")
+                _state.value = ModelState.Failed(UiText.res(R.string.model_verify_error, e.message.orEmpty()))
             }
         }
     }

@@ -6,8 +6,11 @@ Uso:
 Sin --cover usa la portada compuesta de make_covers.py (o una provisional si aún no hay ilustración).
 Por defecto escribe el EPUB junto al .txt. Metadatos (para el importador de LinguaReader):
   dc:language, dc:title, dc:creator, dc:subject «CEFR A1» y meta schema:educationalLevel = A1.
+Si el libro tiene narración publicada (content/graded-books/narrations.json, ver publish_narration.py), el OPF
+declara también las URL, tamaños y sha256 del audio y de sus tiempos (meta linguareader:narration-*).
 """
 import argparse
+import json
 import sys
 import zipfile
 from datetime import datetime, timezone
@@ -26,6 +29,27 @@ CHAPTER_WORD = {"en": "Chapter", "es": "Capítulo", "fr": "Chapitre", "de": "Kap
                 "pt": "Capítulo"}
 CONTENTS = {"en": "Contents", "es": "Índice", "fr": "Table des matières", "de": "Inhalt", "it": "Indice",
             "pt": "Índice"}
+# Dónde están publicadas las narraciones: lo único que cambia si se migran a otro alojamiento.
+NARRATION_BASE_URL = "https://github.com/estebanstifli/linguareader/releases/download/library-v1"
+NARRATIONS = BOOKS_DIR / "narrations.json"
+
+
+def narration_metas(lang, slug):
+    """Líneas <meta> de la narración publicada del libro, o "" si no tiene."""
+    if not NARRATIONS.exists():
+        return ""
+    entry = json.loads(NARRATIONS.read_text(encoding="utf-8")).get("narrations", {}).get(f"{lang}/{slug}")
+    if not entry:
+        return ""
+    lines = []
+    for kind in ("audio", "timings"):
+        f = entry[kind]
+        lines += [f'    <meta property="linguareader:narration-{kind}">{NARRATION_BASE_URL}/{f["asset"]}</meta>',
+                  f'    <meta property="linguareader:narration-{kind}-size">{f["sizeBytes"]}</meta>',
+                  f'    <meta property="linguareader:narration-{kind}-sha256">{f["sha256"]}</meta>']
+    return "\n".join(lines) + "\n"
+
+
 CSS = """body { font-family: serif; line-height: 1.5; margin: 0 5%; }
 h2 { font-size: 1.3em; margin: 1.5em 0 1em; }
 p { margin: 0 0 0.8em; text-indent: 0; }
@@ -93,9 +117,12 @@ def build(book, cover_jpeg: bytes, out_path: Path):
         for path, (_, mt, i, pr) in files.items())
     creators = "\n".join(f'    <dc:creator id="author{k}">{escape(a)}</dc:creator>'
                          for k, a in enumerate(book["authors"], 1))
+    narration = narration_metas(lang, book['slug'])
+    # El prefijo solo se declara si hace falta: así los EPUB sin narración no cambian (ni su sha256).
+    narration_prefix = " linguareader: https://github.com/estebanstifli/linguareader#" if narration else ""
     opf = f"""<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid" xml:lang="{lang}"
-         prefix="schema: http://schema.org/">
+         prefix="schema: http://schema.org/{narration_prefix}">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
     <dc:identifier id="bookid">{ident}</dc:identifier>
     <dc:title>{escape(book['title'])}</dc:title>
@@ -109,7 +136,7 @@ def build(book, cover_jpeg: bytes, out_path: Path):
     <meta property="schema:educationalLevel">{level}</meta>
     <meta property="dcterms:modified">{modified}</meta>
     <meta name="cover" content="cover-image"/>
-  </metadata>
+{narration}  </metadata>
   <manifest>
 {manifest}
   </manifest>

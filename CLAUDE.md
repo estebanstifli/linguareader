@@ -110,6 +110,12 @@ No crear módulos Gradle vacíos por anticipado: empezar con un número sensato,
 - Tratar el fotograma compartido solo como referencia conceptual; **no copiar marca, ilustraciones ni diseño exacto**. No usar iconos de Instagram ni reproducir su UI.
 - El panel de traducción debe reconocer combinaciones como phrasal verbs y contracciones: token y expresión pueden diferir.
 
+## Idioma de la interfaz (i18n)
+- El idioma base de la app es el **inglés** (`app/src/main/res/values/strings.xml`). Las cadenas se guardan como recursos de Android para la globalización de la app; el primer idioma adicional es el español (`values-es/strings.xml`). La app sigue el idioma del dispositivo.
+- Nunca escribir textos visibles (incluidos `contentDescription`) directamente en Kotlin. Cada cadena nueva va a `values/` (inglés) y a `values-es/` (español) con la misma clave; plurales con `<plurals>`, argumentos `%1$s`.
+- Los textos que generan ViewModels, servicios o motores viajan como `UiText` (`ui/common/UiText.kt`) y se resuelven al mostrarlos.
+- Antes de terminar un cambio de UI: `python -I tools/check_hardcoded_strings.py`. Detalles en `docs/I18N.md`.
+
 ## Roadmap incremental y criterios de aceptación
 **Fase 1 — MVP demostrable:** Android que compila, catálogo local con al menos dos libros originales de prueba en idiomas distintos y distintos niveles, pantalla reader portrait, texto con tokens pulsables, traducciones simuladas o incluidas, marcadores, modos de visualización y controles accesibles. Usar TTS Android donde esté instalado; fallback claro si falta voz/idioma.
 

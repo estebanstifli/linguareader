@@ -81,8 +81,6 @@ internal object KnownUnsupported {
             (head.isNotEmpty() && head[0] == 0xEA.toByte() && ascii.startsWith("DRMION", 1)) || source.extension == "kfx" ||
                 (source.extension in setOf("azw", "azw8") && ascii.startsWith("CONT")) ->
                 "Los libros KFX de Kindle (formato moderno de Amazon) no se pueden importar."
-            ascii.startsWith("%PDF") ->
-                "No hay lector de PDF disponible en esta versión."
             source.extension in setOf("cbz", "cbr", "cb7") ->
                 "Los cómics son imágenes sin texto que leer."
             source.extension in setOf("mp3", "m4a", "m4b", "ogg", "wav") ->

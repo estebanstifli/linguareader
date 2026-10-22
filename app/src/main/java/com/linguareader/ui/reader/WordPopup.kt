@@ -21,6 +21,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -94,17 +95,17 @@ private fun MiniWordCard(card: WordCardState, onMoreInfo: () -> Unit, onSave: ()
             }
             Row {
                 IconButton(onClick = onMoreInfo) {
-                    Icon(painterResource(R.drawable.ic_info), contentDescription = "Más información")
+                    Icon(painterResource(R.drawable.ic_info), contentDescription = stringResource(R.string.word_more_info))
                 }
                 IconButton(onClick = onSave, enabled = lookup != null && !card.saved) {
                     Icon(
                         painterResource(R.drawable.ic_star),
-                        contentDescription = if (card.saved) "Guardada en vocabulario" else "Guardar en vocabulario",
+                        contentDescription = stringResource(if (card.saved) R.string.word_saved_in_vocabulary else R.string.word_save_to_vocabulary),
                         tint = if (card.saved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 IconButton(onClick = onReadFromHere) {
-                    Icon(painterResource(R.drawable.ic_play), contentDescription = "Reproducir desde aquí")
+                    Icon(painterResource(R.drawable.ic_play), contentDescription = stringResource(R.string.word_play_from_here))
                 }
             }
         }
@@ -118,7 +119,7 @@ private fun WordTranslation(lookup: WordLookup, target: String) {
     val result = expression?.let { lookup.expressionTranslation } ?: lookup.word
     Column(Modifier.padding(end = 8.dp)) {
         if (expression != null) {
-            Text("«${expression.surface}»", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(stringResource(R.string.common_quoted, expression.surface), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         when (result) {
             is TranslationResult.Translated -> Text(

@@ -48,6 +48,12 @@ class ImportedBookRepository @Inject constructor(
 
     fun owns(bookId: String): Boolean = bookId.startsWith(ID_PREFIX)
 
+    /** Fichero auxiliar dentro de la carpeta del libro (se borra con él y se descarta al reimportarlo). */
+    fun bookFile(bookId: String, name: String): File {
+        require(owns(bookId) && '/' !in bookId && '/' !in name)
+        return File(File(root, bookId), name)
+    }
+
     /** Pretraducción cancelada por el usuario: no se reanuda sola, se continúa desde la tarjeta. */
     data class TranslationPause(val target: String, val done: Int, val total: Int)
 
@@ -70,6 +76,18 @@ class ImportedBookRepository @Inject constructor(
                 )
             }
         }
+
+    /** Fichero original de cada documento que lo conserva referenciado (solo formatos con visor propio). */
+    val originals: Flow<Map<String, OriginalDocument>> =
+        summaries.onStart { loaded() }.filterNotNull().map { all ->
+            all.values.mapNotNull { s -> s.originalUri?.let { s.id to OriginalDocument(it, s.format, s.originalPages) } }.toMap()
+        }
+
+    suspend fun original(bookId: String): OriginalDocument? =
+        loaded()[bookId]?.let { s -> s.originalUri?.let { OriginalDocument(it, s.format, s.originalPages) } }
+
+    /** El usuario volvió a localizar el original (se movió o caducó el permiso). */
+    suspend fun updateOriginal(bookId: String, uri: String) = updateSummary(bookId) { it.copy(originalUri = uri) }
 
     /** Marca (o desmarca con null) la pretraducción pendiente de un libro. */
     suspend fun setPendingTranslation(bookId: String, language: String?) =
@@ -128,10 +146,11 @@ class ImportedBookRepository @Inject constructor(
     }
 
     /** Escribe el libro en una carpeta temporal y la renombra: nunca queda un libro a medias. */
-    suspend fun save(book: ImportedBook, format: String): BookSummary = withContext(Dispatchers.IO) {
+    suspend fun save(book: ImportedBook, format: String, original: OriginalDocument? = null): BookSummary = withContext(Dispatchers.IO) {
         val parsed = BookManifestParser.toDomain(book.manifest)
         val id = parsed.id
         val stored = StoredSummary.from(parsed, format, System.currentTimeMillis())
+            .copy(originalUri = original?.uri, originalPages = original?.pageCount)
         mutex.withLock {
             root.mkdirs()
             val staging = File(root, ".$id.tmp").apply { deleteRecursively(); mkdirs() }
@@ -187,6 +206,9 @@ class ImportedBookRepository @Inject constructor(
         val pausedTranslation: String? = null,
         val pausedDone: Int = 0,
         val pausedTotal: Int = 0,
+        /** URI (`content://` con permiso persistente) o `file://` del fichero importado; no se copia. */
+        val originalUri: String? = null,
+        val originalPages: Int? = null,
     ) {
         fun toSummary(): BookSummary {
             val level = CefrLevel.parse(cefrLevel) ?: CefrLevel.B1

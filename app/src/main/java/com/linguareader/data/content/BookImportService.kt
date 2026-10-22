@@ -11,6 +11,7 @@ import com.linguareader.importer.ExtractorRegistry
 import com.linguareader.importer.ImportException
 import com.linguareader.importer.ImportOptions
 import com.linguareader.importer.ImportedBookBuilder
+import com.linguareader.data.narration.NarrationLibrary
 import com.linguareader.importer.extract.HtmlExtractor
 import com.linguareader.importer.extract.TextExtractor
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -28,13 +29,15 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /** Documento leído y listo para que el usuario confirme título, idioma y nivel. */
-class ImportDraft(
+data class ImportDraft(
     val bookId: String,
     val sourceName: String,
     val document: ExtractedDocument,
     /** Idioma declarado por el documento, normalizado a BCP-47, si lo hay. */
     val detectedLanguage: String?,
     val alreadyImported: Boolean,
+    /** Fichero de origen, si su formato tiene visor propio (PDF): se guarda como referencia, sin copia. */
+    val original: OriginalDocument? = null,
 )
 
 /**
@@ -47,6 +50,8 @@ class BookImportService @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val registry: ExtractorRegistry,
     private val repository: ImportedBookRepository,
+    private val narrations: NarrationLibrary,
+    private val pdfLayouts: PdfTextLayouts,
 ) {
     private val builder = ImportedBookBuilder()
 
@@ -60,7 +65,35 @@ class BookImportService @Inject constructor(
         }.getOrNull() ?: uri.lastPathSegment?.substringAfterLast('/') ?: "documento"
         val input = resolver.openInputStream(uri) ?: throw ImportException(ImportException.Reason.CORRUPT, "No se pudo abrir el fichero")
         withTempCopy(input, MAX_FILE_BYTES) { copy, hash ->
-            draft(hash, name, registry.extract(DocumentSource(copy, name, resolver.getType(uri))))
+            val document = registry.extract(DocumentSource(copy, name, resolver.getType(uri)))
+            val original = OriginalDocument(uri.toString(), document.format, document.pageCount)
+                .takeIf { it.viewable }
+                ?.also { keepAccess(uri) }
+            draft(hash, name, document).let { if (original != null) it.copy(original = original) else it }
+        }
+    }
+
+    /** true si [uri] es un PDF (por su firma), aunque no se pueda importar (escaneado, sin texto). */
+    suspend fun isPdf(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                val head = ByteArray(1024)
+                val n = input.read(head)
+                n > 0 && String(head, 0, n, Charsets.ISO_8859_1).contains("%PDF-")
+            } ?: false
+        }.getOrDefault(false)
+    }
+
+    /**
+     * Conserva el permiso de lectura tras reiniciar el móvil, si el proveedor lo concede (selector de
+     * ficheros, carpetas elegidas). «Abrir con…» desde otras apps no suele concederlo: el visor pedirá
+     * volver a localizar el fichero cuando lo pierda.
+     */
+    fun keepAccess(uri: Uri) {
+        if (uri.scheme != "content") return
+        try {
+            context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        } catch (_: SecurityException) {
         }
     }
 
@@ -140,11 +173,24 @@ class BookImportService @Inject constructor(
                     sourceName = draft.sourceName,
                 ),
             )
-            repository.save(book, draft.document.format)
+            repository.save(book, draft.document.format, draft.original)
+            // Posiciones de las palabras sobre el PDF (voz y traducción en «Ver original»), en segundo plano ya.
+            if (draft.original != null) {
+                pdfLayouts.invalidate(bookId)
+                pdfLayouts.ensure(bookId)
+            }
             bookId
         }
 
-    suspend fun delete(bookId: String) = repository.delete(bookId)
+    suspend fun delete(bookId: String) {
+        val original = repository.original(bookId)
+        repository.delete(bookId)
+        // Los permisos persistentes son limitados (128–512 por app): se devuelve el que ya no hace falta.
+        original?.uri?.let(Uri::parse)?.takeIf { it.scheme == "content" }?.let { uri ->
+            runCatching { context.contentResolver.releasePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+        }
+        narrations.delete(bookId)
+    }
 
     private suspend fun draft(hash: String, name: String, document: ExtractedDocument): ImportDraft {
         val id = ImportedBookRepository.ID_PREFIX + hash.take(16)

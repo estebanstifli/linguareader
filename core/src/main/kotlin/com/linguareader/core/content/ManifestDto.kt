@@ -21,6 +21,22 @@ data class BookManifestDto(
     val glossary: List<GlossaryEntryDto> = emptyList(),
     /** Léxico de pronunciación para el TTS: término escrito → forma hablada (p. ej. "Dr." → "doctor"). */
     val pronunciations: Map<String, String> = emptyMap(),
+    /** Narración pregrabada opcional (audio + tiempos por palabra) que la app descarga al abrir el libro. */
+    val narration: NarrationDto? = null,
+)
+
+@Serializable
+data class NarrationDto(
+    val audio: RemoteFileDto,
+    /** Subtítulos ASS con karaoke (`{\k}`) con el tiempo de cada palabra. */
+    val timings: RemoteFileDto,
+)
+
+@Serializable
+data class RemoteFileDto(
+    val url: String,
+    val sizeBytes: Long? = null,
+    val sha256: String? = null,
 )
 
 @Serializable

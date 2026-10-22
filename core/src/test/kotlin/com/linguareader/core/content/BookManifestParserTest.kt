@@ -70,6 +70,29 @@ class BookManifestParserTest {
     @Test
     fun `rejects malformed json`() = assertInvalid("{ not json", "inválido")
 
+    private fun withNarration(audioUrl: String) = manifest().replace(
+        "\"futureField\"",
+        "\"narration\": { \"audio\": { \"url\": \"$audioUrl\", \"sizeBytes\": 10, \"sha256\": \"${"A".repeat(64)}\" }, " +
+            "\"timings\": { \"url\": \"https://example.org/n.ass\" } }, \"futureField\"",
+    )
+
+    @Test
+    fun `narration is optional and parsed when declared`() {
+        assertEquals(null, BookManifestParser.parse(manifest()).narration)
+        val narration = BookManifestParser.parse(withNarration("https://example.org/n.mp3")).narration!!
+        assertEquals("https://example.org/n.mp3", narration.audio.url)
+        assertEquals(10L, narration.audio.sizeBytes)
+        assertEquals("a".repeat(64), narration.audio.sha256)
+        assertEquals(null, narration.timings.sha256)
+    }
+
+    @Test
+    fun `narration without https is ignored but the book still loads`() {
+        val book = BookManifestParser.parse(withNarration("http://example.org/n.mp3"))
+        assertEquals(null, book.narration)
+        assertEquals("demo-book", book.id)
+    }
+
     private fun assertInvalid(json: String, messagePart: String) {
         try {
             BookManifestParser.parse(json)

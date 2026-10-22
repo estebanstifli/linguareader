@@ -32,6 +32,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -74,12 +76,12 @@ fun CatalogSearchCard(
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it; onSearch(current.copy(text = it)) },
-                    placeholder = { Text("Título o autor") },
+                    placeholder = { Text(stringResource(R.string.search_placeholder)) },
                     leadingIcon = { Icon(painterResource(R.drawable.ic_search), contentDescription = null) },
                     trailingIcon = {
                         if (text.isNotEmpty()) {
                             IconButton(onClick = { text = ""; onSearch(current.copy(text = "")) }) {
-                                Icon(painterResource(R.drawable.ic_close), contentDescription = "Borrar texto")
+                                Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.search_clear_text))
                             }
                         }
                     },
@@ -89,35 +91,32 @@ fun CatalogSearchCard(
                     modifier = Modifier.fillMaxWidth().focusRequester(focus),
                 )
 
-                Group("Estado") {
+                Group(stringResource(R.string.search_group_status)) {
                     ReadStatus.entries.forEach { st ->
-                        FilterChip(selected = search.status == st, onClick = { onSearch(current.copy(status = st)) }, label = { Text(st.label) })
+                        FilterChip(selected = search.status == st, onClick = { onSearch(current.copy(status = st)) }, label = { Text(stringResource(st.label)) })
                     }
                 }
                 if (languages.size > 1) {
-                    Group("Idioma") {
-                        FilterChip(selected = language == null, onClick = { onLanguage(null) }, label = { Text("Todos") })
+                    Group(stringResource(R.string.search_group_language)) {
+                        FilterChip(selected = language == null, onClick = { onLanguage(null) }, label = { Text(stringResource(R.string.search_language_all)) })
                         languages.forEach { tag ->
                             FilterChip(selected = language == tag, onClick = { onLanguage(if (language == tag) null else tag) }, label = { Text(Languages.name(tag)) })
                         }
                     }
                 }
-                Group("Ordenar por") {
+                Group(stringResource(R.string.search_group_sort)) {
                     SortOrder.entries.forEach { order ->
-                        FilterChip(selected = search.sort == order, onClick = { onSearch(current.copy(sort = order)) }, label = { Text(order.label) })
+                        FilterChip(selected = search.sort == order, onClick = { onSearch(current.copy(sort = order)) }, label = { Text(stringResource(order.label)) })
                     }
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { text = ""; onClear() }, enabled = current.isActive || language != null) { Text("Limpiar") }
+                    TextButton(onClick = { text = ""; onClear() }, enabled = current.isActive || language != null) { Text(stringResource(R.string.search_clear)) }
                     Row(Modifier.weight(1f)) {}
                     Button(onClick = onDismiss) {
                         Text(
-                            when (resultCount) {
-                                0 -> "Sin resultados"
-                                1 -> "Ver 1 libro"
-                                else -> "Ver $resultCount libros"
-                            },
+                            if (resultCount == 0) stringResource(R.string.search_no_results)
+                            else pluralStringResource(R.plurals.search_see_books, resultCount, resultCount),
                         )
                     }
                 }
@@ -152,15 +151,16 @@ fun ActiveSearchBar(summary: String, onEdit: () -> Unit, onClear: () -> Unit) {
                 maxLines = 1,
                 modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
             )
-            IconButton(onClick = onClear) { Icon(painterResource(R.drawable.ic_close), contentDescription = "Quitar búsqueda") }
+            IconButton(onClick = onClear) { Icon(painterResource(R.drawable.ic_close), contentDescription = stringResource(R.string.search_remove)) }
         }
     }
 }
 
 /** «"tolstoi" · Leyendo · Inglés · por título». */
+@Composable
 fun searchSummary(search: CatalogSearch, language: String?, resultCount: Int): String = listOfNotNull(
-    search.text.trim().takeIf { it.isNotEmpty() }?.let { "«$it»" },
-    search.status.takeIf { it != ReadStatus.ALL }?.label,
+    search.text.trim().takeIf { it.isNotEmpty() }?.let { stringResource(R.string.common_quoted, it) },
+    search.status.takeIf { it != ReadStatus.ALL }?.let { stringResource(it.label) },
     language?.let(Languages::name),
-    search.sort.takeIf { it != SortOrder.DEFAULT }?.let { "por ${it.label.lowercase()}" },
+    search.sort.takeIf { it != SortOrder.DEFAULT }?.let { stringResource(R.string.search_sorted_by, stringResource(it.label).lowercase()) },
 ).joinToString(" · ") + " — $resultCount"

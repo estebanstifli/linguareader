@@ -3,11 +3,13 @@ package com.linguareader.engine.alignment
 import android.content.Context
 import android.os.StatFs
 import android.util.Log
+import com.linguareader.R
 import com.linguareader.di.ApplicationScope
 import com.linguareader.engine.packs.GithubPackSource
 import com.linguareader.engine.supertonic.DownloadResult
 import com.linguareader.engine.supertonic.ModelFile
 import com.linguareader.engine.supertonic.ModelState
+import com.linguareader.ui.common.UiText
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -106,7 +108,7 @@ class AlignmentModelManager @Inject constructor(
         val dir = dirOf(spec)
         if (isInstalled(spec)) ModelState.Installed(spec.totalBytes, dir.path)
         else ModelState.NotInstalled(spec.totalBytes, spec.files.sumOf { f -> File(dir, f.path + ".part").takeIf { it.exists() }?.length() ?: 0L })
-    }.getOrElse { ModelState.Failed("No se puede acceder a la carpeta del modelo: ${it.message}") }
+    }.getOrElse { ModelState.Failed(UiText.res(R.string.model_folder_inaccessible, it.message.orEmpty())) }
 
     fun refresh() {
         _states.update { old -> catalog.associate { spec -> spec.id to (old[spec.id]?.takeIf { jobs[spec.id]?.isActive == true } ?: stateOf(spec)) } }
@@ -127,7 +129,7 @@ class AlignmentModelManager @Inject constructor(
         val spec = catalog.firstOrNull { it.id == id } ?: return
         if (jobs[id]?.isActive == true) return
         if (!hostingConfigured) {
-            set(id, ModelState.Failed("Esta compilación no tiene configurado el repositorio de paquetes (packsRepo)."))
+            set(id, ModelState.Failed(UiText.res(R.string.model_repo_not_configured)))
             return
         }
         jobs[id] = appScope.launch(Dispatchers.IO) {
@@ -137,7 +139,7 @@ class AlignmentModelManager @Inject constructor(
                 val needed = spec.totalBytes - have
                 val free = runCatching { StatFs(context.filesDir.path).availableBytes }.getOrElse { context.filesDir.usableSpace }
                 if (free < needed + SAFETY_MARGIN) {
-                    set(id, ModelState.Failed("Espacio insuficiente: hacen falta ${needed / 1_000_000} MB y hay ${free / 1_000_000} MB libres."))
+                    set(id, ModelState.Failed(UiText.res(R.string.model_no_space, needed / 1_000_000, free / 1_000_000)))
                     return@launch
                 }
                 set(id, ModelState.Downloading(0, spec.totalBytes, ""))
@@ -149,7 +151,7 @@ class AlignmentModelManager @Inject constructor(
                     id,
                     when (result) {
                         DownloadResult.Completed -> stateOf(spec)
-                        is DownloadResult.Failed -> ModelState.Failed("Descarga interrumpida: ${result.message}. Puedes reanudarla.")
+                        is DownloadResult.Failed -> ModelState.Failed(UiText.res(R.string.model_download_interrupted_resumable, result.message))
                     },
                 )
                 Log.i(TAG, "Descarga de ${spec.id}: $result")
@@ -158,7 +160,7 @@ class AlignmentModelManager @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Fallo en la descarga de ${spec.id}", e)
-                set(id, ModelState.Failed("Error al descargar: ${e.message ?: e.javaClass.simpleName}"))
+                set(id, ModelState.Failed(UiText.res(R.string.model_download_error, e.message ?: e.javaClass.simpleName)))
             }
         }
     }

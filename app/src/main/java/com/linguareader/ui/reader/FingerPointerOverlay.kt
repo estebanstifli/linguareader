@@ -48,7 +48,7 @@ fun FingerPointerOverlay(
     val position by animateOffsetAsState(
         targetValue = desired,
         animationSpec = if (reduceMotion) snap() else spring(stiffness = Spring.StiffnessMediumLow),
-        label = "finger",
+        label = "finger", // i18n-ignore: etiqueta de depuración de la animación
     )
     if (!visible) return
     Canvas(

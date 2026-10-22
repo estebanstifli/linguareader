@@ -28,6 +28,8 @@ interface ClipPlayer {
     fun pause()
     /** Salta al inicio del clip [tag] si está en la cola. */
     fun seekToTag(tag: Int): Boolean
+    /** Salta a [positionMs] dentro del clip [tag] si está en la cola (pistas largas: narración pregrabada). */
+    fun seekTo(tag: Int, positionMs: Long): Boolean = false
     /** Clip que suena ahora y su posición; null durante una pausa (silencio), en reposo o si el reproductor no lo informa. */
     fun position(): ClipPosition? = null
     /** Velocidad de reproducción (sin cambiar el tono). El audio no se regenera. */

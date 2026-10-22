@@ -3,6 +3,7 @@ package com.linguareader.ui.catalog
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.linguareader.R
 import com.linguareader.core.engine.BookRepository
 import com.linguareader.core.model.BookSummary
 import com.linguareader.core.model.CatalogFilter
@@ -18,7 +19,10 @@ import com.linguareader.data.library.Shelf
 import com.linguareader.engine.translation.BookTranslationService
 import com.linguareader.engine.translation.BookTranslationState
 import com.linguareader.data.prefs.UserPreferencesRepository
-import com.linguareader.ui.common.toThumbnail
+import com.linguareader.data.content.CoverThumbnails
+import com.linguareader.data.content.OriginalDocument
+import androidx.compose.ui.graphics.asImageBitmap
+import com.linguareader.ui.common.UiText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,6 +37,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.linguareader.core.model.AppPurpose
 import com.linguareader.core.model.UserPreferences
+import com.linguareader.core.model.OriginalOpenMode
 import com.linguareader.data.db.DeviceDocumentDao
 import com.linguareader.data.scan.ScanSettingsRepository
 import kotlinx.coroutines.flow.first
@@ -43,7 +48,6 @@ data class CatalogItem(
     val summary: BookSummary,
     /** 0..1, null si nunca se abrió. */
     val progress: Float?,
-    val progressLabel: String?,
     /** Importado por el usuario: se puede borrar. */
     val imported: Boolean = false,
     /** De una biblioteca descargable (también se guarda como importado, pero no lo trajo el usuario). */
@@ -54,6 +58,8 @@ data class CatalogItem(
     val machineTranslations: Set<String> = emptySet(),
     /** Pretraducción cancelada por el usuario, pendiente de continuar. */
     val translationPause: ImportedBookRepository.TranslationPause? = null,
+    /** Fichero original (solo documentos con visor de su formato, como PDF): permite «Ver original». */
+    val original: OriginalDocument? = null,
     /** En la papelera: no se abre; se restaura o (si es importado) se borra del todo. */
     val trashed: Boolean = false,
 )
@@ -93,12 +99,14 @@ data class SubFilters(
 
 data class CatalogUiState(
     val loading: Boolean = true,
-    val error: String? = null,
+    val error: UiText? = null,
     val section: LibrarySection = LibrarySection.Books,
     val filters: SubFilters = SubFilters(),
     val items: List<CatalogItem> = emptyList(),
     val translationLanguage: String = "es",
     val grid: Boolean = false,
+    /** Qué hacer al pulsar un documento con visor de su formato (PDF). */
+    val originalOpenMode: OriginalOpenMode = OriginalOpenMode.ASK,
     /** Estanterías fijas (Favoritos, Para leer, Leídos) y colecciones propias. */
     val shelves: List<Shelf> = emptyList(),
     /** Idiomas de los libros de «otros idiomas» (para sus chips). */
@@ -123,6 +131,7 @@ class CatalogViewModel @Inject constructor(
     private val library: LibraryRepository,
     private val exporter: BookExporter,
     private val scanSettings: ScanSettingsRepository,
+    private val thumbnails: CoverThumbnails,
     progressDao: ProgressDao,
     documents: DeviceDocumentDao,
 ) : ViewModel() {
@@ -159,28 +168,30 @@ class CatalogViewModel @Inject constructor(
         // progreso o estanterías volvía a suscribirse al catálogo y repetía sus consultas.)
         combine(
             combine(preferences.preferences, progressDao.observeAll(), library.state, selection) { p, progress, lib, sel ->
-                Inputs(p.translationLanguage, p.libraryGrid, progress, lib, sel.first, sel.second)
+                Inputs(p.translationLanguage, p.libraryGrid, p.originalOpenMode, progress, lib, sel.first, sel.second)
             },
             bookTranslations.states,
             imported.translationStatus,
+            imported.originals,
             books.observeCatalog(CatalogFilter()).onEach { all -> all.forEach(::loadCover) },
-        ) { inputs, jobs, statuses, all ->
+        ) { inputs, jobs, statuses, originals, all ->
             build(inputs, all) { s ->
                 val pr = inputs.progress[s.id]
                 CatalogItem(
                     summary = s,
                     progress = pr?.let { (it.passageIndex + 1f) / it.totalPassages.coerceAtLeast(1) },
-                    progressLabel = pr?.let { "Pasaje ${it.passageIndex + 1} de ${it.totalPassages}" },
+
                     imported = imported.owns(s.id),
                     fromLibrary = LibraryPackManager.isLibraryBook(s.id),
                     translationJob = jobs[s.id],
                     machineTranslations = statuses[s.id]?.done.orEmpty(),
                     translationPause = statuses[s.id]?.paused,
+                    original = originals[s.id],
                     trashed = s.id in inputs.library.trashedIds,
                 )
             }
         }
-            .catch { emit(CatalogUiState(loading = false, error = it.message ?: "Error al cargar la biblioteca")) }
+            .catch { emit(CatalogUiState(loading = false, error = UiText.res(R.string.catalog_load_error))) }
             // Filtrar y ordenar decenas de libros no debe competir con la primera composición en el hilo principal.
             .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CatalogUiState())
@@ -188,6 +199,7 @@ class CatalogViewModel @Inject constructor(
     private class Inputs(
         val translationLanguage: String,
         val grid: Boolean,
+        val originalOpenMode: OriginalOpenMode,
         progressList: List<ReadingProgressEntity>,
         val library: LibraryState,
         val section: LibrarySection,
@@ -247,6 +259,7 @@ class CatalogViewModel @Inject constructor(
             items = visible.map(item),
             translationLanguage = inputs.translationLanguage,
             grid = inputs.grid,
+            originalOpenMode = inputs.originalOpenMode,
             shelves = lib.shelves,
             otherLanguages = live.filter(::learnsOther).map { LanguageTags.primary(it.learningLanguage) }.distinct().sorted(),
             sectionLanguages = inThisSection.map { LanguageTags.primary(it.learningLanguage) }.distinct().sorted(),
@@ -274,6 +287,8 @@ class CatalogViewModel @Inject constructor(
     fun setOtherLanguage(tag: String?) = selection.update { (s, f) -> s to f.copy(language = tag) }
 
     fun setCollection(id: Long?) = selection.update { (s, f) -> s to f.copy(collectionId = id) }
+
+    fun setOriginalOpenMode(mode: OriginalOpenMode) = viewModelScope.launch { preferences.update { it.copy(originalOpenMode = mode) } }
 
     fun setGrid(grid: Boolean) = viewModelScope.launch { preferences.update { it.copy(libraryGrid = grid) } }
 
@@ -310,6 +325,7 @@ class CatalogViewModel @Inject constructor(
         library.deleteForever(bookId)
         requestedCovers.remove(bookId)
         _covers.update { it - bookId }
+        thumbnails.forget(bookId)
     }
 
     fun deleteCollection(id: Long) = viewModelScope.launch {
@@ -317,15 +333,25 @@ class CatalogViewModel @Inject constructor(
         selection.update { (s, f) -> s to f.copy(collectionId = null) }
     }
 
-    /** Portadas ya pedidas (cargadas o en curso): [loadCover] se llama en cada emisión del catálogo. */
-    private val requestedCovers = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    /**
+     * Versión de portada ya pedida por libro (cargada o en curso): [loadCover] se llama en cada emisión del
+     * catálogo y solo vuelve a cargar si cambió la portada o, en las páginas de texto, el título.
+     */
+    private val requestedCovers = java.util.concurrent.ConcurrentHashMap<String, String>()
 
-    /** Miniatura de la portada, leída y decodificada en segundo plano (nunca a tamaño completo ni en el hilo principal). */
+    /**
+     * Miniatura de la portada en segundo plano, desde la caché en disco de [CoverThumbnails] (nunca a tamaño
+     * completo ni en el hilo principal). Los documentos del usuario sin portada reciben una «primera página»
+     * dibujada; los libros de las bibliotecas graduadas, no.
+     */
     private fun loadCover(summary: BookSummary) {
-        val cover = summary.cover ?: return
-        if (!requestedCovers.add(summary.id)) return
-        viewModelScope.launch(Dispatchers.Default) {
-            books.loadMedia(summary.id, cover).toThumbnail(COVER_THUMBNAIL_PX)?.let { bmp -> _covers.update { it + (summary.id to bmp) } }
+        val textPage = summary.cover == null && imported.owns(summary.id) && !LibraryPackManager.isLibraryBook(summary.id)
+        if (summary.cover == null && !textPage) return
+        val version = "${summary.cover?.sha256 ?: summary.cover?.path}|${if (textPage) summary.title else ""}"
+        if (requestedCovers.put(summary.id, version) == version) return
+        viewModelScope.launch {
+            thumbnails.load(summary, COVER_THUMBNAIL_PX, textPage)?.asImageBitmap()
+                ?.let { bmp -> _covers.update { it + (summary.id to bmp) } }
         }
     }
 

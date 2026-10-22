@@ -12,11 +12,13 @@ import android.provider.DocumentsContract
 import android.provider.Settings
 import android.util.Log
 import androidx.core.content.ContextCompat
+import com.linguareader.R
 import com.linguareader.data.db.DeviceDocumentDao
 import com.linguareader.data.db.DeviceDocumentEntity
 import com.linguareader.di.ApplicationScope
 import com.linguareader.importer.ExtractorRegistry
 import com.linguareader.importer.extract.QuickMetadata
+import com.linguareader.ui.common.UiText
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,7 +39,7 @@ sealed interface ScanState {
     data object Idle : ScanState
     data class Running(val folders: Int, val found: Int, val currentFolder: String) : ScanState
     data class Finished(val found: Int, val added: Int, val removed: Int) : ScanState
-    data class Failed(val message: String) : ScanState
+    data class Failed(val message: UiText) : ScanState
 }
 
 /** Acceso a los ficheros del dispositivo: «todos los archivos» en Android 11+, lectura del almacenamiento antes. */
@@ -82,7 +84,7 @@ class DocumentScanner @Inject constructor(
         job = scope.launch(Dispatchers.IO) {
             _state.value = runCatching { scan() }.getOrElse {
                 Log.w(TAG, "Búsqueda fallida", it)
-                ScanState.Failed(it.message ?: "Error al examinar los archivos")
+                ScanState.Failed(UiText.res(R.string.scan_failed, it.message ?: it.javaClass.simpleName))
             }
         }
     }

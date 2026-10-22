@@ -1,7 +1,9 @@
 package com.linguareader.importer
 
 import com.linguareader.importer.extract.RtfExtractor
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -64,6 +66,8 @@ class OfficeExtractorsTest {
                 "word/_rels/document.xml.rels" to rels.toByteArray(),
                 "word/media/image1.png" to Fixtures.PNG,
                 "docProps/core.xml" to core.toByteArray(),
+                "_rels/.rels" to packageRels("docProps/thumbnail.jpeg").toByteArray(),
+                "docProps/thumbnail.jpeg" to JPEG,
             ),
             storedFirst = false,
         )
@@ -75,7 +79,36 @@ class OfficeExtractorsTest {
         assertEquals(listOf("La llegada", "La partida"), doc.chapters.map { it.title })
         assertEquals(listOf("Ana llegó a Sevilla. Hacía calor.", "Celda uno.", "Se fue al amanecer."), paragraphs(doc))
         assertEquals(1, doc.chapters[0].blocks.count { it is ExtractedBlock.Image })
+        // La miniatura de la primera página que guarda Word es la portada.
+        assertArrayEquals(JPEG, doc.cover?.bytes)
     }
+
+    @Test
+    fun `docx con miniatura EMF no tiene portada`() {
+        val document = """
+            <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+              <w:body><w:p><w:r><w:t>Hola.</w:t></w:r></w:p></w:body>
+            </w:document>
+        """.trimIndent()
+        val file = Fixtures.zip(
+            folder, "emf.docx",
+            listOf(
+                "word/document.xml" to document.toByteArray(),
+                "_rels/.rels" to packageRels("docProps/thumbnail.emf").toByteArray(),
+                "docProps/thumbnail.emf" to ByteArray(64) { 1 },
+            ),
+        )
+        assertNull(registry.extract(DocumentSource(file, "emf.docx")).cover)
+    }
+
+    private fun packageRels(thumbnail: String) = """
+        <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+          <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+          <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/thumbnail" Target="$thumbnail"/>
+        </Relationships>
+    """.trimIndent()
+
+    private val JPEG = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte()) + ByteArray(256) { 7 }
 
     @Test
     fun `odt con encabezados, listas, espacios y notas`() {
@@ -106,6 +139,7 @@ class OfficeExtractorsTest {
                 "content.xml" to content.toByteArray(),
                 "meta.xml" to meta.toByteArray(),
                 "Pictures/a.png" to Fixtures.PNG,
+                "Thumbnails/thumbnail.png" to Fixtures.PNG2,
             ),
         )
         // Sin extensión: se reconoce por el mimetype del ZIP.
@@ -117,6 +151,8 @@ class OfficeExtractorsTest {
         assertEquals(listOf("Premier jour", "Deuxième jour"), doc.chapters.map { it.title })
         assertEquals(listOf("Il fait beau. On sort.", "Pain", "Il pleut."), paragraphs(doc))
         assertEquals(1, doc.chapters[0].blocks.count { it is ExtractedBlock.Image })
+        // LibreOffice guarda siempre la miniatura de la primera página.
+        assertArrayEquals(Fixtures.PNG2, doc.cover?.bytes)
     }
 
     @Test

@@ -6,9 +6,12 @@ import com.linguareader.core.content.ChapterDto
 import com.linguareader.core.content.Hashing
 import com.linguareader.core.content.LicenseDto
 import com.linguareader.core.content.MediaDto
+import com.linguareader.core.content.NarrationDto
 import com.linguareader.core.content.PassageDto
+import com.linguareader.core.content.RemoteFileDto
 import com.linguareader.core.content.SentenceDto
 import com.linguareader.core.model.CefrLevel
+import com.linguareader.core.model.RemoteFile
 import com.linguareader.core.text.SentenceSegmenter
 import com.linguareader.core.text.Tokenizer
 import com.linguareader.importer.extract.ImageTypes
@@ -128,6 +131,10 @@ class ImportedBookBuilder(
             sourceAttribution = options.sourceName,
             cover = document.cover?.let { store(it, "cover") },
             chapters = chapters,
+            narration = document.narration?.let { n ->
+                fun file(f: RemoteFile) = RemoteFileDto(f.url, f.sizeBytes, f.sha256)
+                NarrationDto(file(n.audio), file(n.timings))
+            },
         )
         // Misma validación que el contenido empaquetado: si el lector no lo aceptaría, se falla ya.
         BookManifestParser.toDomain(manifest)

@@ -1,10 +1,12 @@
 package com.linguareader.engine.translation
 
 import android.util.Log
+import com.linguareader.R
 import com.linguareader.core.engine.TranslationResult
 import com.linguareader.core.translation.WordLookupService
 import com.linguareader.data.content.ImportedBookRepository
 import com.linguareader.di.ApplicationScope
+import com.linguareader.ui.common.UiText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -21,7 +23,7 @@ sealed interface BookTranslationState {
     val target: String
     data class Preparing(override val target: String) : BookTranslationState
     data class Running(override val target: String, val done: Int, val total: Int) : BookTranslationState
-    data class Failed(override val target: String, val message: String) : BookTranslationState
+    data class Failed(override val target: String, val message: UiText) : BookTranslationState
 }
 
 /**
@@ -57,7 +59,7 @@ class BookTranslationService @Inject constructor(
             runCatching { translate(bookId, target) }.onFailure { e ->
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 Log.w(TAG, "Traducción de $bookId fallida", e)
-                fail(bookId, target, e.message ?: "Error al traducir")
+                fail(bookId, target, UiText.res(R.string.book_translation_failed, e.message ?: e.javaClass.simpleName))
             }
         }
     }
@@ -85,11 +87,11 @@ class BookTranslationService @Inject constructor(
         val source = models.code(book.learningLanguage)
         val destination = models.code(target)
         if (source == null || destination == null) {
-            return fail(bookId, target, "El traductor del dispositivo no admite este par de idiomas.")
+            return fail(bookId, target, UiText.res(R.string.book_translation_pair_unsupported))
         }
         for (code in setOf(source, destination)) {
             if (!models.awaitDownload(code)) {
-                return fail(bookId, target, "No se pudo descargar el traductor (${code.uppercase()}). Revisa la conexión o la opción «solo Wi-Fi».")
+                return fail(bookId, target, UiText.res(R.string.book_translation_model_failed, code.uppercase()))
             }
         }
 
@@ -107,14 +109,14 @@ class BookTranslationService @Inject constructor(
             }
         }
         if (failures * 10 > sentences.size) {
-            return fail(bookId, target, "No se pudieron traducir $failures de ${sentences.size} frases. Se reintentarán al leer.")
+            return fail(bookId, target, UiText.res(R.string.book_translation_partial, failures, sentences.size))
         }
         books.markTranslated(bookId, target)
         synchronized(this) { jobs.remove(bookId) }
         _states.update { it - bookId }
     }
 
-    private suspend fun fail(bookId: String, target: String, message: String) {
+    private suspend fun fail(bookId: String, target: String, message: UiText) {
         books.setPendingTranslation(bookId, null)
         synchronized(this) { jobs.remove(bookId) }
         _states.update { it + (bookId to BookTranslationState.Failed(target, message)) }

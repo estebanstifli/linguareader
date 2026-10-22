@@ -9,6 +9,7 @@ import com.google.mlkit.nl.translate.TranslateRemoteModel
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.Translator
 import com.google.mlkit.nl.translate.TranslatorOptions
+import com.linguareader.R
 import com.linguareader.core.content.Hashing
 import com.linguareader.core.engine.TranslationEngine
 import com.linguareader.core.engine.TranslationRequest
@@ -21,6 +22,7 @@ import com.linguareader.data.db.MachineTranslationDao
 import com.linguareader.data.db.MachineTranslationEntity
 import com.linguareader.data.prefs.UserPreferencesRepository
 import com.linguareader.di.ApplicationScope
+import com.linguareader.ui.common.UiText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -45,7 +47,7 @@ suspend fun <T> Task<T>.await(): T = suspendCancellableCoroutine { cont ->
 
 sealed interface ModelDownload {
     data object Running : ModelDownload
-    data class Failed(val message: String) : ModelDownload
+    data class Failed(val message: UiText) : ModelDownload
 }
 
 /**
@@ -65,10 +67,12 @@ class TranslationModelManager @Inject constructor(
     private val _downloads = MutableStateFlow<Map<String, ModelDownload>>(emptyMap())
     val downloads: StateFlow<Map<String, ModelDownload>> = _downloads
 
-    /** Códigos soportados por ML Kit, ordenados por nombre en español. */
-    val supportedLanguages: List<String> by lazy {
-        TranslateLanguage.getAllLanguages().sortedBy { Locale.forLanguageTag(it).getDisplayLanguage(SPANISH).lowercase() }
-    }
+    /** Códigos soportados por ML Kit, ordenados por su nombre en el idioma de la interfaz. */
+    val supportedLanguages: List<String>
+        get() {
+            val ui = Locale.getDefault()
+            return TranslateLanguage.getAllLanguages().sortedBy { Locale.forLanguageTag(it).getDisplayLanguage(ui).lowercase(ui) }
+        }
 
     init { scope.launch { refresh() } }
 
@@ -110,8 +114,9 @@ class TranslationModelManager @Inject constructor(
                     true
                 },
                 onFailure = { e ->
-                    val message = if (wifiOnly) "No se pudo descargar (¿sin Wi-Fi?). ${e.message.orEmpty()}" else e.message ?: "Error de descarga"
-                    _downloads.update { it + (code to ModelDownload.Failed(message.trim())) }
+                    val detail = e.message ?: e.javaClass.simpleName
+                    val message = UiText.res(if (wifiOnly) R.string.translator_download_failed_wifi else R.string.translator_download_failed, detail)
+                    _downloads.update { it + (code to ModelDownload.Failed(message)) }
                     false
                 },
             )
@@ -127,7 +132,6 @@ class TranslationModelManager @Inject constructor(
 
     private companion object {
         const val TAG = "MlKitModels"
-        val SPANISH: Locale = Locale.forLanguageTag("es")
     }
 }
 

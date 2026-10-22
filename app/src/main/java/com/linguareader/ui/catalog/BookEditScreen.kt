@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
@@ -68,7 +69,7 @@ data class BookEditForm(
 sealed interface BookEditState {
     data object Loading : BookEditState
     data class Ready(val form: BookEditForm) : BookEditState
-    data class Failed(val message: String) : BookEditState
+    data object Failed : BookEditState
     /** Guardado o restaurado: la pantalla se cierra. */
     data object Done : BookEditState
 }
@@ -87,7 +88,7 @@ class BookEditViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = runCatching {
                 // El resumen basta: no hace falta abrir un libro largo entero ni esperar al catálogo completo.
-                val book = books.loadSummary(bookId) ?: error("No se encontró el libro")
+                val book = books.loadSummary(bookId) ?: error("Libro no encontrado: $bookId")
                 BookEditState.Ready(
                     BookEditForm(
                         title = book.title,
@@ -97,7 +98,7 @@ class BookEditViewModel @Inject constructor(
                         edited = library.hasEdits(bookId),
                     ),
                 )
-            }.getOrElse { BookEditState.Failed(it.message ?: "No se pudo abrir el libro") }
+            }.getOrElse { BookEditState.Failed }
         }
     }
 
@@ -121,15 +122,15 @@ fun BookEditScreen(onBack: () -> Unit, vm: BookEditViewModel = hiltViewModel()) 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Editar libro") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Volver") } },
+                title = { Text(stringResource(R.string.book_edit_title)) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.common_back)) } },
             )
         },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             when (val s = state) {
                 BookEditState.Loading, BookEditState.Done -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                is BookEditState.Failed -> Text(s.message, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(20.dp))
+                BookEditState.Failed -> Text(stringResource(R.string.book_edit_failed), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(20.dp))
                 is BookEditState.Ready -> EditForm(s.form, onSave = vm::save, onReset = vm::reset, onCancel = onBack)
             }
         }
@@ -147,7 +148,7 @@ private fun EditForm(initial: BookEditForm, onSave: (BookEditForm) -> Unit, onRe
         OutlinedTextField(
             value = form.title,
             onValueChange = { form = form.copy(title = it) },
-            label = { Text("Título") },
+            label = { Text(stringResource(R.string.book_edit_field_title)) },
             isError = form.title.isBlank(),
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
@@ -155,7 +156,7 @@ private fun EditForm(initial: BookEditForm, onSave: (BookEditForm) -> Unit, onRe
         OutlinedTextField(
             value = form.author,
             onValueChange = { form = form.copy(author = it) },
-            label = { Text("Autor") },
+            label = { Text(stringResource(R.string.book_edit_field_author)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -166,7 +167,7 @@ private fun EditForm(initial: BookEditForm, onSave: (BookEditForm) -> Unit, onRe
                 value = Languages.name(form.language),
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Idioma del libro") },
+                label = { Text(stringResource(R.string.book_edit_field_language)) },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = open) },
                 modifier = Modifier.fillMaxWidth().menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
             )
@@ -177,22 +178,22 @@ private fun EditForm(initial: BookEditForm, onSave: (BookEditForm) -> Unit, onRe
             }
         }
         Text(
-            "Es el idioma en que está escrito el texto: decide la voz que lo lee y desde qué idioma se traduce.",
+            stringResource(R.string.book_edit_language_hint),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        Text("Nivel", style = MaterialTheme.typography.labelLarge)
+        Text(stringResource(R.string.book_edit_field_level), style = MaterialTheme.typography.labelLarge)
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CefrLevel.entries.forEach { level ->
                 FilterChip(selected = form.level == level, onClick = { form = form.copy(level = level) }, label = { Text(level.name) })
             }
         }
 
-        Button(onClick = { onSave(form) }, enabled = form.title.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Guardar") }
+        Button(onClick = { onSave(form) }, enabled = form.title.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.common_save)) }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            if (initial.edited) TextButton(onClick = onReset) { Text("Restaurar datos originales") } else Box(Modifier)
-            TextButton(onClick = onCancel) { Text("Cancelar") }
+            if (initial.edited) TextButton(onClick = onReset) { Text(stringResource(R.string.book_edit_reset)) } else Box(Modifier)
+            TextButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel)) }
         }
     }
 }

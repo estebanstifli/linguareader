@@ -82,10 +82,52 @@ corrige sus fallos típicos: abreviaturas por idioma («Mr.», «Sra.», «p. ej
 - El **idioma** se toma de los metadatos si existen. Si no, el usuario lo elige en el diálogo
   (no hay detección automática).
 - **PDF:** la calidad depende de cómo se generó. Las maquetas a dos columnas o con notas al margen
-  pueden mezclar texto. Las imágenes del PDF no se importan.
+  pueden mezclar texto. Las imágenes del PDF no se importan al modo lectura (sí se ven con «Ver original»).
 - **Texto plano:** codificaciones antiguas distintas de windows-1252 (cp1251, Shift-JIS...) no se
   detectan. FB2, HTML y XML respetan su declaración de codificación.
 - Imágenes SVG no se importan (Android no las decodifica con `BitmapFactory`).
+
+## Ver el original
+
+Los PDF importados conservan una **referencia** al fichero (no una copia): `originalUri` en `summary.json`,
+con `takePersistableUriPermission` cuando el proveedor lo concede (selector de ficheros, carpetas elegidas).
+Al pulsar el libro, `OpenModeSheet` ofrece **Modo lectura** (texto reconstruido: voz, resaltado, traducción) o
+**Ver original**; la elección puede recordarse (`UserPreferences.originalOpenMode`, Ajustes › Examinar archivos).
+
+- Visor (`ui/viewer/`): `PdfRenderer` del sistema (sin dependencias). Un único hilo de renderizado, caché LRU
+  de páginas (≤ 64 MB), páginas con su proporción exacta antes de dibujarse (sin saltos), zoom de 1× a 4× con
+  dos dedos o doble toque (durante el gesto solo se escala la imagen; al soltar se re-maqueta y se re-dibuja nítido)
+  y desplazamiento horizontal con zoom. Recuerda la última página.
+- Si el fichero se movió, se borró o caducó el permiso («Abrir con…» desde otras apps no suele darlo persistente),
+  el visor lo dice y ofrece **Buscar el fichero**, que guarda la nueva referencia.
+- Un PDF escaneado (sin texto) no se importa, pero el aviso ofrece **Ver PDF**; en Examinar archivos, un PDF se
+  puede **Solo ver** sin importarlo.
+- Al borrar el libro se libera su permiso persistente (Android limita cuántos guarda cada app).
+
+### Voz y traducción sobre el PDF
+
+«Ver original» de un libro importado abre el **lector** en modo PDF (`ReaderPdfContent`): el mismo
+`ReaderViewModel` (voz, reproductor, progreso, tarjetas de palabra) con las páginas en lugar del texto. El botón
+de la barra superior alterna PDF ↔ texto sin perder el punto de lectura.
+
+- `PdfWordExtractor` saca con PdfBox cada palabra con su caja (fracciones de la página, válidas a cualquier zoom),
+  con los mismos ajustes que la importación, así que el orden coincide con el del texto del libro.
+- `WordBoxAligner` empareja tokens y palabras con una ventana voraz: lo que solo está en el PDF (cabeceras, pies,
+  números de página) se salta; las palabras partidas por guion reciben dos cajas; un salto lejano solo se acepta si
+  lo confirman las palabras siguientes. Un token sin pareja se queda sin caja (no se inventa su posición).
+- `PdfTextLayouts` lo calcula una vez en segundo plano justo tras importar (o al abrir el original si falta) y lo
+  guarda en `pdf-words.bin` junto al libro, con una firma del texto. Si menos de la mitad de los tokens tienen
+  caja (maquetación compleja), el lector lo avisa y ofrece «Ver como texto».
+- Resaltado: banda por línea para la frase y caja para la palabra (si el motor da tiempos), mezclados en modo
+  multiplicar sobre el papel blanco. La vista sigue a la voz salvo durante 4 s tras tocar o arrastrar. Con la
+  lectura parada, desplazarse a otra página hace que «reproducir» empiece en ella.
+
+## Miniaturas de portada
+
+`CoverThumbnails` decodifica cada portada una sola vez a 480 px y la guarda en `cacheDir/covers/<id>/`; los
+arranques siguientes leen ese JPEG pequeño. Los documentos del usuario sin portada propia reciben la primera
+página: PDF renderizado al importar (`PdfFirstPage`), miniatura de ODT/DOCX, o una «página de texto» dibujada
+con el título y el comienzo del texto. Los libros de las bibliotecas graduadas conservan su portada ilustrada.
 
 ## Licencias de las dependencias
 
