@@ -134,3 +134,6 @@ enum Languages {
 
     static func primary(_ tag: String) -> String { tag.split(separator: "-").first.map(String.init)?.lowercased() ?? tag }
 }
+
+/// Las clases de Kotlin llegan como clases ObjC; `id` ya es un String único.
+extension BookSummary: Identifiable {}
