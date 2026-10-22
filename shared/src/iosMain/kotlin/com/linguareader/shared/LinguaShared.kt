@@ -9,7 +9,18 @@ import com.linguareader.core.engine.StreamingSpeechEngine
 import com.linguareader.core.engine.TranslationEngine
 import com.linguareader.core.model.BookSummary
 import com.linguareader.core.model.CatalogFilter
+import com.linguareader.core.content.MediaResult
+import com.linguareader.core.model.AppPurpose
 import com.linguareader.core.model.CefrLevel
+import com.linguareader.core.model.MediaRef
+import com.linguareader.core.model.UserPreferences
+import com.linguareader.data.db.ReadingProgressEntity
+import com.linguareader.data.db.VocabularyEntity
+import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.usePinned
+import platform.Foundation.NSData
+import platform.Foundation.create
 import com.linguareader.core.reader.AudioFocusGate
 import com.linguareader.core.reader.PlaybackState
 import com.linguareader.core.reader.ReaderAudioController
@@ -181,9 +192,94 @@ object LinguaShared {
     /** Eventos de un motor de voz (inicio, rangos de palabra, fin) para los tests y la UI. */
     fun watchSpeechEvents(engine: StreamingSpeechEngine, block: (SpeechEvent) -> Unit): FlowWatcher = watch(engine.events, block)
 
+    // ---- Preferencias: operaciones concretas para Swift (el `copy` de una data class no se exporta de forma usable).
+
+    fun watchPreferences(block: (UserPreferences) -> Unit): FlowWatcher = watch(preferences.preferences, block)
+
+    /** Primer paso de la primera apertura. READ salta los pasos de idioma y nivel, como en Android. */
+    @Throws(Throwable::class)
+    suspend fun setPurpose(purpose: AppPurpose) = preferences.update {
+        val read = purpose == AppPurpose.READ
+        it.copy(
+            purpose = purpose,
+            ttsMode = !read,
+            ttsModeChosen = true,
+            learnLanguageChosen = read || it.learnLanguageChosen,
+            translationSetupDone = read || it.translationSetupDone,
+            learnerLevelChosen = read || it.learnerLevelChosen,
+        )
+    }
+
+    @Throws(Throwable::class)
+    suspend fun setReadingLanguage(tag: String?) = preferences.update {
+        it.copy(readingLanguage = tag, learnLanguageChosen = true, learnerLevelChosen = tag == null || it.learnerLevelChosen)
+    }
+
+    @Throws(Throwable::class)
+    suspend fun setTranslationLanguage(tag: String, wifiOnly: Boolean) = preferences.update {
+        it.copy(translationLanguage = tag, translationWifiOnly = wifiOnly, translationSetupDone = true)
+    }
+
+    @Throws(Throwable::class)
+    suspend fun setLearnerLevel(level: CefrLevel?) = preferences.update { it.copy(learnerLevel = level, learnerLevelChosen = true) }
+
+    @Throws(Throwable::class)
+    suspend fun finishOnboarding() = preferences.update { it.copy(onboardingSummaryShown = true) }
+
+    @Throws(Throwable::class)
+    suspend fun setLibraryGrid(grid: Boolean) = preferences.update { it.copy(libraryGrid = grid) }
+
+    @Throws(Throwable::class)
+    suspend fun setTtsMode(enabled: Boolean) = preferences.update { it.copy(ttsMode = enabled, ttsModeChosen = true) }
+
+    /** Solo para los tests de UI: deja la app como si la primera apertura ya se hubiera completado. */
+    @Throws(Throwable::class)
+    suspend fun skipOnboarding() = preferences.update {
+        it.copy(purpose = AppPurpose.LEARN, ttsModeChosen = true, learnLanguageChosen = true, translationSetupDone = true, learnerLevelChosen = true, onboardingSummaryShown = true)
+    }
+
+    // ---- Progreso, vocabulario y catálogo
+
+    fun watchProgress(block: (List<ReadingProgressEntity>) -> Unit): FlowWatcher = watch(database.progressDao().observeAll(), block)
+
+    fun watchVocabulary(block: (List<VocabularyEntity>) -> Unit): FlowWatcher = watch(database.vocabularyDao().observeAll(), block)
+
+    @Throws(Throwable::class)
+    suspend fun deleteVocabulary(id: Long) = database.vocabularyDao().delete(id)
+
+    /** Resumen de un libro con las correcciones del usuario aplicadas (pantalla «Editar»). */
+    @Throws(Throwable::class)
+    suspend fun loadSummary(bookId: String): BookSummary? = koin.get<CompositeBookRepository>().loadSummary(bookId)
+
+    /** Bytes de la portada de un libro (verificados), o null si no hay o está corrupta. */
+    @Throws(Throwable::class)
+    suspend fun loadCover(bookId: String, cover: MediaRef): NSData? =
+        (books.loadMedia(bookId, cover) as? MediaResult.Ok)?.bytes?.takeIf { it.isNotEmpty() }?.toNSData()
+
+    /** Libro instalado desde una biblioteca descargable (no importado a mano). */
+    fun isLibraryBook(bookId: String): Boolean = LibraryPackManager.isLibraryBook(bookId)
+
+    /** Texto plano del libro (capítulos y pasajes), para compartirlo. */
+    @Throws(Throwable::class)
+    suspend fun bookText(bookId: String): String {
+        val book = books.loadBook(bookId)
+        return buildString {
+            appendLine(book.title)
+            if (book.authors.isNotEmpty()) appendLine(book.authors.joinToString(", "))
+            book.chapters.forEach { chapter ->
+                appendLine()
+                appendLine(chapter.title)
+                chapter.passages.forEach { appendLine(); appendLine(it.text) }
+            }
+        }
+    }
+
     /** Versión del código compartido que ve la app (para la pantalla «Acerca de» y los logs de Device Farm). */
     const val VERSION = "0.3.0-ios"
 }
+
+@OptIn(ExperimentalForeignApi::class)
+private fun ByteArray.toNSData(): NSData = usePinned { NSData.create(bytes = it.addressOf(0), length = size.toULong()) }
 
 /** Sin traductor automático en iOS todavía: la pretraducción informa de que el par no está soportado. */
 private object NoTranslationModels : TranslationModels {

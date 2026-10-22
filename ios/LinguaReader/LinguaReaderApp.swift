@@ -7,8 +7,14 @@ struct LinguaReaderApp: App {
 
     var body: some Scene {
         WindowGroup {
-            NavigationStack {
-                CatalogView()
+            Group {
+                if store.prefs == nil {
+                    ProgressView()
+                } else if store.needsOnboarding {
+                    OnboardingView()
+                } else {
+                    CatalogView()
+                }
             }
             .environmentObject(store)
         }
