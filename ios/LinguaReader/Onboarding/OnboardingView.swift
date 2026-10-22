@@ -17,12 +17,7 @@ struct OnboardingView: View {
         return .summary
     }
 
-    private var totalSteps: Int {
-        switch store.prefs?.purpose {
-        case .read: return 2
-        default: return 5
-        }
-    }
+    private var totalSteps: Int { store.prefs?.purpose == AppPurpose.read ? 2 : 5 }
 
     private var stepIndex: Int {
         switch step {

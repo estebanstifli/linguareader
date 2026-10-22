@@ -99,7 +99,7 @@ final class AppStore: ObservableObject {
     // MARK: Muestra (tests de UI)
 
     func importSampleIfEmpty() async {
-        guard (try? await LinguaShared.shared.isLibraryEmpty()) == true,
+        guard (try? await LinguaShared.shared.isLibraryEmpty())?.boolValue == true,
               let url = Bundle.main.url(forResource: "cinderella", withExtension: "epub") else { return }
         status = "Importing the sample book…"
         do {
