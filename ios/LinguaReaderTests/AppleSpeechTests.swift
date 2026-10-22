@@ -8,7 +8,7 @@ final class AppleSpeechTests: XCTestCase {
     func testSystemVoicesAreListed() async throws {
         let engine = AppleSpeechEngine()
         let voices = try await engine.listVoices(languageTag: "en-US")
-        NSLog("Apple TTS voices for en-US: %@", voices.map { "\($0.displayName) [\($0.languageTag), q=\($0.quality ?? 0), \($0.gender)]" }.joined(separator: "; "))
+        NSLog("Apple TTS voices for en-US: %@", voices.map { "\($0.displayName) [\($0.languageTag), q=\($0.quality?.intValue ?? 0), \($0.gender)]" }.joined(separator: "; "))
         XCTAssertFalse(voices.isEmpty, "iOS always ships at least one compact English voice")
     }
 
