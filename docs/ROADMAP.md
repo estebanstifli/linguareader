@@ -144,8 +144,10 @@ en un iPhone real antes de prometerlo.
     dispositivo sin firma y `.ipa` para Device Farm como artefactos.
   - ✅ Primer run verde en CI (22-10-2026): suite compartida en simulador, 6 tests XCTest (paridad JVM y marcas de
     palabra de las voces de Apple) y humo XCTest UI (importa el EPUB, lee con resaltado por palabra, pasa de página).
-  - ⬜ Primer run en Device Farm (humo XCTest UI, paridad y spike en iPhone real) con los `.ipa` del artefacto `ios-device-farm`.
-  - ⬜ Sesión de acceso remoto en Device Farm para probar la app a mano.
+  - ✅ Sesión de acceso remoto en Device Farm (22-10-2026): el `.ipa` sin firmar se instala (Device Farm lo re-firma) y
+    la app funciona en un iPhone real manejado desde el navegador.
+  - ⬜ Run automatizado en Device Farm (humo XCTest UI, paridad y spike en iPhone real) con los `.ipa` del artefacto
+    `ios-device-farm`, para tener vídeo, logs y el recuento de marcas de palabra de las voces del dispositivo.
   - ⬜ Síntesis a fichero con marcas (`write(_:toBufferCallback:toMarkerCallback:)`) para el flujo renderizado con caché.
   - ⬜ Binding de `onnxruntime-c`, medir Supertonic y wav2vec2 en iPhone; descargas con `URLSession` en segundo plano;
     `AVAudioEngine` y Now Playing.
