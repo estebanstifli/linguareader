@@ -35,3 +35,8 @@ __pycache__/
 
 # Audio de narraciones de prueba (se publican como adjuntos de la release, no en git)
 test_mp3/
+
+# App iOS: proyecto y plist generados por XcodeGen, salidas de xcodebuild
+/ios/LinguaReader.xcodeproj/
+/ios/LinguaReader/Info.plist
+/ios/build/

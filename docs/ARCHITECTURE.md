@@ -24,6 +24,8 @@
 | `:importer` | Kotlin Multiplatform | Puerto `DocumentExtractor`, `ExtractorRegistry` (detección por firma), extractores EPUB/MOBI/DOCX/ODT/RTF/FB2/HTML/TXT/Markdown/SRT (Ksoup + Okio), `PageTextCleaner` (PDF) e `ImportedBookBuilder` (texto → `manifest.json`). Ver [IMPORT.md](IMPORT.md) |
 | `:data` | Kotlin Multiplatform | Persistencia compartida: base de datos Room (`AppDatabase`: progreso, marcadores, vocabulario, caché de traducciones, estanterías, papelera, correcciones, documentos del dispositivo; esquemas exportados en `data/schemas`) y `UserPreferencesRepository` sobre DataStore. Room genera la implementación para jvm e iOS (`@ConstructedBy`); tests JVM con `sqlite-bundled` |
 | `:app` | Android | `data` (assets, libros importados, biblioteca, escaneo, `DataStore` de Android), `engine` (Android TTS, foco de audio, reproductor Media3, gestores de modelos, PDF), `di` (grafo Koin), `ui` (catálogo, lector, ajustes, vocabulario) |
+| `:shared` | Kotlin Multiplatform (solo iOS) | Framework `LinguaShared` para la app iOS: exporta los módulos compartidos y añade los adaptadores de Apple (`AppleSpeechEngine`, `DirectoryBookRepository`, `BookImporter`, arranque Koin). Ver [IOS.md](IOS.md) |
+| `ios/` | Xcode (XcodeGen) | App SwiftUI, tests XCTest/XCTest UI y empaquetado para AWS Device Farm. No es un módulo Gradle. Ver [IOS.md](IOS.md) |
 
 Los módulos compartidos no contienen `android.*` ni `java.*`: lo que depende de la plataforma pasa por
 `core/platform` (expect/actual) o por puertos (`OnnxRuntime`, `FileDownloader`, `FileSystem` de Okio). Ver
@@ -157,8 +159,10 @@ que antes), `iosArm64` e `iosSimulatorArm64`. Es la **Fase 0** del plan de app i
   frase será distinto al de antes (otra secuencia de ruido), pero igual de válido; las cachés existentes siguen
   siendo válidas porque la versión de modelo no cambia.
 - **Qué compila dónde:** en Windows/Linux se compilan las klib de iOS (`./gradlew :core:compileKotlinIosArm64`),
-  no se enlaza ningún framework ni se ejecutan tests nativos. El XCFramework, el binding de ONNX Runtime
-  (`onnxruntime-c`), el descargador con `URLSession` y la app SwiftUI son trabajo de Mac (Fase 1 y 2).
+  no se enlaza ningún framework ni se ejecutan tests nativos. El XCFramework, los tests en simulador y la app
+  SwiftUI los compila un runner macOS de GitHub Actions (`.github/workflows/ios.yml`) y las pruebas en iPhone real
+  se hacen en AWS Device Farm: ver [IOS.md](IOS.md). El binding de ONNX Runtime (`onnxruntime-c`) y el descargador
+  con `URLSession` siguen pendientes.
 - **Persistencia (`:data`):** Room y DataStore son multiplataforma. `AppDatabase` (entidades, DAOs, automigraciones)
   y `UserPreferencesRepository` están en `data/commonMain`; el compilador de Room (`kspJvm`, `kspIosArm64`,
   `kspIosSimulatorArm64`) genera la implementación de cada destino y el `actual` de `AppDatabaseConstructor`.

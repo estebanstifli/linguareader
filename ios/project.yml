@@ -1,0 +1,74 @@
+# Proyecto Xcode generado con XcodeGen (`xcodegen generate` en esta carpeta; lo hace CI, ver docs/IOS.md).
+# El framework LinguaShared lo produce Gradle: `./gradlew :shared:assembleLinguaSharedDebugXCFramework`.
+name: LinguaReader
+options:
+  bundleIdPrefix: com.linguareader
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_IDENTITY: ""
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+targets:
+  LinguaReader:
+    type: application
+    platform: iOS
+    sources:
+      - path: LinguaReader
+    info:
+      path: LinguaReader/Info.plist
+      properties:
+        CFBundleDisplayName: LinguaReader
+        CFBundleShortVersionString: "0.2.0"
+        CFBundleVersion: "1"
+        UILaunchScreen: {}
+        UIBackgroundModes: [audio]
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        ITSAppUsesNonExemptEncryption: false
+    dependencies:
+      - framework: ../shared/build/XCFrameworks/debug/LinguaShared.xcframework
+        embed: true
+        codeSign: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.linguareader.ios
+        TARGETED_DEVICE_FAMILY: "1"
+  LinguaReaderTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: LinguaReaderTests
+    dependencies:
+      - target: LinguaReader
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.linguareader.ios.tests
+  LinguaReaderUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: LinguaReaderUITests
+    dependencies:
+      - target: LinguaReader
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.linguareader.ios.uitests
+        TEST_TARGET_NAME: LinguaReader
+schemes:
+  LinguaReader:
+    build:
+      targets:
+        LinguaReader: all
+        LinguaReaderTests: [test]
+        LinguaReaderUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - LinguaReaderTests
+        - LinguaReaderUITests

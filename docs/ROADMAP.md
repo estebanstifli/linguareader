@@ -135,9 +135,18 @@ en un iPhone real antes de prometerlo.
   `CuePlayer`, `BookExporter`, `ImportedBookRepository`, `TranslationModelManager`, `CoverThumbnails`,
   `BookTranslationService`, `ScanSettingsRepository`). Es un cambio de varios pasos; se hará al empezar la app iOS,
   cuando se sepa qué adaptadores existen en cada plataforma.
-- ⬜ **Fase 1 (Mac):** XCFramework, tests de `core` en simulador, `actual`s de iOS validados, binding de
-  `onnxruntime-c`, descargas con `URLSession` en segundo plano, `AVSpeechSynthesizer` con marcas de palabra,
-  `AVAudioEngine`, Now Playing, medir Supertonic y wav2vec2 en iPhone.
+- 🟡 **Fase 1 (sin Mac, con GitHub Actions + AWS Device Farm; ver [IOS.md](IOS.md)):**
+  - ✅ Módulo `:shared` (framework `LinguaShared`) con los adaptadores de Apple: voz del sistema con rangos por
+    palabra (`AVSpeechSynthesizer`), libros en disco, importador compartido, grafo Koin.
+  - ✅ Directorio `ios/`: app SwiftUI mínima (catálogo, lector con resaltado, importa un EPUB de muestra), tests de
+    paridad con la JVM, spike de marcas de voz y humo XCTest UI; `project.yml` para XcodeGen.
+  - ✅ Workflow `ios.yml`: suite compartida en simulador, XCFramework, tests de la app en simulador, build para
+    dispositivo sin firma y `.ipa` para Device Farm como artefactos.
+  - ⬜ Primer run verde en CI y primer run en Device Farm (humo XCTest UI, paridad y spike en iPhone real).
+  - ⬜ Sesión de acceso remoto en Device Farm para probar la app a mano.
+  - ⬜ Síntesis a fichero con marcas (`write(_:toBufferCallback:toMarkerCallback:)`) para el flujo renderizado con caché.
+  - ⬜ Binding de `onnxruntime-c`, medir Supertonic y wav2vec2 en iPhone; descargas con `URLSession` en segundo plano;
+    `AVAudioEngine` y Now Playing.
 - ⬜ **Fase 2:** app SwiftUI (lector con TextKit 2, catálogo, ajustes, onboarding, visor PDF con PDFKit, String Catalog).
 
 ## Deuda técnica conocida
