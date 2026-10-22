@@ -548,6 +548,33 @@
 
     <!-- Motor de voz (ui/settings/TtsEngineSection.kt) -->
     <string name="tts_engine_title">Speech engine</string>
+    <string name="tts_system_voice_title">System voice</string>
+    <string name="tts_system_engine">Engine</string>
+    <string name="tts_system_engine_default">%1$s (system default)</string>
+    <string name="tts_system_no_engines">No text-to-speech engine installed.</string>
+    <string name="tts_word_timing_check">Check word timings</string>
+    <string name="tts_word_timing_unknown">Word timings not checked yet</string>
+    <string name="tts_word_timing_checking">Checking word timings…</string>
+    <string name="tts_word_timing_yes">Word-by-word highlighting (%1$d timings for %2$d words)</string>
+    <string name="tts_word_timing_no">No word timings: the reader will highlight by sentence</string>
+    <string name="tts_word_timing_language_missing">This language isn\'t installed in this engine</string>
+    <string name="tts_word_timing_failed">Couldn\'t test this engine</string>
+    <string name="tts_word_timing_hint">Only engines that report word timings can highlight word by word. Google\'s engine doesn\'t on some phones; RHVoice does.</string>
+    <string name="tts_voice_language">Language</string>
+    <string name="tts_voices_for">Voices for %1$s</string>
+    <string name="tts_no_voices">This engine has no %1$s voices installed. Install them from Android\'s text-to-speech settings.</string>
+    <string name="tts_play_sample">Play sample</string>
+    <string name="tts_speed">Speed</string>
+    <string name="tts_pitch">Pitch</string>
+    <string name="voice_female_n">Female voice %1$d</string>
+    <string name="voice_male_n">Male voice %1$d</string>
+    <string name="voice_n">Voice %1$d</string>
+    <string name="voice_gender_female">Female</string>
+    <string name="voice_gender_male">Male</string>
+    <string name="voice_offline">Offline</string>
+    <string name="voice_quality_high">High quality</string>
+    <string name="voice_quality_normal">Normal quality</string>
+    <string name="voice_quality_low">Low quality</string>
     <string name="tts_engine_system">System voice (Android TTS)</string>
     <string name="tts_engine_system_detail">No downloads. Word highlighting if the installed engine sends events.</string>
     <string name="tts_engine_supertonic_detail">Offline neural voice on the phone\'s CPU. One-time download of %1$s. Sentence highlighting; word highlighting with an optional alignment model (below).</string>

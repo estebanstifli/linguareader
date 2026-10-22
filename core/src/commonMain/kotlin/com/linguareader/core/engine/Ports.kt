@@ -25,12 +25,20 @@ interface BookRepository {
 // TTS
 // ---------------------------------------------------------------------------------------------
 
+enum class VoiceGender { FEMALE, MALE, UNKNOWN }
+
 data class VoiceInfo(
     val id: String,
     val languageTag: String,
+    /** Nombre del motor; legible si [named] (p. ej. «Alan»), técnico si no (p. ej. «en-us-x-sfg#female_2-local»). */
     val displayName: String,
     val requiresNetwork: Boolean,
     val quality: Int?,
+    val gender: VoiceGender = VoiceGender.UNKNOWN,
+    /** Número de la voz entre las de su idioma y género (1, 2, 3…), para etiquetas como «Voz femenina 2». */
+    val number: Int = 0,
+    /** [displayName] es un nombre propio que se puede mostrar tal cual. */
+    val named: Boolean = false,
 )
 
 data class SpeechRequest(

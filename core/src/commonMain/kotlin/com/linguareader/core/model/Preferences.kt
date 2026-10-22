@@ -36,6 +36,10 @@ data class UserPreferences(
     val speechRate: Float = 1.0f,
     /** Voz elegida por subetiqueta primaria de idioma. */
     val voiceByLanguage: Map<String, String> = emptyMap(),
+    /** Motor de texto a voz del sistema (paquete), o null para el predeterminado de Android. */
+    val systemTtsEngine: String? = null,
+    /** Tono de la voz del sistema (1.0 = normal; 0.5–2.0). */
+    val ttsPitch: Float = 1.0f,
     val fontScale: Float = 1.0f,
     val lineHeight: Float = 1.5f,
     val theme: ThemeMode = ThemeMode.SYSTEM,

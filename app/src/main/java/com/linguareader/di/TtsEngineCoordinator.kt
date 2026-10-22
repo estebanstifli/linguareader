@@ -46,6 +46,12 @@ class TtsEngineCoordinator @Inject constructor(
             preferences.preferences.map { it.audioCacheMb }.distinctUntilChanged().collect { settings.audioCacheBytes = it * 1024L * 1024 }
         }
         scope.launch {
+            preferences.preferences.map { it.systemTtsEngine }.distinctUntilChanged().collect { settings.systemTtsEngine = it }
+        }
+        scope.launch {
+            preferences.preferences.map { it.ttsPitch }.distinctUntilChanged().collect { settings.ttsPitch = it }
+        }
+        scope.launch {
             preferences.preferences.map { it.ttsEngineId }.distinctUntilChanged().collect { id ->
                 val target = if (registry[id] != null) id else registry.all.first().id
                 withContext(Dispatchers.Main) { selector.selectEngine(target) }

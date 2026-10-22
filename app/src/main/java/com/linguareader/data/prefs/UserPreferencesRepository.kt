@@ -45,6 +45,8 @@ class UserPreferencesRepository @Inject constructor(
         val reduceMotion = booleanPreferencesKey("reduce_motion")
         val speechRate = floatPreferencesKey("speech_rate")
         val voices = stringPreferencesKey("voice_by_language")
+        val systemTtsEngine = stringPreferencesKey("system_tts_engine")
+        val ttsPitch = floatPreferencesKey("tts_pitch")
         val fontScale = floatPreferencesKey("font_scale")
         val lineHeight = floatPreferencesKey("line_height")
         val theme = stringPreferencesKey("theme")
@@ -94,6 +96,8 @@ class UserPreferencesRepository @Inject constructor(
             stored[Keys.reduceMotion] = next.reduceMotion
             stored[Keys.speechRate] = next.speechRate
             stored[Keys.voices] = encodeMap(next.voiceByLanguage)
+            if (next.systemTtsEngine == null) stored.remove(Keys.systemTtsEngine) else stored[Keys.systemTtsEngine] = next.systemTtsEngine!!
+            stored[Keys.ttsPitch] = next.ttsPitch
             stored[Keys.fontScale] = next.fontScale
             stored[Keys.lineHeight] = next.lineHeight
             stored[Keys.theme] = next.theme.name
@@ -140,6 +144,8 @@ class UserPreferencesRepository @Inject constructor(
             reduceMotion = p[Keys.reduceMotion] ?: d.reduceMotion,
             speechRate = p[Keys.speechRate] ?: d.speechRate,
             voiceByLanguage = decodeMap(p[Keys.voices]),
+            systemTtsEngine = p[Keys.systemTtsEngine],
+            ttsPitch = p[Keys.ttsPitch] ?: d.ttsPitch,
             fontScale = p[Keys.fontScale] ?: d.fontScale,
             lineHeight = p[Keys.lineHeight] ?: d.lineHeight,
             theme = enumOr(p[Keys.theme], d.theme),

@@ -20,7 +20,7 @@ class AndroidTtsMarksTest {
     @Test
     fun englishSentenceGivesWordMarks() = runBlocking {
         val ctx = InstrumentationRegistry.getInstrumentation().targetContext
-        val engine = AndroidTtsEngine(ctx)
+        val engine = AndroidTtsEngine(ctx, com.linguareader.di.EngineSettingsHolder())
         val text = "Tom is eight years old. He lives in a small house near the sea with his mother and his dog."
         val request = SpeechRequest(text = text, languageTag = "en", voiceId = null, speed = 1.0f)
         val ready = engine.availability("en", null)

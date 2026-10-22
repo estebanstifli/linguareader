@@ -23,8 +23,11 @@ import com.linguareader.core.engine.SpeechRequest
 import com.linguareader.core.engine.SpeechResult
 import com.linguareader.core.engine.StreamingSpeechEngine
 import com.linguareader.core.engine.TtsEngineInfo
+import com.linguareader.core.engine.VoiceGender
 import com.linguareader.core.engine.VoiceInfo
 import com.linguareader.core.model.LanguageTags
+import com.linguareader.core.platform.formatFixed
+import com.linguareader.di.EngineSettingsHolder
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -59,6 +62,7 @@ import kotlin.coroutines.resume
 @Singleton
 class AndroidTtsEngine @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val settings: EngineSettingsHolder,
 ) : StreamingSpeechEngine, FileSpeechSynthesizer {
 
     override val id: String = "android-tts"
@@ -120,13 +124,24 @@ class AndroidTtsEngine @Inject constructor(
         }
     }
 
+    /** Paquete con el que se creó [tts] (null = el predeterminado del sistema). */
+    @Volatile private var ttsPackage: String? = null
+
     private suspend fun engine(): TextToSpeech? = initMutex.withLock {
-        tts ?: withContext(Dispatchers.Main) { create() }?.also { tts = it }
+        val wanted = settings.systemTtsEngine
+        val current = tts
+        if (current != null && ttsPackage == wanted) return@withLock current
+        if (current != null) {
+            // El usuario cambió de motor en los ajustes: se cierra el anterior y se crea el nuevo.
+            withContext(Dispatchers.Main) { runCatching { current.stop(); current.shutdown() } }
+            tts = null
+        }
+        withContext(Dispatchers.Main) { create(wanted) }?.also { tts = it; ttsPackage = wanted }
     }
 
-    private suspend fun create(): TextToSpeech? = suspendCancellableCoroutine { cont ->
+    private suspend fun create(enginePackage: String?): TextToSpeech? = suspendCancellableCoroutine { cont ->
         var created: TextToSpeech? = null
-        created = TextToSpeech(context) { status ->
+        val onInit = TextToSpeech.OnInitListener { status ->
             val instance = created
             if (status == TextToSpeech.SUCCESS && instance != null) {
                 instance.setOnUtteranceProgressListener(listener)
@@ -138,10 +153,33 @@ class AndroidTtsEngine @Inject constructor(
                 )
                 if (cont.isActive) cont.resume(instance)
             } else {
-                Log.w(TAG, "TextToSpeech no disponible (status=$status)")
+                Log.w(TAG, "TextToSpeech no disponible (status=$status, motor=${enginePackage ?: "predeterminado"})")
                 instance?.shutdown()
                 if (cont.isActive) cont.resume(null)
             }
+        }
+        created = if (enginePackage == null) TextToSpeech(context, onInit) else TextToSpeech(context, onInit, enginePackage)
+    }
+
+    /** Motores de texto a voz instalados (paquete y nombre), con el predeterminado del sistema primero. */
+    suspend fun engines(): List<SystemTtsEngine> {
+        val t = engine() ?: return emptyList()
+        return withContext(Dispatchers.Main) {
+            val default = t.defaultEngine
+            t.engines.orEmpty().map { SystemTtsEngine(it.name, it.label, it.name == default) }.sortedByDescending { it.isDefault }
+        }
+    }
+
+    /** Reproduce [text] con la voz [voiceId] (o la mejor del idioma) para probarla; corta lo que estuviera sonando. */
+    suspend fun preview(languageTag: String, voiceId: String?, text: String, speed: Float, pitch: Float): Boolean {
+        if (prepare(languageTag, voiceId) !is EngineReadiness.Ready) return false
+        val t = tts ?: return false
+        return withContext(Dispatchers.Main) {
+            t.setSpeechRate(speed)
+            t.setPitch(pitch)
+            val id = "preview|${System.nanoTime()}"
+            val params = Bundle().apply { putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, id) }
+            t.speak(text, TextToSpeech.QUEUE_FLUSH, params, id) == TextToSpeech.SUCCESS
         }
     }
 
@@ -175,6 +213,7 @@ class AndroidTtsEngine @Inject constructor(
             return
         }
         t.setSpeechRate(speed)
+        t.setPitch(settings.ttsPitch)
         val params = Bundle().apply { putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId) }
         val result = t.speak(text, if (flush) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, params, utteranceId)
         if (result != TextToSpeech.SUCCESS) _events.tryEmit(SpeechEvent.Error(utteranceId, result))
@@ -191,22 +230,35 @@ class AndroidTtsEngine @Inject constructor(
     override suspend fun listVoices(languageTag: String): List<VoiceInfo> {
         val t = engine() ?: return emptyList()
         return withContext(Dispatchers.Main) {
-            installedVoices(t, languageTag).map { v ->
+            val voices = installedVoices(t, languageTag)
+                .sortedWith(compareBy<Voice> { it.isNetworkConnectionRequired }.thenByDescending { it.quality }.thenBy { it.name })
+            // Numeración por idioma y género: «Voz femenina 1, 2…» en vez de nombres como en-us-x-sfg#female_2-local.
+            val counters = HashMap<String, Int>()
+            voices.map { v ->
+                val gender = genderOf(v.name)
+                val named = isNamed(v.name)
+                val key = "${v.locale.toLanguageTag()}|$gender"
+                val number = (counters[key] ?: 0) + 1
+                counters[key] = number
                 VoiceInfo(
                     id = v.name,
                     languageTag = v.locale.toLanguageTag(),
-                    displayName = "${v.locale.getDisplayName(Locale.getDefault())} · ${v.name}",
+                    displayName = if (named) v.name.replaceFirstChar { it.titlecase(Locale.ROOT) } else v.name,
                     requiresNetwork = v.isNetworkConnectionRequired,
                     quality = v.quality,
+                    gender = gender,
+                    number = number,
+                    named = named,
                 )
-            }.sortedWith(compareBy<VoiceInfo> { it.requiresNetwork }.thenByDescending { it.quality ?: 0 })
+            }
         }
     }
 
     /** Motor del sistema y su versión: si se actualiza (voces nuevas), el audio en caché se regenera. */
     override val modelVersion: String
         get() {
-            val pkg = tts?.defaultEngine
+            val pkg = settings.systemTtsEngine
+                ?: tts?.defaultEngine
                 ?: Settings.Secure.getString(context.contentResolver, "tts_default_synth")
                 ?: "default"
             val code = runCatching {
@@ -236,6 +288,7 @@ class AndroidTtsEngine @Inject constructor(
         fileJobs[utteranceId] = job
         try {
             t.setSpeechRate(request.speed)
+            t.setPitch(request.parameters[PITCH_PARAM]?.toFloatOrNull() ?: 1.0f)
             val params = Bundle().apply { putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId) }
             val t0 = SystemClock.elapsedRealtime()
             val started = t.synthesizeToFile(request.text, params, target.toFile(), utteranceId) == TextToSpeech.SUCCESS
@@ -289,9 +342,31 @@ class AndroidTtsEngine @Inject constructor(
         return (exact.ifEmpty { candidates }).maxByOrNull { it.quality }
     }
 
-    private companion object {
+    companion object {
         const val TAG = "AndroidTtsEngine"
-        const val SYNTH_TIMEOUT_MS = 60_000L
-        const val WAV_HEADER_BYTES = 44L
+        private const val SYNTH_TIMEOUT_MS = 60_000L
+        private const val WAV_HEADER_BYTES = 44L
+        private const val PITCH_PARAM = "pitch"
+
+        /** Parámetros de petición (y de clave de caché) para un tono; vacío si es el normal. */
+        fun pitchParameters(pitch: Float): Map<String, String> =
+            if (pitch == 1.0f) emptyMap() else mapOf(PITCH_PARAM to formatFixed(pitch.toDouble(), 2))
+
+        /** Género según el nombre técnico de la voz (Google: «…#female_2-local», «…#male_1-local»). */
+        fun genderOf(name: String): VoiceGender {
+            val n = name.lowercase(Locale.ROOT)
+            return when {
+                "female" in n || Regex("[#_-]f(em)?[_\\d-]").containsMatchIn(n) -> VoiceGender.FEMALE
+                "male" in n || Regex("[#_-]m(asc)?[_\\d-]").containsMatchIn(n) -> VoiceGender.MALE
+                else -> VoiceGender.UNKNOWN
+            }
+        }
+
+        /** Nombre propio (RHVoice: «Alan», «Slt») frente a identificador técnico (Google: «en-us-x-iom-local»). */
+        fun isNamed(name: String): Boolean =
+            '#' !in name && !Regex("^[a-z]{2,3}[-_][a-zA-Z]{2,4}([-_]|$)").containsMatchIn(name) && name.length <= 24
     }
 }
+
+/** Motor de texto a voz instalado en el sistema. */
+data class SystemTtsEngine(val packageName: String, val label: String, val isDefault: Boolean)

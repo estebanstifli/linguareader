@@ -9,6 +9,8 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.ui.res.stringResource
 import com.linguareader.core.engine.VoiceInfo
+import com.linguareader.ui.common.voiceDetail
+import com.linguareader.ui.common.voiceTitle
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -153,11 +155,7 @@ private fun VoicePickerSheet(voices: List<VoiceInfo>, selected: String?, automat
         LazyColumn(Modifier.fillMaxWidth().navigationBarsPadding()) {
             if (automatic) item(key = "auto") { VoiceRow(stringResource(R.string.voice_automatic), stringResource(R.string.voice_automatic_detail), selected == null) { onSelect(null) } }
             items(voices, key = { it.id }) { v ->
-                VoiceRow(
-                    v.displayName,
-                    if (v.requiresNetwork) stringResource(R.string.voice_needs_network) else null,
-                    selected == v.id,
-                ) { onSelect(v.id) }
+                VoiceRow(voiceTitle(v), voiceDetail(v), selected == v.id) { onSelect(v.id) }
             }
         }
     }

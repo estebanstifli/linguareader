@@ -226,15 +226,6 @@ private fun SettingsPageContent(
             TtsEngineSection()
             WordAlignmentSection()
             PacksSection()
-            Text(
-                stringResource(R.string.settings_system_voices_hint),
-                style = MaterialTheme.typography.bodySmall,
-            )
-            OutlinedButton(onClick = {
-                runCatching {
-                    context.startActivity(android.content.Intent("com.android.settings.TTS_SETTINGS").addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
-                }
-            }) { Text(stringResource(R.string.settings_open_tts_settings)) }
         }
         SettingsPage.ABOUT -> Text(
             stringResource(R.string.settings_about_text, BuildConfig.VERSION_NAME),

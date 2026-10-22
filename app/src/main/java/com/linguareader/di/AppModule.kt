@@ -73,6 +73,10 @@ class EngineSettingsHolder @Inject constructor() {
     @Volatile var audioCacheBytes: Long = 256L * 1024 * 1024
     @Volatile var normalizeSpeech: Boolean = true
     @Volatile var autoContinue: Boolean = true
+    /** Motor de texto a voz del sistema elegido (paquete) o null para el predeterminado. */
+    @Volatile var systemTtsEngine: String? = null
+    /** Tono de la voz del sistema (1.0 = normal). */
+    @Volatile var ttsPitch: Float = 1.0f
 }
 
 /**
@@ -186,6 +190,8 @@ object TtsEngineModule {
                 player = LazyClipPlayer { Media3ClipPlayer(context, handleAudioFocus = true) },
                 snippetPlayer = LazyClipPlayer { Media3ClipPlayer(context, handleAudioFocus = false) },
                 dispatcher = main,
+                // El tono forma parte de la clave de caché: otro tono es otro audio.
+                parameters = { AndroidTtsEngine.pitchParameters(settings.ttsPitch) },
                 pauses = { settings.pauses },
                 aligner = aligner, // solo si el motor instalado no da marcas y hay modelo de alineación
                 normalizer = normalizer,

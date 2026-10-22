@@ -546,6 +546,33 @@
 
     <!-- Motor de voz (ui/settings/TtsEngineSection.kt) -->
     <string name="tts_engine_title">Motor de voz</string>
+    <string name="tts_system_voice_title">Voz del sistema</string>
+    <string name="tts_system_engine">Motor</string>
+    <string name="tts_system_engine_default">%1$s (predeterminado del sistema)</string>
+    <string name="tts_system_no_engines">No hay ningún motor de texto a voz instalado.</string>
+    <string name="tts_word_timing_check">Comprobar tiempos por palabra</string>
+    <string name="tts_word_timing_unknown">Tiempos por palabra sin comprobar</string>
+    <string name="tts_word_timing_checking">Comprobando tiempos por palabra…</string>
+    <string name="tts_word_timing_yes">Resaltado palabra a palabra (%1$d tiempos para %2$d palabras)</string>
+    <string name="tts_word_timing_no">Sin tiempos por palabra: el lector resaltará por frase</string>
+    <string name="tts_word_timing_language_missing">Este idioma no está instalado en este motor</string>
+    <string name="tts_word_timing_failed">No se pudo probar este motor</string>
+    <string name="tts_word_timing_hint">Solo los motores que informan de los tiempos de cada palabra permiten resaltar palabra a palabra. El de Google no lo hace en algunos móviles; RHVoice sí.</string>
+    <string name="tts_voice_language">Idioma</string>
+    <string name="tts_voices_for">Voces para %1$s</string>
+    <string name="tts_no_voices">Este motor no tiene voces de %1$s instaladas. Instálalas desde los ajustes de texto a voz de Android.</string>
+    <string name="tts_play_sample">Escuchar muestra</string>
+    <string name="tts_speed">Velocidad</string>
+    <string name="tts_pitch">Tono</string>
+    <string name="voice_female_n">Voz femenina %1$d</string>
+    <string name="voice_male_n">Voz masculina %1$d</string>
+    <string name="voice_n">Voz %1$d</string>
+    <string name="voice_gender_female">Femenina</string>
+    <string name="voice_gender_male">Masculina</string>
+    <string name="voice_offline">Sin conexión</string>
+    <string name="voice_quality_high">Alta calidad</string>
+    <string name="voice_quality_normal">Calidad normal</string>
+    <string name="voice_quality_low">Calidad baja</string>
     <string name="tts_engine_system">Voz del sistema (Android TTS)</string>
     <string name="tts_engine_system_detail">Sin descargas. Resaltado por palabra si el motor instalado envía eventos.</string>
     <string name="tts_engine_supertonic_detail">Voz neuronal sin conexión en la CPU del móvil. Descarga única de %1$s. Resaltado por frase; por palabra con un modelo de alineación opcional (más abajo).</string>
