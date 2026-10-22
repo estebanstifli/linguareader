@@ -148,7 +148,7 @@ object TtsEngineModule {
 
     @Provides @Singleton
     fun supertonicSynthesizer(engine: SupertonicEngine, cache: FileAudioCache): CachingSpeechSynthesizer =
-        CachingSpeechSynthesizer(engine, cache)
+        CachingSpeechSynthesizer(engine, cache, log = { Log.i("AudioCache", it) })
 
     @Provides @Singleton
     fun engineRegistry(streaming: StreamingSpeechEngine, supertonic: CachingSpeechSynthesizer): TtsEngineRegistry =
@@ -182,7 +182,7 @@ object TtsEngineModule {
         // en streaming.
         val system = (streaming as? FileSpeechSynthesizer)?.let { file ->
             RenderedReaderAudioController(
-                synthesizer = CachingSpeechSynthesizer(file, cache),
+                synthesizer = CachingSpeechSynthesizer(file, cache, log = { Log.i("AudioCache", it) }),
                 player = LazyClipPlayer { Media3ClipPlayer(context, handleAudioFocus = true) },
                 snippetPlayer = LazyClipPlayer { Media3ClipPlayer(context, handleAudioFocus = false) },
                 dispatcher = main,

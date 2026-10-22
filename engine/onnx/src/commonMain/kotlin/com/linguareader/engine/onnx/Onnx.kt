@@ -19,7 +19,8 @@ enum class OnnxOptLevel { BASIC, EXTENDED, ALL }
 
 data class OnnxSessionOptions(
     val intraOpThreads: Int,
-    val interOpThreads: Int = 1,
+    /** Hilos entre operadores; null deja el valor por defecto de la plataforma (el alineador no lo fija). */
+    val interOpThreads: Int? = null,
     val optimization: OnnxOptLevel = OnnxOptLevel.ALL,
 )
 

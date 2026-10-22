@@ -40,10 +40,18 @@ class FileAudioCache(
 
     private val lock = SynchronizedObject()
 
+    /**
+     * Tamaño en disco según el último recuento, más lo publicado desde entonces. Solo sirve para decidir cuándo
+     * recortar sin listar el directorio en cada clip: los sidecars que se escriben después de publicar no se
+     * suman (son pequeños), así que el recorte real se hace con un recuento exacto en [trim].
+     */
+    private var estimatedBytes = 0L
+
     init {
         fileSystem.createDirectories(directory)
         list().filter { it.name.endsWith(".part") }.forEach { fileSystem.delete(it, mustExist = false) }
         removeOrphanSidecars()
+        estimatedBytes = scan().sumOf { it.bytes }
     }
 
     private fun fileFor(key: String): Path {
@@ -71,7 +79,8 @@ class FileAudioCache(
         sidecarsOf(target).forEach { fileSystem.delete(it, mustExist = false) } // audio nuevo: la alineación y las marcas anteriores ya no valen
         runCatching { fileSystem.atomicMove(tmp, target) }.getOrElse { error("No se pudo publicar $target: ${it.message}") }
         touch(target, clock())
-        trim()
+        estimatedBytes += sizeOrNull(target) ?: 0L
+        if (estimatedBytes > maxBytesProvider()) trim()
         target
     }
 
@@ -90,30 +99,31 @@ class FileAudioCache(
         }
     }
 
-    fun sizeBytes(): Long = synchronized(lock) { entries().sumOf { sizeOf(it) } }
+    fun sizeBytes(): Long = synchronized(lock) { scan().sumOf { it.bytes }.also { estimatedBytes = it } }
 
     fun clear() = synchronized(lock) {
-        entries().forEach { delete(it) }
+        scan().forEach { delete(it.audio) }
         removeOrphanSidecars()
+        estimatedBytes = 0L
     }
 
+    /** Expulsa los menos usados hasta caber en el límite. Un recuento del directorio (una lectura de metadatos por fichero). */
     fun trim() = synchronized(lock) {
-        val files = entries().sortedBy { fileSystem.metadataOrNull(it)?.lastModifiedAtMillis ?: 0L }
-        var total = files.sumOf { sizeOf(it) }
+        val entries = scan().sortedBy { it.lastModified }
+        var total = entries.sumOf { it.bytes }
         val max = maxBytesProvider()
-        for (f in files) {
+        for (e in entries) {
             if (total <= max) break
-            total -= sizeOf(f)
-            delete(f)
+            total -= e.bytes
+            delete(e.audio)
         }
+        estimatedBytes = total
     }
 
     /** Ficheros que acompañan a un audio: alineación ([AlignmentSidecar]) y marcas del motor ([SpokenMarksSidecar]). */
     private fun sidecarsOf(audio: Path) = listOf(AlignmentSidecar.fileFor(audio), SpokenMarksSidecar.fileFor(audio))
 
     private fun sizeOrNull(p: Path): Long? = fileSystem.metadataOrNull(p)?.takeIf { it.isRegularFile }?.size
-
-    private fun sizeOf(audio: Path) = (sizeOrNull(audio) ?: 0L) + sidecarsOf(audio).sumOf { sizeOrNull(it) ?: 0L }
 
     private fun delete(audio: Path) {
         fileSystem.delete(audio, mustExist = false)
@@ -131,8 +141,24 @@ class FileAudioCache(
 
     private fun list(): List<Path> = fileSystem.listOrNull(directory).orEmpty()
 
-    private fun entries(): List<Path> =
-        list().filter { it.name.endsWith(".$extension") && fileSystem.metadataOrNull(it)?.isRegularFile == true }
+    /** Un audio con sus sidecars: bytes totales y fecha de último acceso del audio. */
+    private class Entry(val audio: Path, val bytes: Long, val lastModified: Long)
+
+    /** Lee los metadatos de cada fichero del directorio una sola vez y agrupa cada audio con sus sidecars. */
+    private fun scan(): List<Entry> {
+        val sizes = HashMap<String, Long>()
+        val modified = HashMap<String, Long>()
+        for (p in list()) {
+            val m = fileSystem.metadataOrNull(p) ?: continue
+            if (!m.isRegularFile) continue
+            sizes[p.name] = m.size ?: 0L
+            modified[p.name] = m.lastModifiedAtMillis ?: 0L
+        }
+        return sizes.keys.filter { it.endsWith(".$extension") }.map { name ->
+            val audio = directory / name
+            Entry(audio, (sizes[name] ?: 0L) + sidecarsOf(audio).sumOf { sizes[it.name] ?: 0L }, modified[name] ?: 0L)
+        }
+    }
 
     private companion object {
         val KEY_PATTERN = Regex("^[A-Za-z0-9_-]{8,128}$")

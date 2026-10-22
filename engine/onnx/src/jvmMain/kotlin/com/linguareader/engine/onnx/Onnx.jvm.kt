@@ -18,7 +18,7 @@ class JvmOnnxRuntime(private val env: OrtEnvironment = OrtEnvironment.getEnviron
     override fun createSession(modelPath: String, options: OnnxSessionOptions): OnnxSession {
         val session = OrtSession.SessionOptions().use { o ->
             o.setIntraOpNumThreads(options.intraOpThreads)
-            o.setInterOpNumThreads(options.interOpThreads)
+            options.interOpThreads?.let { o.setInterOpNumThreads(it) }
             o.setOptimizationLevel(
                 when (options.optimization) {
                     OnnxOptLevel.BASIC -> OrtSession.SessionOptions.OptLevel.BASIC_OPT

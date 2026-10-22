@@ -49,6 +49,26 @@ class FileAudioCacheTest {
     }
 
     @Test
+    fun `commit below the limit does not list the directory and trims only when over it`() {
+        var listings = 0
+        val counting = object : okio.ForwardingFileSystem(okio.FileSystem.SYSTEM) {
+            override fun listOrNull(dir: Path): List<Path>? { listings++; return super.listOrNull(dir) }
+            override fun list(dir: Path): List<Path> { listings++; return super.list(dir) }
+        }
+        val c = FileAudioCache(tmp.root.toOkioPath(), 250L, clock = { now }, fileSystem = counting)
+        val atStart = listings // el arranque recuenta una vez
+        c.put(key(1)) { it.toFile().writeBytes(ByteArray(100)) }; now += 10
+        c.put(key(2)) { it.toFile().writeBytes(ByteArray(100)) }; now += 10
+        assertEquals("por debajo del límite no se lista el directorio", atStart, listings)
+        c.put(key(3)) { it.toFile().writeBytes(ByteArray(100)) }
+        assertTrue("al superar el límite se recorta (un listado)", listings > atStart)
+        assertNull(c.get(key(1)))
+        assertNotNull(c.get(key(2)))
+        assertNotNull(c.get(key(3)))
+        assertTrue(c.sizeBytes() <= 250)
+    }
+
+    @Test
     fun `failed writer leaves no partial entry`() {
         val c = cache()
         runCatching { c.put(key(1)) { it.toFile().writeBytes(ByteArray(5)); error("boom") } }

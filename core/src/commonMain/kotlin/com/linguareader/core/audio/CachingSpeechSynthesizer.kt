@@ -9,6 +9,7 @@ import com.linguareader.core.engine.SpeechSynthesizer
 import com.linguareader.core.engine.TtsEngineInfo
 import com.linguareader.core.engine.VoiceInfo
 import okio.Path
+import kotlin.time.TimeSource
 
 /**
  * Motor que sabe sintetizar directamente a un fichero concreto (lo usa [CachingSpeechSynthesizer]).
@@ -37,6 +38,8 @@ class CachingSpeechSynthesizer(
     private val delegate: FileSpeechSynthesizer,
     private val cache: FileAudioCache,
     private val onCacheHit: (SpeechRequest) -> Unit = {},
+    /** Diagnóstico: una línea por síntesis con los ms del motor y de publicar en la caché. */
+    private val log: (String) -> Unit = {},
 ) : SpeechSynthesizer {
 
     override val id: String get() = delegate.info.id
@@ -52,10 +55,16 @@ class CachingSpeechSynthesizer(
         }
         val tmp = cache.tempFileFor(key)
         try {
+            val clock = TimeSource.Monotonic
+            val started = clock.markNow()
             return when (val outcome = delegate.synthesizeTo(request, tmp)) {
                 is SynthesisOutcome.Failed -> outcome.failure
                 is SynthesisOutcome.Written -> {
+                    val synthMs = started.elapsedNow().inWholeMilliseconds
+                    val commitStarted = clock.markNow()
                     val file = cache.commit(key, tmp)
+                    val commitMs = commitStarted.elapsedNow().inWholeMilliseconds
+                    log("${delegate.info.id}: ${request.text.length} car. → ${outcome.durationMs} ms de audio en $synthMs ms; publicar en caché $commitMs ms")
                     outcome.marks?.takeIf { it.isNotEmpty() }?.let { SpokenMarksSidecar.write(cache.fileSystem, file, it) }
                     val bytes = cache.fileSystem.read(file) { readByteArray() }
                     SpeechResult.Success(

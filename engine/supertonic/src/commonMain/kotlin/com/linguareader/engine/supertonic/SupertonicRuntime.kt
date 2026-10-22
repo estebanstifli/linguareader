@@ -21,7 +21,6 @@ import kotlin.math.cos
 import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.sqrt
-import kotlin.random.Random
 
 /** Resultado de una inferencia: muestras float [-1, 1] a [sampleRate] Hz. */
 class SupertonicAudio(val samples: FloatArray, val sampleRate: Int) {
@@ -106,7 +105,7 @@ class SupertonicRuntime private constructor(
             val shape = longArrayOf(1, dim.toLong(), latentLen.toLong())
 
             // Ruido gaussiano (Box-Muller); la máscara es 1 en toda la longitud (lote de 1).
-            val rng = Random(seed)
+            val rng = JavaRandom(seed)
             var xt = FloatArray(dim * latentLen) {
                 val u1 = max(1e-10, rng.nextDouble())
                 val u2 = rng.nextDouble()

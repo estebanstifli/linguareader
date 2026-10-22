@@ -4,6 +4,7 @@ import okio.Path
 import android.content.Context
 import android.media.AudioAttributes
 import android.os.Bundle
+import android.os.SystemClock
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.speech.tts.Voice
@@ -236,8 +237,10 @@ class AndroidTtsEngine @Inject constructor(
         try {
             t.setSpeechRate(request.speed)
             val params = Bundle().apply { putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId) }
+            val t0 = SystemClock.elapsedRealtime()
             val started = t.synthesizeToFile(request.text, params, target.toFile(), utteranceId) == TextToSpeech.SUCCESS
             val ok = started && (withTimeoutOrNull(SYNTH_TIMEOUT_MS) { job.done.await() } ?: false)
+            val synthMs = SystemClock.elapsedRealtime() - t0
             if (!ok || target.toFile().length() <= WAV_HEADER_BYTES) {
                 return SynthesisOutcome.Failed(SpeechResult.Failure(EngineUnavailableReason.SYNTHESIS_ERROR, "Fallo al sintetizar"))
             }
@@ -247,7 +250,9 @@ class AndroidTtsEngine @Inject constructor(
             val marks = if (rate <= 0) null else fileMarks(raw, request.text.length).map { (start, end, frame) ->
                 SpokenMark(start, end, (frame * 1000L / rate - leadMs).coerceAtLeast(0L))
             }
-            SynthesisOutcome.Written(GapFiller.wavDurationMs(target) ?: 0L, marks)
+            val durationMs = GapFiller.wavDurationMs(target) ?: 0L
+            Log.i(TAG, "TTS: ${request.text.length} car. → $durationMs ms de audio en $synthMs ms (recorte ${SystemClock.elapsedRealtime() - t0 - synthMs} ms, ${marks?.size ?: 0} marcas)")
+            SynthesisOutcome.Written(durationMs, marks)
         } catch (e: CancellationException) {
             t.stop() // lo que queda en la cola es solo esta petición (síntesis de una en una)
             throw e
