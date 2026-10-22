@@ -25,7 +25,7 @@ import java.io.IOException
  */
 class AssetBookRepository(
     private val context: Context,
-) : BookRepository {
+) : SummaryBookRepository {
 
     private val mutex = Mutex()
     private var cache: Map<String, Book>? = null
@@ -57,7 +57,7 @@ class AssetBookRepository(
         )
     }
 
-    suspend fun summary(bookId: String): BookSummary? = books()[bookId]?.summary()
+    override suspend fun summary(bookId: String): BookSummary? = books()[bookId]?.summary()
 
     override suspend fun loadBook(bookId: String): Book =
         books()[bookId] ?: throw NoSuchElementException("Libro no encontrado: $bookId")

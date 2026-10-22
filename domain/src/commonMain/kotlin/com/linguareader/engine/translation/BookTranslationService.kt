@@ -1,0 +1,142 @@
+package com.linguareader.engine.translation
+
+import com.linguareader.core.engine.TranslationResult
+import com.linguareader.core.translation.WordLookupService
+import com.linguareader.data.content.ImportedBookRepository
+import kotlinx.atomicfu.locks.SynchronizedObject
+import kotlinx.atomicfu.locks.synchronized
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+/** Modelos de traducción automática del dispositivo (Android: ML Kit; iOS: ML Kit o Translation de Apple). */
+interface TranslationModels {
+    /** Código del modelo para una etiqueta BCP-47 ("es-ES" → "es"), o null si el traductor no conoce el idioma. */
+    fun code(languageTag: String): String?
+    /** Descarga el modelo si falta y espera; false si no se pudo. */
+    suspend fun awaitDownload(code: String): Boolean
+}
+
+/** Motivo tipado del fallo de una pretraducción; la UI lo traduce a texto. */
+sealed interface TranslationError {
+    data class Failed(val detail: String) : TranslationError
+    data object PairUnsupported : TranslationError
+    data class ModelFailed(val code: String) : TranslationError
+    data class Partial(val failures: Int, val total: Int) : TranslationError
+}
+
+sealed interface BookTranslationState {
+    val target: String
+    data class Preparing(override val target: String) : BookTranslationState
+    data class Running(override val target: String, val done: Int, val total: Int) : BookTranslationState
+    data class Failed(override val target: String, val error: TranslationError) : BookTranslationState
+}
+
+/**
+ * Pretraduce un libro importado entero para leerlo después sin esperas ni red. Usa el mismo
+ * camino que el lector ([WordLookupService.translateSentence]), así que lo traducido aquí queda en
+ * la caché compartida. Es reanudable: el idioma pendiente se guarda en el libro y, al volver a
+ * abrir la app, se continúa (las frases ya traducidas salen de la caché al instante).
+ */
+class BookTranslationService(
+    private val books: ImportedBookRepository,
+    private val lookup: WordLookupService,
+    private val models: TranslationModels,
+    private val scope: CoroutineScope,
+    private val log: (String) -> Unit = {},
+) {
+    private val _states = MutableStateFlow<Map<String, BookTranslationState>>(emptyMap())
+    /** Libros en traducción (o con error). Los terminados desaparecen y quedan marcados en el libro. */
+    val states: StateFlow<Map<String, BookTranslationState>> = _states
+    private val lock = SynchronizedObject()
+    private val jobs = HashMap<String, Job>()
+
+    init {
+        scope.launch {
+            books.translationStatus.first().forEach { (id, status) -> status.pending?.let { start(id, it) } }
+        }
+    }
+
+    fun start(bookId: String, target: String) = synchronized(lock) {
+        if (jobs[bookId]?.isActive == true) return@synchronized
+        _states.update { it + (bookId to BookTranslationState.Preparing(target)) }
+        jobs[bookId] = scope.launch {
+            books.setPendingTranslation(bookId, target)
+            runCatching { translate(bookId, target) }.onFailure { e ->
+                if (e is CancellationException) throw e
+                log("Traducción de $bookId fallida: ${e.message}")
+                fail(bookId, target, TranslationError.Failed(e.message ?: e::class.simpleName.orEmpty()))
+            }
+        }
+    }
+
+    /**
+     * Cancela y guarda hasta dónde llegó. Lo ya traducido queda en la caché, así que al continuar
+     * solo se traduce lo que faltaba.
+     */
+    fun cancel(bookId: String) {
+        val state = _states.value[bookId]
+        synchronized(lock) { jobs.remove(bookId)?.cancel() }
+        _states.update { it - bookId }
+        scope.launch {
+            when (state) {
+                is BookTranslationState.Running -> books.pauseTranslation(bookId, state.target, state.done, state.total)
+                is BookTranslationState.Preparing -> books.pauseTranslation(bookId, state.target, 0, 0)
+                else -> books.setPendingTranslation(bookId, null)
+            }
+        }
+    }
+
+    private suspend fun translate(bookId: String, target: String) {
+        val book = books.loadBook(bookId)
+        val source = models.code(book.learningLanguage)
+        val destination = models.code(target)
+        if (source == null || destination == null) {
+            return fail(bookId, target, TranslationError.PairUnsupported)
+        }
+        for (code in setOf(source, destination)) {
+            if (!models.awaitDownload(code)) {
+                return fail(bookId, target, TranslationError.ModelFailed(code.uppercase()))
+            }
+        }
+
+        val sentences = book.passages.flatMap { passage -> passage.sentences.map { passage to it } }
+        var done = 0
+        var failures = 0
+        _states.update { it + (bookId to BookTranslationState.Running(target, 0, sentences.size)) }
+        for ((passage, sentence) in sentences) {
+            val result = lookup.translateSentence(book, passage, sentence, target)
+            currentCoroutineContext().ensureActive() // si se canceló, no volver a pintar el progreso
+            if (result !is TranslationResult.Translated) failures++
+            done++
+            if (done % PROGRESS_STEP == 0 || done == sentences.size) {
+                _states.update { it + (bookId to BookTranslationState.Running(target, done, sentences.size)) }
+            }
+        }
+        if (failures * 10 > sentences.size) {
+            return fail(bookId, target, TranslationError.Partial(failures, sentences.size))
+        }
+        books.markTranslated(bookId, target)
+        synchronized(lock) { jobs.remove(bookId) }
+        _states.update { it - bookId }
+    }
+
+    private suspend fun fail(bookId: String, target: String, error: TranslationError) {
+        books.setPendingTranslation(bookId, null)
+        synchronized(lock) { jobs.remove(bookId) }
+        _states.update { it + (bookId to BookTranslationState.Failed(target, error)) }
+    }
+
+    fun dismissError(bookId: String) = _states.update { if (it[bookId] is BookTranslationState.Failed) it - bookId else it }
+
+    private companion object {
+        const val PROGRESS_STEP = 10
+    }
+}

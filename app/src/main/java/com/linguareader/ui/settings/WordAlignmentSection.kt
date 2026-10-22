@@ -1,5 +1,6 @@
 package com.linguareader.ui.settings
 
+import com.linguareader.ui.common.toUiText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -112,7 +113,7 @@ fun WordAlignmentSection(vm: WordAlignmentViewModel = koinViewModel()) {
                             Row { OutlinedButton(onClick = { scope.launch { vm.delete(spec.id).join() } }) { Text(stringResource(R.string.common_remove)) } }
                         }
                         is ModelState.Failed -> {
-                            Text(m.message.asString(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                            Text(m.error.toUiText().asString(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
                             Button(onClick = { vm.download(spec.id) }, enabled = vm.hostingConfigured) { Text(stringResource(R.string.common_retry)) }
                         }
                     }

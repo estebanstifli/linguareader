@@ -1,5 +1,6 @@
 package com.linguareader.ui.catalog
 
+import com.linguareader.ui.common.toUiText
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.Image
@@ -855,7 +856,7 @@ private fun TranslationJobRow(bookId: String, job: BookTranslationState, onActio
                 LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
             }
             is BookTranslationState.Failed ->
-                Text(job.message.asString(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+                Text(job.error.toUiText().asString(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
         }
         Row {
             if (job is BookTranslationState.Failed) {

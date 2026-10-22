@@ -83,6 +83,7 @@ android {
 dependencies {
     implementation(project(":core"))
     implementation(project(":data")) // Room y preferencias (KMP)
+    implementation(project(":domain")) // gestores compartidos: libros importados, bibliotecas, packs, narraciones
     implementation(project(":engine:supertonic"))
     implementation(project(":engine:alignment"))
     implementation(project(":importer"))

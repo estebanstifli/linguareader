@@ -1,5 +1,6 @@
 package com.linguareader.ui.onboarding
 
+import com.linguareader.ui.common.toUiText
 import android.content.Intent
 import android.speech.tts.TextToSpeech
 import android.text.format.Formatter
@@ -72,7 +73,7 @@ import com.linguareader.data.scan.ScanState
 import com.linguareader.data.scan.StorageAccess
 import com.linguareader.engine.packs.LibraryInfo
 import com.linguareader.engine.packs.LibraryPackManager
-import com.linguareader.engine.packs.LibraryState
+import com.linguareader.engine.packs.LibraryPackState
 import com.linguareader.engine.translation.ModelDownload
 import com.linguareader.engine.translation.TranslationModelManager
 import com.linguareader.ui.common.Languages
@@ -109,7 +110,7 @@ class OnboardingViewModel(
     val scan: StateFlow<ScanSettings?> = scanSettings.settings.map<ScanSettings, ScanSettings?> { it }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val libraryCatalog: StateFlow<Map<String, LibraryInfo>> = libraries.catalog
-    val libraryStates: StateFlow<Map<String, LibraryState>> = libraries.states
+    val libraryStates: StateFlow<Map<String, LibraryPackState>> = libraries.states
     val downloadedModels: StateFlow<Set<String>> = models.downloaded
     val modelDownloads: StateFlow<Map<String, ModelDownload>> = models.downloads
     val scanState: StateFlow<ScanState> = scanner.state
@@ -152,7 +153,7 @@ class OnboardingViewModel(
         val p = repo.preferences.first()
         val lang = p.readingLanguage ?: return@launch
         val library = libraries.states.value[lang]
-        if (lang in libraries.catalog.value && (library == null || library is LibraryState.NotInstalled || library is LibraryState.Failed)) {
+        if (lang in libraries.catalog.value && (library == null || library is LibraryPackState.NotInstalled || library is LibraryPackState.Failed)) {
             libraries.download(lang)
         }
         neededModels(p).filter { it !in models.downloaded.value && models.downloads.value[it] != ModelDownload.Running }
@@ -415,24 +416,24 @@ private fun SummaryScreen(p: UserPreferences, vm: OnboardingViewModel) {
         if (lang != null) {
             val info = catalog[lang]
             val libraryTitle = stringResource(R.string.onboarding_library_of, Languages.nameInSentence(lang))
-            when (val st = libraryStates[lang] ?: LibraryState.NotInstalled) {
-                is LibraryState.Installed -> Item(
+            when (val st = libraryStates[lang] ?: LibraryPackState.NotInstalled) {
+                is LibraryPackState.Installed -> Item(
                     R.drawable.ic_library_books, libraryTitle,
                     stringResource(R.string.onboarding_library_ready, pluralStringResource(R.plurals.common_books, st.books, st.books)), Status.DONE,
                 )
-                is LibraryState.Downloading -> Item(
+                is LibraryPackState.Downloading -> Item(
                     R.drawable.ic_library_books, libraryTitle,
                     stringResource(R.string.common_downloading_progress, mb(st.bytes), mb(st.total)), Status.RUNNING,
                 )
-                is LibraryState.Installing -> Item(
+                is LibraryPackState.Installing -> Item(
                     R.drawable.ic_library_books, libraryTitle,
                     if (st.total == 0) stringResource(R.string.common_preparing) else stringResource(R.string.onboarding_preparing_books, st.done, st.total),
                     Status.RUNNING,
                 )
-                is LibraryState.Failed -> Item(R.drawable.ic_library_books, libraryTitle, st.message.asString(), Status.FAILED, retry) {
+                is LibraryPackState.Failed -> Item(R.drawable.ic_library_books, libraryTitle, st.error.toUiText().asString(), Status.FAILED, retry) {
                     vm.retryLibrary(lang)
                 }
-                LibraryState.NotInstalled -> Item(
+                LibraryPackState.NotInstalled -> Item(
                     R.drawable.ic_library_books, libraryTitle,
                     if (info == null) stringResource(R.string.onboarding_no_library)
                     else stringResource(R.string.onboarding_library_pending, pluralStringResource(R.plurals.common_books, info.books, info.books)),

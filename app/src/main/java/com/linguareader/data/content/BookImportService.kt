@@ -1,58 +1,40 @@
 package com.linguareader.data.content
 
-import okio.Path.Companion.toOkioPath
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import com.fleeksoft.ksoup.Ksoup
 import com.linguareader.core.content.Hashing
 import com.linguareader.core.model.CefrLevel
 import com.linguareader.importer.DocumentSource
-import com.linguareader.importer.ExtractedDocument
 import com.linguareader.importer.ExtractorRegistry
 import com.linguareader.importer.ImportException
-import com.linguareader.importer.ImportOptions
-import com.linguareader.importer.ImportedBookBuilder
-import com.linguareader.data.narration.NarrationLibrary
 import com.linguareader.importer.extract.HtmlExtractor
+import com.linguareader.importer.extract.TextDecoding
 import com.linguareader.importer.extract.TextExtractor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import com.fleeksoft.ksoup.Ksoup
-import com.linguareader.importer.extract.TextDecoding
+import okio.FileSystem
+import okio.Path.Companion.toOkioPath
+import okio.source
 import java.io.File
-import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
-import java.security.MessageDigest
 import java.util.Locale
-import java.util.UUID
-
-/** Documento leído y listo para que el usuario confirme título, idioma y nivel. */
-data class ImportDraft(
-    val bookId: String,
-    val sourceName: String,
-    val document: ExtractedDocument,
-    /** Idioma declarado por el documento, normalizado a BCP-47, si lo hay. */
-    val detectedLanguage: String?,
-    val alreadyImported: Boolean,
-    /** Fichero de origen, si su formato tiene visor propio (PDF): se guarda como referencia, sin copia. */
-    val original: OriginalDocument? = null,
-)
 
 /**
- * Importación en dos pasos: `read*` obtiene el texto (fichero elegido, página web o texto
- * compartido) y [commit] lo convierte en libro con las opciones confirmadas y lo guarda.
- * El id deriva del contenido, así que reimportar lo mismo reemplaza en lugar de duplicar.
+ * Fuentes de importación propias de Android (selector de ficheros, «Abrir con…»/«Compartir», página web, texto
+ * compartido) sobre el importador compartido ([LocalBookImporter]), que hace el trabajo común: copia temporal con
+ * hash, extracción, construcción del libro y guardado. Al confirmar un PDF también lanza el cálculo de las cajas de
+ * palabra para «Ver original».
  */
 class BookImportService(
     private val context: Context,
     private val registry: ExtractorRegistry,
+    private val local: LocalBookImporter,
     private val repository: ImportedBookRepository,
-    private val narrations: NarrationLibrary,
     private val pdfLayouts: PdfTextLayouts,
 ) {
-    private val builder = ImportedBookBuilder()
-
     /** Fichero elegido con el selector del sistema o recibido con "Abrir con…"/"Compartir". */
     suspend fun read(uri: Uri): ImportDraft = withContext(Dispatchers.IO) {
         val resolver = context.contentResolver
@@ -62,12 +44,12 @@ class BookImportService(
             }
         }.getOrNull() ?: uri.lastPathSegment?.substringAfterLast('/') ?: "documento"
         val input = resolver.openInputStream(uri) ?: throw ImportException(ImportException.Reason.CORRUPT, "No se pudo abrir el fichero")
-        withTempCopy(input, MAX_FILE_BYTES) { copy, hash ->
-            val document = registry.extract(DocumentSource(copy.toOkioPath(), name, resolver.getType(uri)))
+        local.withTempCopy(input.source(), LocalBookImporter.MAX_FILE_BYTES) { copy, hash ->
+            val document = registry.extract(DocumentSource(copy, name, resolver.getType(uri)))
             val original = OriginalDocument(uri.toString(), document.format, document.pageCount)
                 .takeIf { it.viewable }
                 ?.also { keepAccess(uri) }
-            draft(hash, name, document).let { if (original != null) it.copy(original = original) else it }
+            local.draft(hash, name, document).let { if (original != null) it.copy(original = original) else it }
         }
     }
 
@@ -96,11 +78,7 @@ class BookImportService(
     }
 
     /** Fichero local de la app (EPUB de una biblioteca descargada). */
-    suspend fun readFile(file: File): ImportDraft = withContext(Dispatchers.IO) {
-        withTempCopy(file.inputStream(), MAX_FILE_BYTES) { copy, hash ->
-            draft(hash, file.name, registry.extract(DocumentSource(copy.toOkioPath(), file.name, null)))
-        }
-    }
+    suspend fun readFile(file: File): ImportDraft = local.readFile(file.toOkioPath(), file.name)
 
     /** Página web: única operación con red, siempre iniciada por el usuario. Las imágenes remotas no se descargan. */
     suspend fun readUrl(url: String): ImportDraft = withContext(Dispatchers.IO) {
@@ -123,13 +101,14 @@ class BookImportService(
             if ("html" !in type && type.isNotEmpty()) {
                 throw ImportException(ImportException.Reason.UNSUPPORTED_FORMAT, "El enlace no es una página web ($type)")
             }
-            withTempCopy(connection.inputStream, MAX_PAGE_BYTES) { copy, hash ->
-                val html = Ksoup.parse(TextDecoding.decodeMarkup(copy.readBytes()), connection.url.toString())
+            local.withTempCopy(connection.inputStream.source(), LocalBookImporter.MAX_PAGE_BYTES) { copy, hash ->
+                val bytes = FileSystem.SYSTEM.read(copy) { readByteArray() }
+                val html = Ksoup.parse(TextDecoding.decodeMarkup(bytes), connection.url.toString())
                 val document = HtmlExtractor().fromDocument(html, parsed.host, webPage = true)
                 if (document.paragraphCount == 0) {
                     throw ImportException(ImportException.Reason.NO_TEXT, "No se encontró texto legible en la página")
                 }
-                draft(hash, connection.url.toString(), document)
+                local.draft(hash, connection.url.toString(), document)
             }
         } catch (e: java.io.IOException) {
             throw ImportException(ImportException.Reason.CORRUPT, "No se pudo descargar la página: ${e.message}", e)
@@ -143,7 +122,7 @@ class BookImportService(
         val name = title?.takeIf { it.isNotBlank() } ?: text.trim().lineSequence().first().take(60)
         val document = TextExtractor().parse(text, name)
         if (document.paragraphCount == 0) throw ImportException(ImportException.Reason.NO_TEXT, "El texto compartido está vacío")
-        draft(Hashing.sha256Hex(text), name, document)
+        local.draft(Hashing.sha256Hex(text), name, document)
     }
 
     /**
@@ -157,81 +136,28 @@ class BookImportService(
         language: String,
         level: CefrLevel,
         stableId: String? = null,
-    ): String =
-        withContext(Dispatchers.Default) {
-            val bookId = stableId?.let { ImportedBookRepository.ID_PREFIX + it } ?: draft.bookId
-            val book = builder.build(
-                draft.document,
-                ImportOptions(
-                    bookId = bookId,
-                    title = title.ifBlank { draft.document.title ?: draft.sourceName },
-                    authors = author.split(',').map(String::trim).filter(String::isNotEmpty),
-                    language = language,
-                    level = level,
-                    sourceName = draft.sourceName,
-                ),
-            )
-            repository.save(book, draft.document.format, draft.original)
-            // Posiciones de las palabras sobre el PDF (voz y traducción en «Ver original»), en segundo plano ya.
-            if (draft.original != null) {
-                pdfLayouts.invalidate(bookId)
-                pdfLayouts.ensure(bookId)
-            }
-            bookId
+    ): String {
+        val bookId = local.commit(draft, title, author, language, level, stableId)
+        // Posiciones de las palabras sobre el PDF (voz y traducción en «Ver original»), en segundo plano ya.
+        if (draft.original != null) {
+            pdfLayouts.invalidate(bookId)
+            pdfLayouts.ensure(bookId)
         }
+        return bookId
+    }
 
     suspend fun delete(bookId: String) {
         val original = repository.original(bookId)
-        repository.delete(bookId)
+        local.delete(bookId)
         // Los permisos persistentes son limitados (128–512 por app): se devuelve el que ya no hace falta.
         original?.uri?.let(Uri::parse)?.takeIf { it.scheme == "content" }?.let { uri ->
             runCatching { context.contentResolver.releasePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) }
         }
-        narrations.delete(bookId)
-    }
-
-    private suspend fun draft(hash: String, name: String, document: ExtractedDocument): ImportDraft {
-        val id = ImportedBookRepository.ID_PREFIX + hash.take(16)
-        return ImportDraft(
-            bookId = id,
-            sourceName = name,
-            document = document,
-            detectedLanguage = normalizeLanguage(document.language),
-            alreadyImported = repository.contains(id),
-        )
-    }
-
-    /** Copia [input] a la caché calculando su sha256 (con límite de tamaño) y la borra al terminar. */
-    private suspend fun <T> withTempCopy(input: InputStream, limit: Long, block: suspend (File, String) -> T): T {
-        val dir = File(context.cacheDir, "import").apply { mkdirs() }
-        val copy = File(dir, UUID.randomUUID().toString())
-        try {
-            val digest = MessageDigest.getInstance("SHA-256")
-            input.use { src ->
-                copy.outputStream().use { out ->
-                    val buffer = ByteArray(64 * 1024)
-                    var total = 0L
-                    while (true) {
-                        val n = src.read(buffer)
-                        if (n < 0) break
-                        total += n
-                        if (total > limit) {
-                            throw ImportException(ImportException.Reason.UNSUPPORTED_FORMAT, "El fichero supera ${limit / 1024 / 1024} MB")
-                        }
-                        digest.update(buffer, 0, n)
-                        out.write(buffer, 0, n)
-                    }
-                }
-            }
-            return block(copy, digest.digest().joinToString("") { "%02x".format(it) })
-        } finally {
-            copy.delete()
-        }
     }
 
     companion object {
-        const val MAX_FILE_BYTES = 200L * 1024 * 1024
-        const val MAX_PAGE_BYTES = 10L * 1024 * 1024
+        const val MAX_FILE_BYTES = LocalBookImporter.MAX_FILE_BYTES
+        const val MAX_PAGE_BYTES = LocalBookImporter.MAX_PAGE_BYTES
 
         /** "en_US", "ENG", "fr-fr" → "en-US", "en", "fr-FR"; null si no es un idioma reconocible. */
         fun normalizeLanguage(tag: String?): String? {

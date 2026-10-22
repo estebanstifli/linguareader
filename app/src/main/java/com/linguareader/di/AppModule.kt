@@ -1,5 +1,9 @@
 package com.linguareader.di
 
+import okio.FileSystem
+import com.linguareader.data.library.BookDeleter
+import com.linguareader.data.content.LocalBookImporter
+import com.linguareader.BuildConfig
 import android.content.Context
 import android.util.Log
 import androidx.room.Room
@@ -44,7 +48,7 @@ import com.linguareader.engine.alignment.AlignmentModelManager
 import com.linguareader.engine.alignment.Wav2Vec2ClipAligner
 import com.linguareader.engine.audio.AndroidAudioFocusGate
 import com.linguareader.engine.audio.CuePlayer
-import com.linguareader.engine.audio.LazyClipPlayer
+import com.linguareader.core.reader.LazyClipPlayer
 import com.linguareader.engine.audio.Media3ClipPlayer
 import com.linguareader.engine.importing.PdfExtractor
 import com.linguareader.engine.packs.GithubPackSource
@@ -129,25 +133,38 @@ val dataModule = module {
     /** Formatos importables. Un extractor nuevo (PDF, MOBI...) se añade aquí sin tocar la UI. */
     single { ExtractorRegistry.default(extra = listOf(PdfExtractor(androidContext()))) }
     singleOf(::AssetBookRepository)
-    singleOf(::ImportedBookRepository)
-    singleOf(::CompositeBookRepository) { bind<BookRepository>() }
-    singleOf(::NarrationLibrary)
+    single { ImportedBookRepository(FileSystem.SYSTEM, filesDir() / ImportedBookRepository.DIR, log = { Log.w("ImportedBooks", it) }) }
+    single { CompositeBookRepository(get<AssetBookRepository>(), get(), get()) } binds arrayOf(BookRepository::class)
+    single { NarrationLibrary(FileSystem.SYSTEM, filesDir(), get(), log = { Log.i("Narration", it) }) }
     singleOf(::PdfTextLayouts)
+    single { LocalBookImporter(FileSystem.SYSTEM, cacheDir() / "import", get(), get(), get(), normalizeLanguage = BookImportService::normalizeLanguage) }
     singleOf(::BookImportService)
     singleOf(::BookExporter)
     singleOf(::CoverThumbnails)
-    singleOf(::LibraryRepository)
+    single { LibraryRepository(get(), get(), BookDeleter { get<BookImportService>().delete(it) }) }
     singleOf(::DocumentScanner)
-    singleOf(::GithubPackSource)
-    singleOf(::LibraryPackManager)
+    single { GithubPackSource(BuildConfig.PACKS_REPO, BuildConfig.PACKS_TAG) }
+    single {
+        LibraryPackManager(
+            FileSystem.SYSTEM, filesDir(), cacheDir(), get(), get(), get(), BuildConfig.LIBRARY_TAG,
+            bundledCatalogJson = { assetText("packs/libraries.json") },
+            log = { Log.i("LibraryPacks", it) },
+        )
+    }
 }
+
+/** Carpeta persistente de la app (`files/`) como ruta Okio, para los gestores compartidos. */
+private fun org.koin.core.scope.Scope.filesDir() = androidContext().filesDir.toOkioPath()
+private fun org.koin.core.scope.Scope.cacheDir() = androidContext().cacheDir.toOkioPath()
+private fun org.koin.core.scope.Scope.assetText(path: String): String? =
+    runCatching { androidContext().assets.open(path).bufferedReader().use { it.readText() } }.getOrNull()
 
 /** Traducción: primero lo incluido en el libro (traducciones revisadas y glosario); si no, ML Kit en el dispositivo. */
 val translationModule = module {
     singleOf(::TranslationModelManager)
     single<TranslationEngine> { FallbackTranslationEngine(listOf(BundledTranslationEngine(get()), MlKitTranslationEngine(get(), get()))) }
     single { WordLookupService(get()) }
-    singleOf(::BookTranslationService)
+    single { BookTranslationService(get(), get(), get<TranslationModelManager>(), get(), log = { Log.w("BookTranslation", it) }) }
     single<AlignmentEngine> { UnavailableAlignmentEngine() }
 }
 
@@ -158,9 +175,21 @@ val speechEngineModule = module {
 
 /** Motores TTS, alineación y fachada del lector. Un motor futuro = otro controlador + entrada en el registro. */
 val ttsEngineModule = module {
-    singleOf(::SupertonicModelManager)
-    singleOf(::AlignmentModelManager)
-    singleOf(::VoicePackManager)
+    single { SupertonicModelManager(FileSystem.SYSTEM, filesDir(), get(), log = { Log.i("SupertonicModel", it) }) }
+    single {
+        AlignmentModelManager(
+            FileSystem.SYSTEM, filesDir(), get(), get(),
+            catalogJson = { assetText("aligners/catalog.json") },
+            log = { Log.i("AlignerModels", it) },
+        )
+    }
+    single {
+        VoicePackManager(
+            FileSystem.SYSTEM, filesDir(), cacheDir(), get(), get(), get(),
+            catalogJson = { assetText("packs/voices.json") },
+            log = { Log.w("VoicePack", it) },
+        )
+    }
     singleOf(::AndroidAudioFocusGate)
     singleOf(::CuePlayer)
     singleOf(::TtsEngineCoordinator)
@@ -169,7 +198,7 @@ val ttsEngineModule = module {
         val manager = get<SupertonicModelManager>()
         val settings = get<EngineSettingsHolder>()
         SupertonicEngine(
-            modelDir = { manager.modelDir.toOkioPath() },
+            modelDir = { manager.modelDir },
             steps = { settings.supertonicSteps },
             memory = AndroidMemoryProbe,
             log = { Log.i("Supertonic", it) },

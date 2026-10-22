@@ -39,7 +39,7 @@ class SupertonicSmokeTest {
                 println("Descargando Supertonic 3 (${SupertonicModel.TOTAL_BYTES / 1_000_000} MB) en $modelDir …")
                 var lastPct = -1
                 val r = runBlocking {
-                    ModelDownloader(SupertonicModel.BASE_URL, SupertonicModel.FILES).download(modelDir) { p ->
+                    ModelDownloader(SupertonicModel.BASE_URL, SupertonicModel.FILES).download(modelDir.toOkioPath()) { p ->
                         val pct = (p.fraction * 100).toInt()
                         if (pct / 10 != lastPct / 10) { lastPct = pct; println("  $pct% (${p.currentFile})") }
                     }

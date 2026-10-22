@@ -91,7 +91,7 @@ class PdfTextLayouts(
     }
 
     private suspend fun load(bookId: String): PdfTextLayout? {
-        val file = imported.bookFile(bookId, FILE).takeIf { it.isFile } ?: return null
+        val file = imported.bookFile(bookId, FILE).toFile().takeIf { it.isFile } ?: return null
         val book = books.loadBook(bookId)
         return runCatching { read(file, signature(book)) }.getOrNull()
     }
@@ -107,7 +107,7 @@ class PdfTextLayouts(
         } ?: error("No se puede leer el PDF original")
         val layout = PdfTextLayout(WordBoxAligner.align(book, words))
         Log.i(TAG, "$bookId: ${words.size} palabras en el PDF, ${(layout.coverage(book) * 100).toInt()} % de los tokens con caja")
-        runCatching { write(imported.bookFile(bookId, FILE), signature(book), layout) }
+        runCatching { write(imported.bookFile(bookId, FILE).toFile(), signature(book), layout) }
         return layout
     }
 

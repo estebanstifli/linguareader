@@ -33,7 +33,7 @@ class SupertonicOnDeviceTest : KoinComponent {
 
     @Before
     fun setUp() {
-        assumeTrue("Modelo Supertonic no instalado en ${models.modelDir}", SupertonicModelDir(models.modelDir.toOkioPath()).isComplete())
+        assumeTrue("Modelo Supertonic no instalado en ${models.modelDir}", SupertonicModelDir(models.modelDir).isComplete())
     }
 
     @Test

@@ -25,6 +25,7 @@ kotlin {
             isStatic = false
             export(project(":core"))
             export(project(":data"))
+            export(project(":domain"))
             export(project(":importer"))
             export(project(":engine:onnx"))
             export(project(":engine:alignment"))
@@ -41,6 +42,7 @@ kotlin {
         commonMain.dependencies {
             api(project(":core"))
             api(project(":data"))
+            api(project(":domain"))
             api(project(":importer"))
             api(project(":engine:onnx"))
             api(project(":engine:alignment"))

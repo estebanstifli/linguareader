@@ -57,7 +57,7 @@ class PageFlipTest : KoinComponent {
         // Antes de la inyección: la caché de audio es un singleton que lee su carpeta al crearse.
         File(androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.filesDir, "audio-cache").deleteRecursively()
         grantNotifications()
-        assumeTrue("Modelo Supertonic no instalado en ${models.modelDir}", SupertonicModelDir(models.modelDir.toOkioPath()).isComplete())
+        assumeTrue("Modelo Supertonic no instalado en ${models.modelDir}", SupertonicModelDir(models.modelDir).isComplete())
         runBlocking {
             skipOnboarding(preferences, scanSettings, UserPreferences(translationSetupDone = true, readingLanguage = "en", autoContinue = true))
             withContext(Dispatchers.Main) { selector.selectEngine(SupertonicModel.ENGINE_ID) }

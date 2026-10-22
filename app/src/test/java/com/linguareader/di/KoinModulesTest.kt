@@ -15,6 +15,10 @@ private val RUNTIME_TYPES = listOf(
     com.linguareader.engine.supertonic.MemoryProbe::class, com.linguareader.core.audio.FileSpeechSynthesizer::class,
     com.linguareader.core.reader.NarratedReaderAudioController::class, com.linguareader.core.engine.TtsEngine::class,
     com.linguareader.importer.DocumentExtractor::class,
+    // Gestores compartidos construidos a mano en AppModule (ver :domain).
+    com.linguareader.data.content.SummaryBookRepository::class, com.linguareader.data.library.BookDeleter::class,
+    com.linguareader.engine.translation.TranslationModels::class, com.linguareader.engine.supertonic.HttpTransport::class,
+    okio.FileSystem::class,
 )
 
 /**

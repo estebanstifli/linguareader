@@ -1,5 +1,6 @@
 package com.linguareader.ui.settings
 
+import com.linguareader.ui.common.toUiText
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -36,7 +37,7 @@ import com.linguareader.R
 import com.linguareader.data.prefs.UserPreferencesRepository
 import com.linguareader.engine.packs.LibraryInfo
 import com.linguareader.engine.packs.LibraryPackManager
-import com.linguareader.engine.packs.LibraryState
+import com.linguareader.engine.packs.LibraryPackState
 import com.linguareader.ui.common.Languages
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -46,7 +47,7 @@ class LibraryViewModel(
     private val libraries: LibraryPackManager,
 ) : ViewModel() {
     val catalog: StateFlow<Map<String, LibraryInfo>> = libraries.catalog
-    val states: StateFlow<Map<String, LibraryState>> = libraries.states
+    val states: StateFlow<Map<String, LibraryPackState>> = libraries.states
 
     fun download(lang: String) = libraries.download(lang)
     fun delete(lang: String) = viewModelScope.launch { libraries.delete(lang) }
@@ -72,24 +73,24 @@ fun LibrarySection(vm: LibraryViewModel = koinViewModel()) {
             Text(stringResource(R.string.libraries_none), style = MaterialTheme.typography.bodyMedium)
         }
         catalog.toSortedMap().forEach { (lang, info) ->
-            LibraryRow(lang, info, states[lang] ?: LibraryState.NotInstalled, onDownload = { vm.download(lang) }, onDelete = { vm.delete(lang) })
+            LibraryRow(lang, info, states[lang] ?: LibraryPackState.NotInstalled, onDownload = { vm.download(lang) }, onDelete = { vm.delete(lang) })
         }
     }
 }
 
 @Composable
-private fun LibraryRow(lang: String, info: LibraryInfo, state: LibraryState, onDownload: () -> Unit, onDelete: () -> Unit) {
+private fun LibraryRow(lang: String, info: LibraryInfo, state: LibraryPackState, onDownload: () -> Unit, onDelete: () -> Unit) {
     Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(Languages.name(lang), style = MaterialTheme.typography.titleSmall)
             when (state) {
-                LibraryState.NotInstalled -> {
+                LibraryPackState.NotInstalled -> {
                     Text(stringResource(R.string.library_not_downloaded, summary(info)), style = MaterialTheme.typography.bodyMedium)
                     Button(onClick = onDownload) { Text(stringResource(R.string.common_download)) }
                 }
-                is LibraryState.Downloading -> LibraryProgress(state)
-                is LibraryState.Installing -> LibraryProgress(state)
-                is LibraryState.Installed -> {
+                is LibraryPackState.Downloading -> LibraryProgress(state)
+                is LibraryPackState.Installing -> LibraryProgress(state)
+                is LibraryPackState.Installed -> {
                     Text(
                         if (state.updateAvailable) {
                             stringResource(
@@ -107,8 +108,8 @@ private fun LibraryRow(lang: String, info: LibraryInfo, state: LibraryState, onD
                         OutlinedButton(onClick = onDelete) { Text(stringResource(R.string.common_remove)) }
                     }
                 }
-                is LibraryState.Failed -> {
-                    Text(state.message.asString(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                is LibraryPackState.Failed -> {
+                    Text(state.error.toUiText().asString(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
                     Button(onClick = onDownload) { Text(stringResource(R.string.common_retry)) }
                 }
             }
@@ -117,13 +118,13 @@ private fun LibraryRow(lang: String, info: LibraryInfo, state: LibraryState, onD
 }
 
 @Composable
-private fun LibraryProgress(state: LibraryState) {
+private fun LibraryProgress(state: LibraryPackState) {
     when (state) {
-        is LibraryState.Downloading -> {
+        is LibraryPackState.Downloading -> {
             LinearProgressIndicator(progress = { state.bytes.toFloat() / state.total.coerceAtLeast(1) }, modifier = Modifier.fillMaxWidth())
             Text(stringResource(R.string.common_downloading_progress, mb(state.bytes), mb(state.total)), style = MaterialTheme.typography.bodySmall)
         }
-        is LibraryState.Installing -> {
+        is LibraryPackState.Installing -> {
             if (state.total == 0) LinearProgressIndicator(Modifier.fillMaxWidth())
             else LinearProgressIndicator(progress = { state.done.toFloat() / state.total }, modifier = Modifier.fillMaxWidth())
             Text(
@@ -143,7 +144,7 @@ private fun LibraryProgress(state: LibraryState) {
 fun LibraryDownloadBanner(vm: LibraryViewModel = koinViewModel()) {
     val states by vm.states.collectAsStateWithLifecycle()
     val (lang, state) = states.entries.firstOrNull { (_, s) ->
-        s is LibraryState.Downloading || s is LibraryState.Installing || s is LibraryState.Failed
+        s is LibraryPackState.Downloading || s is LibraryPackState.Installing || s is LibraryPackState.Failed
     }?.toPair() ?: return
     Surface(
         shape = RoundedCornerShape(12.dp),
@@ -152,9 +153,9 @@ fun LibraryDownloadBanner(vm: LibraryViewModel = koinViewModel()) {
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(stringResource(R.string.onboarding_library_of, Languages.nameInSentence(lang)), style = MaterialTheme.typography.titleSmall)
-            if (state is LibraryState.Failed) {
+            if (state is LibraryPackState.Failed) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(state.message.asString(), style = MaterialTheme.typography.bodySmall,
+                    Text(state.error.toUiText().asString(), style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
                     TextButton(onClick = { vm.download(lang) }) { Text(stringResource(R.string.common_retry)) }
                 }

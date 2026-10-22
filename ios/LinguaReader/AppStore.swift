@@ -12,7 +12,9 @@ final class AppStore: ObservableObject {
 
     init() {
         let support = Self.applicationSupportDirectory()
-        LinguaShared.shared.start(appSupportDir: support.path)
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("LinguaReader", isDirectory: true)
+        let catalog = Bundle.main.url(forResource: "libraries", withExtension: "json").flatMap { try? String(contentsOf: $0, encoding: .utf8) }
+        LinguaShared.shared.start(appSupportDir: support.path, cacheDir: caches.path, librariesCatalogJson: catalog, packsRepo: "estebanstifli/linguareader", packsTag: "packs-v1", libraryTag: "library-v1")
         catalogWatcher = LinguaShared.shared.watchCatalog { [weak self] list in
             self?.books = list
         }
@@ -20,7 +22,7 @@ final class AppStore: ObservableObject {
     }
 
     func importSampleIfEmpty() async {
-        guard LinguaShared.shared.isLibraryEmpty(),
+        guard (try? await LinguaShared.shared.isLibraryEmpty()) == true,
               let url = Bundle.main.url(forResource: "cinderella", withExtension: "epub") else { return }
         status = "Importing the sample book…"
         do {

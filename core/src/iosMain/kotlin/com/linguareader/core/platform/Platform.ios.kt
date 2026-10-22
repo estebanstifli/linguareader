@@ -38,6 +38,7 @@ import platform.Foundation.enumerateSubstringsInRange
 import platform.Foundation.precomposedStringWithCanonicalMapping
 import platform.Foundation.precomposedStringWithCompatibilityMapping
 import platform.Foundation.timeIntervalSince1970
+import kotlinx.coroutines.IO
 
 /*
  * Implementación iOS del puerto de plataforma. Pendiente de validar en un Mac (tests de `core` en
@@ -122,3 +123,11 @@ actual fun decodeBytes(bytes: ByteArray, offset: Int, length: Int, charset: Stri
 }
 
 actual fun availableProcessors(): Int = NSProcessInfo.processInfo.activeProcessorCount.toInt()
+
+actual val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = kotlinx.coroutines.Dispatchers.IO
+
+@OptIn(ExperimentalForeignApi::class)
+actual fun freeBytes(path: Path): Long? = runCatching {
+    val attributes = NSFileManager.defaultManager.attributesOfFileSystemForPath(path.toString(), error = null)
+    (attributes?.get(platform.Foundation.NSFileSystemFreeSize) as? platform.Foundation.NSNumber)?.longLongValue
+}.getOrNull()

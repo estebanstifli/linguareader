@@ -1,5 +1,6 @@
 package com.linguareader.ui.settings
 
+import com.linguareader.ui.common.toUiText
 import okio.Path.Companion.toOkioPath
 import android.content.Context
 import androidx.compose.foundation.clickable
@@ -220,7 +221,7 @@ class TtsSettingsViewModel(
         // Muestra pregenerada: suena al instante, sin cargar el modelo.
         voicePacks.clip(language, p.supertonicVoice, VoiceClip.SAMPLE)?.let { clip ->
             val pl = player ?: Media3ClipPlayer(context, handleAudioFocus = true).also { player = it }
-            pl.clear(); pl.enqueue(0, clip.path); pl.play()
+            pl.clear(); pl.enqueue(0, clip.toString()); pl.play()
             test.value = VoiceTestState.Played(language)
             return@launch
         }
@@ -501,7 +502,7 @@ private fun SupertonicCard(vm: TtsSettingsViewModel, prefs: UserPreferences, onS
                     }
                 }
                 is ModelState.Failed -> {
-                    Text(m.message.asString(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                    Text(m.error.toUiText().asString(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
                     Button(onClick = { if (prefs.supertonicLicenseAccepted) vm.download() else onShowLicense() }) {
                         Text(stringResource(R.string.common_retry))
                     }

@@ -53,3 +53,7 @@ actual fun decodeBytes(bytes: ByteArray, offset: Int, length: Int, charset: Stri
     runCatching { String(bytes, offset, length, Charset.forName(charset)) }.getOrNull()
 
 actual fun availableProcessors(): Int = Runtime.getRuntime().availableProcessors()
+
+actual val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = kotlinx.coroutines.Dispatchers.IO
+
+actual fun freeBytes(path: Path): Long? = runCatching { path.toFile().usableSpace }.getOrNull()?.takeIf { it > 0 }

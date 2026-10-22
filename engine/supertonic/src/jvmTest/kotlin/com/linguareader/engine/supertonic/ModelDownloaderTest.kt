@@ -10,6 +10,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
+import okio.Path.Companion.toOkioPath
 import java.net.InetSocketAddress
 
 class ModelDownloaderTest {
@@ -46,7 +47,7 @@ class ModelDownloaderTest {
     @Test
     fun `downloads verifies and reports progress`() = runBlocking {
         var last: DownloadProgress? = null
-        val result = downloader().download(tmp.root) { last = it }
+        val result = downloader().download(tmp.root.toOkioPath()) { last = it }
         assertEquals(DownloadResult.Completed, result)
         assertTrue(File(tmp.root, "onnx/a.bin").readBytes().contentEquals(payload))
         assertEquals(1f, last!!.fraction)
@@ -56,7 +57,7 @@ class ModelDownloaderTest {
     fun `resumes from a partial file using Range`() = runBlocking {
         File(tmp.root, "onnx").mkdirs()
         File(tmp.root, "onnx/a.bin.part").writeBytes(payload.copyOf(120_000))
-        val result = downloader().download(tmp.root) {}
+        val result = downloader().download(tmp.root.toOkioPath()) {}
         assertEquals(DownloadResult.Completed, result)
         assertEquals("bytes=120000-", rangesSeen.first())
         assertTrue(File(tmp.root, "onnx/a.bin").readBytes().contentEquals(payload))
@@ -65,16 +66,16 @@ class ModelDownloaderTest {
     @Test
     fun `rejects corrupted content and leaves no installed file`() = runBlocking {
         corrupt = true
-        val result = downloader().download(tmp.root) {}
+        val result = downloader().download(tmp.root.toOkioPath()) {}
         assertTrue(result is DownloadResult.Failed)
         assertTrue(!File(tmp.root, "onnx/a.bin").exists())
     }
 
     @Test
     fun `already installed files are not downloaded again`() = runBlocking {
-        downloader().download(tmp.root) {}
+        downloader().download(tmp.root.toOkioPath()) {}
         rangesSeen.clear()
-        downloader().download(tmp.root) {}
+        downloader().download(tmp.root.toOkioPath()) {}
         assertTrue(rangesSeen.isEmpty())
     }
 }

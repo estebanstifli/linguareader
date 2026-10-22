@@ -321,7 +321,7 @@ class ReaderViewModel(
                 val overlay = async {
                     if (!immediate) delay(PREPARING_GRACE_MS) // si va rápido, ni se nota
                     _state.update { it.copy(preparing = true) }
-                    voicePacks.clip(book.learningLanguage, voiceFor(book) ?: SupertonicModel.DEFAULT_VOICE, VoiceClip.READY)?.let { cue.play(it) }
+                    voicePacks.clip(book.learningLanguage, voiceFor(book) ?: SupertonicModel.DEFAULT_VOICE, VoiceClip.READY)?.let { cue.play(it.toFile()) }
                 }
                 audio.warmUp(passage, book.learningLanguage, voiceFor(book), WarmUpPolicy(), from)
                 // Si la pantalla aún no había salido, no hace falta; si salió, se deja acabar la frase.

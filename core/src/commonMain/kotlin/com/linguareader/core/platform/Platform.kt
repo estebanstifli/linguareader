@@ -45,3 +45,9 @@ expect fun decodeBytes(bytes: ByteArray, offset: Int, length: Int, charset: Stri
 
 /** Núcleos disponibles (hilos de inferencia por defecto). */
 expect fun availableProcessors(): Int
+
+/** Despachador para E/S bloqueante de ficheros y red (`Dispatchers.IO` en JVM y en Kotlin/Native). */
+expect val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher
+
+/** Bytes libres en el volumen que contiene [path], o null si no se puede saber. */
+expect fun freeBytes(path: Path): Long?

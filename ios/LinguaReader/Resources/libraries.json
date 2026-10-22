@@ -1,0 +1,32 @@
+{
+  "formatVersion": 1,
+  "libraries": {
+    "en": {
+      "version": 2,
+      "asset": "library-en-v2.zip",
+      "sizeBytes": 5307751,
+      "sha256": "414c63714f7315bf6cea90be72ee022a63e99d5583aafb79680442fdddbb68a0",
+      "books": 38,
+      "words": 474160,
+      "fingerprint": "7c559cfd64d914d894eda940bfd0d8f9184e2fd8c1861caea36012e684ebfe88"
+    },
+    "es": {
+      "version": 2,
+      "asset": "library-es-v2.zip",
+      "sizeBytes": 4263338,
+      "sha256": "12c37ea637b82a97a8af3e1b6d72398e89a954c2bbb2dd2abdb8770df6a44391",
+      "books": 32,
+      "words": 258281,
+      "fingerprint": "d4ad975b8d967cfbc23afda6f26f270d5387a78579ae330849962b8dd48ec797"
+    },
+    "fr": {
+      "version": 2,
+      "asset": "library-fr-v2.zip",
+      "sizeBytes": 4311611,
+      "sha256": "6b28542473734276391115341b04f75c81edfe9b412a6aa6493959b46c48f184",
+      "books": 32,
+      "words": 288029,
+      "fingerprint": "982692fa690d93d1dde32f79db353c2638db30b2021e96b2ae7985fd8ebefdfe"
+    }
+  }
+}

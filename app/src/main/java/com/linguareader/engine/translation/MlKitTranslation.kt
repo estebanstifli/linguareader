@@ -54,7 +54,7 @@ sealed interface ModelDownload {
 class TranslationModelManager(
     private val preferences: UserPreferencesRepository,
     private val scope: CoroutineScope,
-) {
+) : TranslationModels {
     private val models = RemoteModelManager.getInstance()
 
     private val _downloaded = MutableStateFlow<Set<String>>(emptySet())
@@ -73,7 +73,7 @@ class TranslationModelManager(
     init { scope.launch { refresh() } }
 
     /** Código de ML Kit para una etiqueta BCP-47, o null si ML Kit no traduce ese idioma. */
-    fun code(languageTag: String): String? = TranslateLanguage.fromLanguageTag(LanguageTags.primary(languageTag))
+    override fun code(languageTag: String): String? = TranslateLanguage.fromLanguageTag(LanguageTags.primary(languageTag))
 
     /** Idioma del sistema si ML Kit lo soporta; si no, inglés. */
     fun deviceLanguage(): String = code(Locale.getDefault().toLanguageTag()) ?: TranslateLanguage.ENGLISH
@@ -97,7 +97,7 @@ class TranslationModelManager(
     }
 
     /** Descarga y espera; true si el modelo queda disponible. Respeta la preferencia «solo Wi-Fi». */
-    suspend fun awaitDownload(code: String): Boolean {
+    override suspend fun awaitDownload(code: String): Boolean {
         if (isDownloaded(code)) return true
         _downloads.update { it + (code to ModelDownload.Running) }
         val wifiOnly = preferences.preferences.first().translationWifiOnly
