@@ -64,6 +64,7 @@ final class SmokeUITests: XCTestCase {
         // Catálogo: la sección «Learn English» se llena cuando la biblioteca queda instalada.
         let row = app.descendants(matching: .any).matching(identifier: "catalog.row").firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 300), "Library books should appear once the download finishes")
-        XCTAssertGreaterThan(app.descendants(matching: .any).matching(identifier: "catalog.row").count, 5)
+        // La lista es perezosa: solo existen las celdas visibles.
+        XCTAssertGreaterThanOrEqual(app.descendants(matching: .any).matching(identifier: "catalog.row").count, 3)
     }
 }
