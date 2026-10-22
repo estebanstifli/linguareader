@@ -84,7 +84,7 @@ class PageFlipTest {
     }
 
     private fun overlayVisible() =
-        compose.onAllNodes(hasText("Preparando la lectura", substring = true)).fetchSemanticsNodes().isNotEmpty()
+        compose.onAllNodes(hasText(str(R.string.preparing_title), substring = true)).fetchSemanticsNodes().isNotEmpty()
 
     /** La pantalla de preparación sale ~300 ms DESPUÉS de mostrar la página nueva: se vigila unos segundos más. */
     private fun watchOverlay(ms: Long = 8_000): Boolean {
@@ -97,10 +97,17 @@ class PageFlipTest {
     }
 
     private fun generatingVisible() =
-        compose.onAllNodes(hasText("Generando audio", substring = true)).fetchSemanticsNodes().isNotEmpty()
+        compose.onAllNodes(hasText(str(R.string.player_generating_audio), substring = true)).fetchSemanticsNodes().isNotEmpty()
 
-    private fun pageLabelVisible(n: Int) =
-        compose.onAllNodes(hasText("Pasaje $n de", substring = true)).fetchSemanticsNodes().isNotEmpty()
+    /** Primera frase de la página [n] (un párrafo por página). */
+    private fun pageText(n: Int) = hasText("In the quiet town number $n, sentence 1", substring = true)
+
+    /** La página [n] está en pantalla (no basta con que esté compuesta: el pager prepara la siguiente). */
+    private fun pageVisible(n: Int) =
+        compose.onAllNodes(pageText(n)).fetchSemanticsNodes().any { it.boundsInWindow.width > 0f && it.boundsInWindow.height > 0f }
+
+    /** La lectura ha pasado a la página 2: la 1 ya no se ve y la 2 sí. */
+    private fun flippedToPageTwo() = pageVisible(2) && !pageVisible(1)
 
     @Test
     fun slowGenerationFlipsToTheNextPageWithoutThePreparingScreen() {
@@ -112,29 +119,29 @@ class PageFlipTest {
             compose.waitUntilAtLeastOneExists(hasScrollToNodeAction(), 15_000)
             compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Long Pages"))
             openFromCatalog(compose, "Long Pages")
-            compose.waitUntilAtLeastOneExists(hasText("Pasaje 1 de 3", substring = true), 30_000)
+            compose.waitUntilAtLeastOneExists(pageText(1), 30_000)
             val startDeadline = System.currentTimeMillis() + 240_000
             while (overlayVisible() && System.currentTimeMillis() < startDeadline) Thread.sleep(100)
             assertFalse("el arranque no terminó", overlayVisible())
 
-            compose.onNodeWithContentDescription("Reproducir").performClick()
+            compose.onNodeWithContentDescription(str(R.string.player_play)).performClick()
             var overlaySeen = false
             val flipDeadline = System.currentTimeMillis() + 420_000
-            while (!pageLabelVisible(2) && System.currentTimeMillis() < flipDeadline) {
+            while (!flippedToPageTwo() && System.currentTimeMillis() < flipDeadline) {
                 if (overlayVisible()) overlaySeen = true
                 Thread.sleep(100)
             }
             overlaySeen = overlaySeen || watchOverlay()
-            Log.i("PageFlipTest", "lento: página 2 mostrada=${pageLabelVisible(2)} overlayVisto=$overlaySeen")
-            assertTrue("la lectura no pasó sola a la página 2", pageLabelVisible(2))
+            Log.i("PageFlipTest", "lento: página 2 mostrada=${flippedToPageTwo()} overlayVisto=$overlaySeen")
+            assertTrue("la lectura no pasó sola a la página 2", flippedToPageTwo())
             assertFalse("«Preparando la lectura» salió al cambiar de página", overlaySeen)
 
             // La lectura sigue en marcha (botón de pausa) y la voz arranca sola con la primera frase de la página 2.
-            compose.onNodeWithContentDescription("Pausar").assertExists()
+            compose.onNodeWithContentDescription(str(R.string.player_pause)).assertExists()
             val voiceDeadline = System.currentTimeMillis() + 120_000
             while (generatingVisible() && System.currentTimeMillis() < voiceDeadline) Thread.sleep(200)
             assertFalse("la voz de la página 2 no llegó a arrancar", generatingVisible())
-            compose.onNodeWithContentDescription("Pausar").assertExists()
+            compose.onNodeWithContentDescription(str(R.string.player_pause)).assertExists()
         } finally {
             engineSettings.supertonicSteps = SupertonicEngine.DEFAULT_STEPS
             runBlocking { importer.delete(id) }
@@ -157,27 +164,27 @@ class PageFlipTest {
         openFromCatalog(compose, "Long Pages")
 
         // Arranque: aquí SÍ puede salir la pantalla (primera vez, modelo sin cargar). Se espera a que acabe.
-        compose.waitUntilAtLeastOneExists(hasText("Pasaje 1 de", substring = true), 30_000)
+        compose.waitUntilAtLeastOneExists(pageText(1), 30_000)
         val startDeadline = System.currentTimeMillis() + 180_000
         while (overlayVisible() && System.currentTimeMillis() < startDeadline) Thread.sleep(100)
         assertFalse("el arranque no terminó", overlayVisible())
 
-        compose.onNodeWithContentDescription("Reproducir").performClick()
+        compose.onNodeWithContentDescription(str(R.string.player_play)).performClick()
 
         // La lectura avanza sola a la página 2. En ningún momento debe salir la pantalla de preparación.
         var overlaySeen = false
         val flipDeadline = System.currentTimeMillis() + 300_000
-        while (!pageLabelVisible(2) && System.currentTimeMillis() < flipDeadline) {
+        while (!flippedToPageTwo() && System.currentTimeMillis() < flipDeadline) {
             if (overlayVisible()) overlaySeen = true
             Thread.sleep(100)
         }
         overlaySeen = overlaySeen || watchOverlay()
-        Log.i("PageFlipTest", "página 2 mostrada=${pageLabelVisible(2)} overlayVisto=$overlaySeen")
-        assertTrue("la lectura no pasó sola a la página 2", pageLabelVisible(2))
+        Log.i("PageFlipTest", "página 2 mostrada=${flippedToPageTwo()} overlayVisto=$overlaySeen")
+        assertTrue("la lectura no pasó sola a la página 2", flippedToPageTwo())
         assertFalse("«Preparando la lectura» salió al cambiar de página", overlaySeen)
 
         // Y sigue leyendo: el botón es de pausa (no se quedó parada).
-        compose.waitUntilAtLeastOneExists(hasText("Pasaje 2 de", substring = true), 5_000)
-        compose.onNodeWithContentDescription("Pausar").assertExists()
+        compose.waitUntil(5_000) { flippedToPageTwo() }
+        compose.onNodeWithContentDescription(str(R.string.player_pause)).assertExists()
     }
 }

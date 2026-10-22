@@ -169,6 +169,29 @@ if ($devices.Count -gt 0) {
     Info "Emulador listo"
 }
 
+function Get-TargetDevices {
+    $t = @(Get-ReadyDevices)
+    if ($Serial) { $t = @($t | Where-Object { $_ -eq $Serial }) }
+    return $t
+}
+
+# El modelo vive en el almacenamiento INTERNO de la app (files/). adb no puede escribir ahí
+# directamente: se sube a /data/local/tmp y se copia con run-as (solo builds de depuración).
+function Install-SupertonicModel($devices) {
+    $tmp = "/data/local/tmp/supertonic-$SupertonicRevision"
+    $rel = "files/models/supertonic-3/$SupertonicRevision"
+    foreach ($d in $devices) {
+        & $adb -s $d shell "rm -rf $tmp; mkdir -p $tmp" | Out-Null
+        & $adb -s $d push "$SupertonicHostDir\." "$tmp/"
+        if ($LASTEXITCODE -ne 0) { Fail "No se pudo subir el modelo a $d." }
+        & $adb -s $d shell "run-as $AppId sh -c 'rm -rf $rel; mkdir -p $rel && cp -R $tmp/. $rel/'"
+        if ($LASTEXITCODE -ne 0) { Fail "run-as no pudo copiar el modelo (¿build de release?)." }
+        & $adb -s $d shell "rm -rf $tmp" | Out-Null
+        # Restos de versiones anteriores que usaban Android/data (carpetas de 'shell' que la app no puede leer).
+        & $adb -s $d shell "rm -rf /sdcard/Android/data/$AppId/files/models" | Out-Null
+    }
+}
+
 # ---------------------------------------------------------------------------------------------
 Push-Location $ProjectDir
 try {
@@ -182,15 +205,22 @@ try {
         Invoke-Native $gradlew @(":core:jvmTest", ":importer:jvmTest", ":engine:alignment:jvmTest", ":engine:supertonic:jvmTest", "--console=plain") "Tests JVM"
         Info "OK. Informes: <modulo>\build\reports\tests\jvmTest\index.html"
     }
+    if ($Supertonic -and -not (Test-Path (Join-Path $SupertonicHostDir "onnx\vector_estimator.onnx"))) {
+        Step "Descargando Supertonic 3 en el PC (~398 MB, revisión fijada, verificado con sha256)"
+        Invoke-Native $gradlew @(":engine:supertonic:smokeTest", "--console=plain") "Descarga/prueba de Supertonic en el PC"
+    }
     if ($AllTests) {
+        if ($Supertonic) {
+            # Los tests de Supertonic y de cambio de página se omiten si el modelo no está en files/ de la app:
+            # se instala la app y se copia el modelo antes (los tests desinstalan la app y se lo llevan al acabar).
+            Step "Instalando la app y el modelo Supertonic 3 para los tests"
+            Invoke-Native $gradlew @(":app:installDebug", "--console=plain") "gradle installDebug"
+            Install-SupertonicModel (Get-TargetDevices)
+        }
         Step "Tests instrumentados (en el dispositivo)"
         Invoke-Native $gradlew @(":app:connectedDebugAndroidTest", "--console=plain") "Tests instrumentados"
         Info "OK. Informe: app\build\reports\androidTests\connected\debug\index.html"
         Info "(Los tests desinstalan la app al terminar: se reinstala a continuación.)"
-    }
-    if ($Supertonic -and -not (Test-Path (Join-Path $SupertonicHostDir "onnx\vector_estimator.onnx"))) {
-        Step "Descargando Supertonic 3 en el PC (~398 MB, revisión fijada, verificado con sha256)"
-        Invoke-Native $gradlew @(":engine:supertonic:smokeTest", "--console=plain") "Descarga/prueba de Supertonic en el PC"
     }
 
     Step "Compilando e instalando (la primera vez descarga dependencias)"
@@ -199,8 +229,7 @@ try {
     Pop-Location
 }
 
-$targets = @(Get-ReadyDevices)
-if ($Serial) { $targets = @($targets | Where-Object { $_ -eq $Serial }) }
+$targets = @(Get-TargetDevices)
 
 if ($Reset) {
     Step "Borrando datos de la app"
@@ -209,20 +238,7 @@ if ($Reset) {
 
 if ($Supertonic) {
     Step "Copiando el modelo Supertonic 3 al dispositivo"
-    # El modelo vive en el almacenamiento INTERNO de la app (files/). adb no puede escribir ahí
-    # directamente: se sube a /data/local/tmp y se copia con run-as (solo builds de depuración).
-    $tmp = "/data/local/tmp/supertonic-$SupertonicRevision"
-    $rel = "files/models/supertonic-3/$SupertonicRevision"
-    foreach ($d in $targets) {
-        & $adb -s $d shell "rm -rf $tmp; mkdir -p $tmp" | Out-Null
-        & $adb -s $d push "$SupertonicHostDir\." "$tmp/"
-        if ($LASTEXITCODE -ne 0) { Fail "No se pudo subir el modelo a $d." }
-        & $adb -s $d shell "run-as $AppId sh -c 'rm -rf $rel; mkdir -p $rel && cp -R $tmp/. $rel/'"
-        if ($LASTEXITCODE -ne 0) { Fail "run-as no pudo copiar el modelo (¿build de release?)." }
-        & $adb -s $d shell "rm -rf $tmp" | Out-Null
-        # Restos de versiones anteriores que usaban Android/data (carpetas de 'shell' que la app no puede leer).
-        & $adb -s $d shell "rm -rf /sdcard/Android/data/$AppId/files/models" | Out-Null
-    }
+    Install-SupertonicModel $targets
     Info "Modelo instalado. En la app: Ajustes > Motor de voz > Supertonic 3."
 }
 

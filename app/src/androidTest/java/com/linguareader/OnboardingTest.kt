@@ -46,13 +46,13 @@ class OnboardingTest {
 
     @Test
     fun readingPathOffersTheSearchAndEndsInTheLibrary() {
-        waitFor("¿Para qué vas a usar LinguaReader?")
-        compose.onNodeWithText("Leer mis libros y documentos").performClick()
-        waitFor("¿Buscamos libros en tu móvil?")
-        compose.onNodeWithText("Ahora no").performClick()
-        waitFor("Esto es lo que hemos preparado")
-        compose.onNodeWithText("Empezar a leer").performClick()
-        compose.waitUntilDoesNotExist(hasText("Esto es lo que hemos preparado"), 5_000)
+        waitFor(str(R.string.onboarding_purpose_title))
+        compose.onNodeWithText(str(R.string.onboarding_purpose_read)).performClick()
+        waitFor(str(R.string.scan_offer_title))
+        compose.onNodeWithText(str(R.string.common_not_now)).performClick()
+        waitFor(str(R.string.onboarding_summary_title))
+        compose.onNodeWithText(str(R.string.onboarding_start_reading)).performClick()
+        compose.waitUntilDoesNotExist(hasText(str(R.string.onboarding_summary_title)), 5_000)
 
         val p = runBlocking { preferences.preferences.first() }
         assertEquals(AppPurpose.READ, p.purpose)
@@ -64,17 +64,17 @@ class OnboardingTest {
 
     @Test
     fun learningPathCanSkipTheLanguageAndThenSkipsTheLevel() {
-        waitFor("¿Para qué vas a usar LinguaReader?")
-        compose.onNodeWithText("Aprender un idioma").performClick()
-        waitFor("¿Qué idioma quieres aprender?")
-        compose.onNodeWithText("Ahora no").performClick()
-        waitFor("¿Cuál es tu idioma?")
-        compose.onNodeWithText("Continuar").performClick()
+        waitFor(str(R.string.onboarding_purpose_title))
+        compose.onNodeWithText(str(R.string.onboarding_purpose_learn)).performClick()
+        waitFor(str(R.string.onboarding_learn_title))
+        compose.onNodeWithText(str(R.string.common_not_now)).performClick()
+        waitFor(str(R.string.onboarding_native_title))
+        compose.onNodeWithText(str(R.string.common_continue)).performClick()
         // Sin idioma que aprender no hay nivel que preguntar ni búsqueda (solo aprender): directo al resumen.
-        waitFor("Esto es lo que hemos preparado")
-        waitFor("Idioma para aprender")
-        compose.onNodeWithText("Empezar a leer").performClick()
-        compose.waitUntilDoesNotExist(hasText("Esto es lo que hemos preparado"), 5_000)
+        waitFor(str(R.string.onboarding_summary_title))
+        waitFor(str(R.string.onboarding_language_to_learn))
+        compose.onNodeWithText(str(R.string.onboarding_start_reading)).performClick()
+        compose.waitUntilDoesNotExist(hasText(str(R.string.onboarding_summary_title)), 5_000)
 
         val p = runBlocking { preferences.preferences.first() }
         assertEquals(AppPurpose.LEARN, p.purpose)

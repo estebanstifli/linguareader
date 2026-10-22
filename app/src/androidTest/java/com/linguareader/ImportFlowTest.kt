@@ -98,8 +98,8 @@ class ImportFlowTest {
         // Mismo camino que MainActivity.onCreate/onNewIntent.
         assertTrue(pendingImports.offer(intent))
 
-        compose.waitUntilAtLeastOneExists(hasText("Importar libro"), 10_000)
-        compose.onNodeWithText("Importar").performClick()
+        compose.waitUntilAtLeastOneExists(hasText(str(R.string.catalog_import_book)), 10_000)
+        compose.onNodeWithText(str(R.string.common_import)).performClick()
         compose.waitUntilAtLeastOneExists(hasText("The cat sat on the mat.", substring = true), 10_000)
 
         runBlocking {

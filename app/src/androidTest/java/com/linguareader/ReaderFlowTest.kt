@@ -85,18 +85,18 @@ class ReaderFlowTest {
     @Test
     fun wordEventsFromEngineEnableWordLevelSync() {
         openBook()
-        compose.onNodeWithContentDescription("Reproducir").performClick()
-        compose.waitUntilAtLeastOneExists(hasText("Sincronía por palabra", substring = true), 5_000)
+        compose.onNodeWithContentDescription(str(R.string.player_play)).performClick()
+        compose.waitUntilAtLeastOneExists(hasText(str(R.string.player_sync_word), substring = true), 5_000)
     }
 
     @Test
     fun sentenceActionTranslatesWithTheDeviceTranslator() {
         openBook()
         compose.onNodeWithText(FIRST_SENTENCE, substring = true)
-            .performCustomAccessibilityActionWithLabel("Traducir frase")
+            .performCustomAccessibilityActionWithLabel(str(R.string.reader_translate_sentence))
         // Los libros no traen traducción: o traduce el traductor del dispositivo o pide su modelo.
         compose.waitUntilAtLeastOneExists(
-            hasText("Traducción automática", substring = true) or hasText("Falta descargar el traductor", substring = true),
+            hasText(str(R.string.translation_machine), substring = true) or hasText(str(R.string.translation_unavailable_model_missing), substring = true),
             15_000,
         )
     }
@@ -109,10 +109,10 @@ class ReaderFlowTest {
         compose.onNodeWithText(FIRST_SENTENCE, substring = true).performTouchInput {
             click(Offset(15f, 30f)) // toque sobre la primera palabra: controles + minitarjeta
         }
-        compose.waitUntilAtLeastOneExists(hasContentDescription("Más información"), 15_000)
-        compose.onNodeWithContentDescription("Más información").performClick()
+        compose.waitUntilAtLeastOneExists(hasContentDescription(str(R.string.word_more_info)), 15_000)
+        compose.onNodeWithContentDescription(str(R.string.word_more_info)).performClick()
         compose.waitUntilAtLeastOneExists(
-            hasText("Traducción automática", substring = true) or hasText("Falta descargar el traductor", substring = true),
+            hasText(str(R.string.translation_machine), substring = true) or hasText(str(R.string.translation_unavailable_model_missing), substring = true),
             15_000,
         )
     }
