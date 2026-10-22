@@ -4,6 +4,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.linguareader.core.engine.BookRepository
+import com.linguareader.core.engine.SpeechEvent
 import com.linguareader.core.engine.StreamingSpeechEngine
 import com.linguareader.core.model.BookSummary
 import com.linguareader.core.model.CatalogFilter
@@ -95,6 +96,9 @@ object LinguaShared {
         watch(books.observeCatalog(CatalogFilter()), block)
 
     fun watchPlayback(block: (PlaybackState) -> Unit): FlowWatcher = watch(audio.playbackState, block)
+
+    /** Eventos de un motor de voz (inicio, rangos de palabra, fin) para los tests y la UI. */
+    fun watchSpeechEvents(engine: StreamingSpeechEngine, block: (SpeechEvent) -> Unit): FlowWatcher = watch(engine.events, block)
 
     /** Versión del código compartido que ve la app (para la pantalla «Acerca de» y los logs de Device Farm). */
     const val VERSION = "0.2.0-ios"

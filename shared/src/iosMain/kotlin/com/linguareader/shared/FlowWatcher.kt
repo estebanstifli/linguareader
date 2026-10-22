@@ -1,7 +1,5 @@
 package com.linguareader.shared
 
-import com.linguareader.core.engine.SpeechEvent
-import com.linguareader.core.engine.StreamingSpeechEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,6 +20,3 @@ internal fun <T> watch(flow: Flow<T>, block: (T) -> Unit): FlowWatcher {
     scope.launch { flow.collect { block(it) } }
     return FlowWatcher(scope)
 }
-
-/** Eventos del motor de voz (inicio, rangos de palabra, fin) para los tests y la UI. */
-fun StreamingSpeechEngine.watchEvents(block: (SpeechEvent) -> Unit): FlowWatcher = watch(events, block)

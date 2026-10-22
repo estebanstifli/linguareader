@@ -91,7 +91,7 @@ jobs:
       - name: Unit and UI tests in the simulator
         working-directory: ios
         run: >
-          set -o pipefail;
+          set -o pipefail; mkdir -p build;
           xcodebuild test
           -project LinguaReader.xcodeproj
           -scheme LinguaReader

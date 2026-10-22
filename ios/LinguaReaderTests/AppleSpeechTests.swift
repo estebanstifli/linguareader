@@ -20,7 +20,7 @@ final class AppleSpeechTests: XCTestCase {
         let done = expectation(description: "utterance finished")
         var marks = 0
         var started = false
-        let watcher = engine.watchEvents { event in
+        let watcher = LinguaShared.shared.watchSpeechEvents(engine: engine) { event in
             if event is SpeechEventStarted { started = true }
             if event is SpeechEventWordRange { marks += 1 }
             if event is SpeechEventDone || event is SpeechEventError || event is SpeechEventStopped { done.fulfill() }
