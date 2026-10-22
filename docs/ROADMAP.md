@@ -142,7 +142,9 @@ en un iPhone real antes de prometerlo.
     paridad con la JVM, spike de marcas de voz y humo XCTest UI; `project.yml` para XcodeGen.
   - ✅ Workflow `ios.yml`: suite compartida en simulador, XCFramework, tests de la app en simulador, build para
     dispositivo sin firma y `.ipa` para Device Farm como artefactos.
-  - ⬜ Primer run verde en CI y primer run en Device Farm (humo XCTest UI, paridad y spike en iPhone real).
+  - ✅ Primer run verde en CI (22-10-2026): suite compartida en simulador, 6 tests XCTest (paridad JVM y marcas de
+    palabra de las voces de Apple) y humo XCTest UI (importa el EPUB, lee con resaltado por palabra, pasa de página).
+  - ⬜ Primer run en Device Farm (humo XCTest UI, paridad y spike en iPhone real) con los `.ipa` del artefacto `ios-device-farm`.
   - ⬜ Sesión de acceso remoto en Device Farm para probar la app a mano.
   - ⬜ Síntesis a fichero con marcas (`write(_:toBufferCallback:toMarkerCallback:)`) para el flujo renderizado con caché.
   - ⬜ Binding de `onnxruntime-c`, medir Supertonic y wav2vec2 en iPhone; descargas con `URLSession` en segundo plano;
