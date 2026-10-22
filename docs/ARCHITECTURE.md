@@ -23,7 +23,8 @@
 | `:engine:supertonic` | Kotlin Multiplatform | Motor Supertonic 3: port del preprocesado de texto, runtime ONNX (4 sesiones), catálogo del modelo con sha256, métricas. El descargador con reanudación (`ModelDownloader`, HttpURLConnection) está en `jvmMain` tras el puerto `FileDownloader`. Ver [SUPERTONIC.md](SUPERTONIC.md) |
 | `:importer` | Kotlin Multiplatform | Puerto `DocumentExtractor`, `ExtractorRegistry` (detección por firma), extractores EPUB/MOBI/DOCX/ODT/RTF/FB2/HTML/TXT/Markdown/SRT (Ksoup + Okio), `PageTextCleaner` (PDF) e `ImportedBookBuilder` (texto → `manifest.json`). Ver [IMPORT.md](IMPORT.md) |
 | `:data` | Kotlin Multiplatform | Persistencia compartida: base de datos Room (`AppDatabase`: progreso, marcadores, vocabulario, caché de traducciones, estanterías, papelera, correcciones, documentos del dispositivo; esquemas exportados en `data/schemas`) y `UserPreferencesRepository` sobre DataStore. Room genera la implementación para jvm e iOS (`@ConstructedBy`); tests JVM con `sqlite-bundled` |
-| `:app` | Android | `data` (assets, libros importados, biblioteca, escaneo, `DataStore` de Android), `engine` (Android TTS, foco de audio, reproductor Media3, gestores de modelos, PDF), `di` (grafo Koin), `ui` (catálogo, lector, ajustes, vocabulario) |
+| `:app` | Android | `data` (assets, fuentes de importación de Android, escaneo, `DataStore` de Android), `engine` (Android TTS, foco de audio, reproductor Media3, ML Kit, PDF), `di` (grafo Koin), `ui` (catálogo, lector, ajustes, vocabulario) |
+| `:domain` | Kotlin Multiplatform | Gestores que antes vivían en la app Android: libros importados (`ImportedBookRepository`, `LocalBookImporter`), catálogo compuesto, estanterías y papelera (`LibraryRepository`), bibliotecas descargables (`LibraryPackManager`, `LibraryArchive`, `GithubPackSource`), packs (`SupertonicModelManager`, `AlignmentModelManager`, `VoicePackManager`), narraciones y pretraducción. Sobre Okio y el puerto `HttpTransport`; errores tipados (`PackError`). Conserva los paquetes originales |
 | `:shared` | Kotlin Multiplatform (solo iOS) | Framework `LinguaShared` para la app iOS: exporta los módulos compartidos y añade los adaptadores de Apple (`AppleSpeechEngine`, `DirectoryBookRepository`, `BookImporter`, arranque Koin). Ver [IOS.md](IOS.md) |
 | `ios/` | Xcode (XcodeGen) | App SwiftUI, tests XCTest/XCTest UI y empaquetado para AWS Device Farm. No es un módulo Gradle. Ver [IOS.md](IOS.md) |
 
@@ -174,6 +175,14 @@ que antes), `iosArm64` e `iosSimulatorArm64`. Es la **Fase 0** del plan de app i
   llevan anotaciones de DI. `LinguaReaderApp` arranca Koin y los tests instrumentados superponen `testModule`
   (motor de voz falso, base en memoria) desde `TestApp` (`KoinTestRunner`). Lo que Hilt verificaba al compilar lo
   comprueba `KoinModulesTest` (`module.verify()`) en los tests unitarios.
+- **Gestores compartidos (`:domain`, octubre de 2026):** la lógica de libros importados, bibliotecas descargables,
+  packs, estanterías, narraciones y pretraducción se escribe una vez. Lo que dependía de Android se sustituyó por
+  puertos: `java.io.File` → `okio.Path`/`FileSystem`, `HttpURLConnection` → `HttpTransport` (`actual` JVM con
+  `HttpURLConnection`, iOS con `NSURLSession` en streaming), `Log` → lambda, `UiText` → `PackError`/`TranslationError`
+  (la UI de cada plataforma los traduce; Android en `ui/common/PackErrors.kt`), catálogos JSON de `assets` → texto que
+  aporta la plataforma, espacio libre → `freeBytes` (`core/platform`). `ModelDownloader` está en `commonMain` con el
+  mismo protocolo (`.part`, `Range`, sha256, `.verified`). Android construye estas clases en `AppModule.kt` con
+  `filesDir.toOkioPath()`; iOS en `LinguaShared.kt`.
 - **Pendiente de la Fase 0:** mover `ReaderViewModel`/`CatalogViewModel` a `commonMain`. Depende de sacar de ellos
   `R.string` (`UiText` con claves de recurso), `ImageBitmap` y los servicios de Android que usan (ver ROADMAP).
 

@@ -202,7 +202,7 @@ try {
     }
     if ($Tests -or $AllTests) {
         Step "Tests JVM (core, importer, alignment, supertonic)"
-        Invoke-Native $gradlew @(":core:jvmTest", ":importer:jvmTest", ":engine:alignment:jvmTest", ":engine:supertonic:jvmTest", "--console=plain") "Tests JVM"
+        Invoke-Native $gradlew @(":core:jvmTest", ":importer:jvmTest", ":engine:alignment:jvmTest", ":engine:supertonic:jvmTest", ":data:jvmTest", ":domain:jvmTest", "--console=plain") "Tests JVM"
         Info "OK. Informes: <modulo>\build\reports\tests\jvmTest\index.html"
     }
     if ($Supertonic -and -not (Test-Path (Join-Path $SupertonicHostDir "onnx\vector_estimator.onnx"))) {

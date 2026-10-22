@@ -145,6 +145,7 @@ engine/ Kotlin Multiplatform: onnx (puerto de ONNX Runtime), alignment (alineaci
 importer/ Kotlin Multiplatform: extractores de formatos (EPUB, MOBI, DOCX, ODT, RTF, FB2, HTML, TXT,
         Markdown, SRT/VTT) y constructor de libros importados. Ver docs/IMPORT.md.
 data/   Kotlin Multiplatform: base de datos Room y preferencias del usuario (DataStore).
+domain/ Kotlin Multiplatform: libros importados, bibliotecas descargables, packs, estanterías, narraciones.
 shared/ Kotlin Multiplatform (solo iOS): framework LinguaShared para la app iOS. Ver docs/IOS.md.
 ios/    App iOS (SwiftUI, XcodeGen); se compila en GitHub Actions y se prueba en AWS Device Farm. Ver docs/IOS.md.
 app/    Android: Compose UI, grafo Koin, adaptador Android TTS, libros en assets/books,
