@@ -92,7 +92,7 @@ dependencies {
     implementation(project(":engine:supertonic"))
     implementation(project(":engine:alignment"))
     implementation(project(":importer"))
-    implementation(libs.jsoup) // páginas web compartidas (BookImportService.readUrl)
+    implementation(libs.ksoup) // páginas web compartidas (BookImportService.readUrl), mismo parser que el importador
     implementation(libs.pdfbox.android) // importación de PDF con capa de texto
     implementation(libs.mlkit.translate) // traducción automática en el dispositivo
     implementation(libs.onnxruntime.android)

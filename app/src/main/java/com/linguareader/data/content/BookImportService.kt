@@ -1,5 +1,6 @@
 package com.linguareader.data.content
 
+import okio.Path.Companion.toOkioPath
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -17,7 +18,8 @@ import com.linguareader.importer.extract.TextExtractor
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.jsoup.Jsoup
+import com.fleeksoft.ksoup.Ksoup
+import com.linguareader.importer.extract.TextDecoding
 import java.io.File
 import java.io.InputStream
 import java.net.HttpURLConnection
@@ -65,7 +67,7 @@ class BookImportService @Inject constructor(
         }.getOrNull() ?: uri.lastPathSegment?.substringAfterLast('/') ?: "documento"
         val input = resolver.openInputStream(uri) ?: throw ImportException(ImportException.Reason.CORRUPT, "No se pudo abrir el fichero")
         withTempCopy(input, MAX_FILE_BYTES) { copy, hash ->
-            val document = registry.extract(DocumentSource(copy, name, resolver.getType(uri)))
+            val document = registry.extract(DocumentSource(copy.toOkioPath(), name, resolver.getType(uri)))
             val original = OriginalDocument(uri.toString(), document.format, document.pageCount)
                 .takeIf { it.viewable }
                 ?.also { keepAccess(uri) }
@@ -100,7 +102,7 @@ class BookImportService @Inject constructor(
     /** Fichero local de la app (EPUB de una biblioteca descargada). */
     suspend fun readFile(file: File): ImportDraft = withContext(Dispatchers.IO) {
         withTempCopy(file.inputStream(), MAX_FILE_BYTES) { copy, hash ->
-            draft(hash, file.name, registry.extract(DocumentSource(copy, file.name, null)))
+            draft(hash, file.name, registry.extract(DocumentSource(copy.toOkioPath(), file.name, null)))
         }
     }
 
@@ -126,7 +128,7 @@ class BookImportService @Inject constructor(
                 throw ImportException(ImportException.Reason.UNSUPPORTED_FORMAT, "El enlace no es una página web ($type)")
             }
             withTempCopy(connection.inputStream, MAX_PAGE_BYTES) { copy, hash ->
-                val html = copy.inputStream().use { Jsoup.parse(it, null, connection.url.toString()) }
+                val html = Ksoup.parse(TextDecoding.decodeMarkup(copy.readBytes()), connection.url.toString())
                 val document = HtmlExtractor().fromDocument(html, parsed.host, webPage = true)
                 if (document.paragraphCount == 0) {
                     throw ImportException(ImportException.Reason.NO_TEXT, "No se encontró texto legible en la página")

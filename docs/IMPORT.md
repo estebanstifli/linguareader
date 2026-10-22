@@ -10,15 +10,15 @@ resaltado, el progreso y los marcadores funcionan igual para un libro importado 
 
 | Formato | Extensiones | Cómo se lee | Dependencia |
 |---|---|---|---|
-| EPUB 2/3 | `.epub` | `container.xml` → OPF (metadatos, spine) → índice nav/NCX → XHTML. Imágenes y portada. | jsoup |
+| EPUB 2/3 | `.epub` | `container.xml` → OPF (metadatos, spine) → índice nav/NCX → XHTML. Imágenes y portada. | Ksoup |
 | Kindle sin DRM | `.mobi` `.prc` `.azw` `.azw3` | Base de datos Palm + descompresión PalmDOC (LZ77) → HTML. Imágenes por `recindex`/`kindle:embed`. | — |
 | PDF con texto | `.pdf` | PdfBox-Android página a página; se quitan cabeceras/pies repetidos y números de página, y se unen párrafos y palabras partidos entre páginas. | PdfBox-Android |
-| Word | `.docx` | `word/document.xml`; títulos por estilo («heading 1», en cualquier idioma de Word) o nivel de esquema; ignora texto borrado (control de cambios) y notas. | jsoup (XML) |
-| LibreOffice | `.odt` | `content.xml` (`text:h`, `text:p`, listas, tablas) y `meta.xml`. | jsoup (XML) |
+| Word | `.docx` | `word/document.xml`; títulos por estilo («heading 1», en cualquier idioma de Word) o nivel de esquema; ignora texto borrado (control de cambios) y notas. | Ksoup (XML) |
+| LibreOffice | `.odt` | `content.xml` (`text:h`, `text:p`, listas, tablas) y `meta.xml`. | Ksoup (XML) |
 | RTF | `.rtf` | Intérprete mínimo de palabras de control (`\par`, `\'xx`, `\uN`, destinos ignorados). | — |
-| FictionBook | `.fb2` `.fb2.zip` `.fbz` | Secciones anidadas, poemas, citas, imágenes base64; sin notas al pie. Respeta `encoding` (p. ej. windows-1251). | jsoup (XML) |
-| HTML | `.html` `.htm` `.xhtml` | Cuerpo completo (un capítulo o un libro guardado). | jsoup |
-| Página web | URL | Descarga explícita y modo lectura: se queda con el artículo principal (sin menús, pies, barras laterales ni comentarios). Sin imágenes remotas. | jsoup |
+| FictionBook | `.fb2` `.fb2.zip` `.fbz` | Secciones anidadas, poemas, citas, imágenes base64; sin notas al pie. Respeta `encoding` (p. ej. windows-1251). | Ksoup (XML) |
+| HTML | `.html` `.htm` `.xhtml` | Cuerpo completo (un capítulo o un libro guardado). | Ksoup |
+| Página web | URL | Descarga explícita y modo lectura: se queda con el artículo principal (sin menús, pies, barras laterales ni comentarios). Sin imágenes remotas. | Ksoup |
 | Texto | `.txt` | Detección de codificación (BOM, UTF-8, windows-1252), líneas cortadas a mano, capítulos («Chapter IV», «Capítulo 3»...), cabecera y licencia de Project Gutenberg. | — |
 | Markdown | `.md` | `#`–`###` = capítulo; se quitan marcas, enlaces y código. Front matter (`title`, `lang`). | — |
 | Subtítulos | `.srt` `.vtt` | Sin tiempos ni etiquetas; los cues se agrupan en párrafos. Útil para estudiar el guion de una serie. | — |
@@ -133,12 +133,13 @@ con el título y el comienzo del texto. Los libros de las bibliotecas graduadas 
 
 | Dependencia | Licencia | Uso | Peso aproximado en el APK |
 |---|---|---|---|
-| jsoup 1.21.1 | MIT | HTML/XHTML/XML (EPUB, DOCX, ODT, FB2, web) | ~0,5 MB |
+| Ksoup 0.2.6 | MIT | HTML/XHTML/XML (EPUB, DOCX, ODT, FB2, web); port multiplataforma de jsoup | ~0,7 MB |
+| Okio 3.18.2 | Apache-2.0 | Ficheros y ZIP (también en iOS) | ~0,3 MB |
 | PdfBox-Android 2.0.27.0 (com.tom-roush) | Apache-2.0 | Texto de PDF | ~9 MB en debug sin minificar (~5 MB son tablas CMap CJK y una fuente) |
 
 ## Pruebas
 
-- JVM: `./gradlew :core:test :importer:test`. Los EPUB, DOCX, ODT, FB2, MOBI y RTF de prueba se
+- JVM: `./gradlew :core:jvmTest :importer:jvmTest`. Los EPUB, DOCX, ODT, FB2, MOBI y RTF de prueba se
   generan en los propios tests: no hay contenido de terceros en el repositorio.
 - Dispositivo/emulador: `ImportFlowTest` (SAF → catálogo → lector; «Compartir» texto; reimportación;
   formato no soportado) y `PdfImportTest` (PDF real generado con `PdfDocument`; PDF sin texto).

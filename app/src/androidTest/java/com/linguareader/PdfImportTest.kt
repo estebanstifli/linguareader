@@ -1,5 +1,6 @@
 package com.linguareader
 
+import okio.Path.Companion.toOkioPath
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -43,7 +44,7 @@ class PdfImportTest {
             listOf("Morning came slowly.", "The sea was calm again.", "Everyone thanked the keeper."),
         )
         val pages = bodies.mapIndexed { i, body -> listOf("The Lighthouse", "") + body + listOf("", "", "${i + 1}") }
-        val doc = registry.extract(DocumentSource(pdf("story.pdf", pages), "story.pdf"))
+        val doc = registry.extract(DocumentSource(pdf("story.pdf", pages).toOkioPath(), "story.pdf"))
         assertEquals("pdf", doc.format)
         val text = doc.chapters.flatMap { c -> c.blocks.filterIsInstance<ExtractedBlock.Paragraph>().map { it.text } }.joinToString(" ")
         assertTrue(text, text.contains("The storm arrived at dusk."))
@@ -56,7 +57,7 @@ class PdfImportTest {
     fun scannedPdfWithoutTextIsRejected() {
         val file = pdf("scan.pdf", listOf(listOf(""), listOf("")))
         try {
-            registry.extract(DocumentSource(file, "scan.pdf"))
+            registry.extract(DocumentSource(file.toOkioPath(), "scan.pdf"))
             fail("Debía rechazar un PDF sin texto")
         } catch (e: ImportException) {
             assertEquals(ImportException.Reason.NO_TEXT, e.reason)

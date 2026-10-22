@@ -17,14 +17,16 @@
 
 | Módulo | Tipo | Contenido |
 |---|---|---|
-| `:core` | Kotlin/JVM | `model` (Book, Passage, Token…), `engine/Ports.kt` (interfaces), `text` (Tokenizer, PassageBuilder, OffsetIndex), `content` (manifiesto, integridad), `translation` (glosario, expresiones), `alignment` (validador, timeline), `audio` (clave de caché), `reader` (ReaderAudioController + implementación streaming) |
-| `:engine:supertonic` | Kotlin/JVM | Motor Supertonic 3: port del preprocesado de texto, runtime ONNX (4 sesiones), catálogo del modelo con sha256, descargador con reanudación, métricas. Compila contra la API Java de ONNX Runtime (Android y escritorio). Ver [SUPERTONIC.md](SUPERTONIC.md) |
-| `:importer` | Kotlin/JVM | Puerto `DocumentExtractor`, `ExtractorRegistry` (detección por firma), extractores EPUB/MOBI/DOCX/ODT/RTF/FB2/HTML/TXT/Markdown/SRT, `PageTextCleaner` (PDF) e `ImportedBookBuilder` (texto → `manifest.json`). Ver [IMPORT.md](IMPORT.md) |
-| `:app` | Android | `data` (assets, Room, DataStore), `engine` (Android TTS, foco de audio, reproductor Media3, gestor del modelo Supertonic), `di`, `ui` (catálogo, lector, ajustes, vocabulario) |
+| `:core` | Kotlin Multiplatform (jvm, iosArm64, iosSimulatorArm64) | `model` (Book, Passage, Token…), `engine/Ports.kt` (interfaces), `text` (Tokenizer, SentenceSegmenter, normalizador de habla), `content` (manifiesto, integridad), `translation` (glosario, expresiones), `alignment` (validador, timeline, GapFiller), `audio` (clave y caché de audio, sidecars), `narration`, `reader` (controladores de audio), `platform` (puerto expect/actual: Unicode, frases, hashing, charset, fechas) |
+| `:engine:onnx` | Kotlin Multiplatform | Puerto mínimo de ONNX Runtime (`OnnxRuntime`, `OnnxSession`, `OnnxTensor`). jvm: API Java de ONNX Runtime; iOS: stub hasta enlazar `onnxruntime-c` en un Mac |
+| `:engine:alignment` | Kotlin Multiplatform | Alineación forzada por palabra: Viterbi CTC, remuestreo, texto wav2vec2/MMS, `Wav2Vec2ClipAligner`. Ver [ALIGNMENT.md](ALIGNMENT.md) |
+| `:engine:supertonic` | Kotlin Multiplatform | Motor Supertonic 3: port del preprocesado de texto, runtime ONNX (4 sesiones), catálogo del modelo con sha256, métricas. El descargador con reanudación (`ModelDownloader`, HttpURLConnection) está en `jvmMain` tras el puerto `FileDownloader`. Ver [SUPERTONIC.md](SUPERTONIC.md) |
+| `:importer` | Kotlin Multiplatform | Puerto `DocumentExtractor`, `ExtractorRegistry` (detección por firma), extractores EPUB/MOBI/DOCX/ODT/RTF/FB2/HTML/TXT/Markdown/SRT (Ksoup + Okio), `PageTextCleaner` (PDF) e `ImportedBookBuilder` (texto → `manifest.json`). Ver [IMPORT.md](IMPORT.md) |
+| `:app` | Android | `data` (assets, Room, DataStore), `engine` (Android TTS, foco de audio, reproductor Media3, gestores de modelos, PDF), `di`, `ui` (catálogo, lector, ajustes, vocabulario) |
 
-Se empezó con dos módulos para no crear módulos vacíos. Los límites de la organización sugerida en
-`CLAUDE.md` se mantienen por paquetes. Separar `engine/tts-supertonic` en módulo propio tiene
-sentido cuando lleguen dependencias pesadas (ONNX Runtime).
+Los módulos compartidos no contienen `android.*` ni `java.*`: lo que depende de la plataforma pasa por
+`core/platform` (expect/actual) o por puertos (`OnnxRuntime`, `FileDownloader`, `FileSystem` de Okio). Ver
+«Kotlin Multiplatform y la app iOS» más abajo.
 
 ## Puertos (`core/.../engine/Ports.kt`, `core/.../reader/ReaderAudioController.kt`)
 
@@ -128,6 +130,36 @@ Detalles, métricas y limitaciones: [SUPERTONIC.md](SUPERTONIC.md).
 - Room (`linguareader.db`, esquema exportado en `app/schemas`): `reading_progress`, `bookmarks`, `vocabulary`.
 - DataStore Preferences: preferencias de usuario (`UserPreferences` en `core`).
 
+## Kotlin Multiplatform y la app iOS
+
+Desde octubre de 2026 los módulos `:core`, `:importer`, `:engine:onnx`, `:engine:alignment` y
+`:engine:supertonic` son Kotlin Multiplatform con targets `jvm` (lo que consume la app Android, mismo bytecode
+que antes), `iosArm64` e `iosSimulatorArm64`. Es la **Fase 0** del plan de app iOS (resumen y estado en
+[ROADMAP.md](ROADMAP.md#app-ios-análisis-hecho-fase-0-en-marcha-)):
+
+- **Fuentes:** `src/commonMain` (todo el código), `src/jvmMain` / `src/iosMain` (solo `actual`s y adaptadores),
+  `src/jvmTest` (la suite existente, JUnit 4). Los tests siguen corriendo en JVM; en un Mac se ejecutarán también en
+  simulador (`iosSimulatorArm64Test`) para detectar divergencias entre plataformas.
+- **Puerto de plataforma (`core/platform`):** `normalizeUnicode` (NFC/NFD/NFKC/NFKD), `sentenceBreaks`
+  (BreakIterator / `enumerateSubstrings(.bySentences)`), clases de puntos de código fuera del BMP, `Sha256`
+  incremental (MessageDigest / CommonCrypto), `decodeBytes` por nombre de charset (`Charset.forName` /
+  `CFStringConvertIANACharSetNameToEncoding`), `epochMillis`, `setFileLastModified`, `availableProcessors`.
+  Los `actual` de iOS están escritos pero **sin validar hasta tener un Mac**.
+- **Ficheros:** Okio (`FileSystem`, `Path`, `openZip`) en lugar de `java.io.File`. Los puertos de `core`
+  (`FileSpeechSynthesizer.synthesizeTo`, `FileAudioCache`, `GapFiller.wavDurationMs`, `WavSilenceTrim`,
+  `DocumentSource`, `QuickMetadata`) reciben `okio.Path`; en Android se convierte con `File.toOkioPath()`.
+- **Clave de caché de audio:** `"%.2f".format(Locale.ROOT, speed)` se sustituyó por `formatFixed` (misma salida,
+  verificada contra el formateador de Java en `DecimalFormatParityTest`) para que las claves no cambien.
+- **Ruido de Supertonic:** `kotlin.random.Random(seed)` en lugar de `java.util.Random(seed)`. El audio de una misma
+  frase será distinto al de antes (otra secuencia de ruido), pero igual de válido; las cachés existentes siguen
+  siendo válidas porque la versión de modelo no cambia.
+- **Qué compila dónde:** en Windows/Linux se compilan las klib de iOS (`./gradlew :core:compileKotlinIosArm64`),
+  no se enlaza ningún framework ni se ejecutan tests nativos. El XCFramework, el binding de ONNX Runtime
+  (`onnxruntime-c`), el descargador con `URLSession` y la app SwiftUI son trabajo de Mac (Fase 1 y 2).
+- **Pendiente de la Fase 0:** Room y DataStore en KMP (ambos lo soportan), sustituir Hilt por Koin o un grafo
+  manual compartido, y mover `ReaderViewModel`/`CatalogViewModel` a `commonMain`. Son cambios dentro de `:app`
+  y se harán en un cambio aparte.
+
 ## Decisiones de dependencias (octubre 2026)
 
 | Dependencia | Versión | Motivo |
@@ -147,7 +179,9 @@ Detalles, métricas y limitaciones: [SUPERTONIC.md](SUPERTONIC.md).
 | ONNX Runtime Android | 1.31.0 | Inferencia de Supertonic en CPU. MIT. Natives alineadas a 16 KB. Solo `arm64-v8a` y `x86_64` (`abiFilters`). |
 | ONNX Runtime (JVM, solo tests en PC) | 1.18.0 | ≥ 1.19 falla con el `msvcp140.dll` 14.29 del JBR de Android Studio. |
 | Media3 ExoPlayer | 1.11.1 | Cola de clips WAV de Supertonic, foco de audio, «audio becoming noisy». |
-| jsoup | 1.21.1 | Importación: HTML/XHTML y XML (EPUB, DOCX, ODT, FB2, páginas web). MIT. |
+| Ksoup | 0.2.6 | Importación: HTML/XHTML y XML (EPUB, DOCX, ODT, FB2, páginas web). Port Kotlin Multiplatform de jsoup, misma API. MIT. Sustituye a jsoup (JVM). |
+| Okio | 3.18.2 | Sistema de ficheros y ZIP multiplataforma en los módulos compartidos. Apache-2.0. |
+| kotlinx-atomicfu (biblioteca) | 0.33.0 | Cerrojos reentrantes en código común (sin plugin del compilador). Apache-2.0. |
 | PdfBox-Android | 2.0.27.0 | Importación de PDF con capa de texto. Apache-2.0. Siempre incluido en el APK. |
 | ML Kit Translate | 17.0.3 | Traducción automática en el dispositivo detrás de las traducciones incluidas. |
 
@@ -158,7 +192,7 @@ Detalles, métricas y limitaciones: [SUPERTONIC.md](SUPERTONIC.md).
 - **Permiso `INTERNET`**: solo para acciones explícitas del usuario (descargar el modelo Supertonic,
   los modelos de traducción de ML Kit o importar una página web). Todo lo demás es offline.
 - **Sin Readium.** Readium es un motor de maquetado/visor; el lector solo necesita el texto en
-  orden de lectura, así que EPUB se lee con un parser propio (ZIP + OPF + XHTML con jsoup).
+  orden de lectura, así que EPUB se lee con un parser propio (ZIP con Okio + OPF + XHTML con Ksoup).
   Lo mismo para MOBI, DOCX, ODT, RTF y FB2: parsers propios sin dependencias. Ver [IMPORT.md](IMPORT.md).
 - **PDF con PdfBox-Android** (Apache-2.0) en `:app`, registrado como extractor extra. El
   `PdfRenderer` nativo solo da texto en API 35+ (minSdk 26) y sin estructura de párrafos.
@@ -181,7 +215,8 @@ Detalles, métricas y limitaciones: [SUPERTONIC.md](SUPERTONIC.md).
 | Alineador EN `facebook/wav2vec2-base-100h` (pesos) | Apache-2.0 | No se empaqueta: descarga opcional (release `packs-v1`). |
 | Alineadores FR/ES `facebook/wav2vec2-base-10k-voxpopuli-ft-fr` / `-es` (pesos) | **CC-BY-NC-4.0** | **Solo uso no comercial.** No se empaquetan: descarga opcional; la app muestra el aviso. Si la app pasa a ser comercial (o con complementos de pago), hay que sustituirlos (p. ej. FR large Apache-2.0 de bofenghuang, 355 MB) — ver [ALIGNMENT.md §9](ALIGNMENT.md). |
 | Media3 | Apache-2.0 | Google. |
-| jsoup | MIT | Importación de HTML/XHTML/XML. |
+| Ksoup | MIT | Importación de HTML/XHTML/XML (port multiplataforma de jsoup). |
+| Okio | Apache-2.0 | Ficheros y ZIP en los módulos compartidos. |
 | ML Kit Translation (Google) | ML Kit Terms of Service (no es código abierto) | Traducción en el dispositivo. Modelos (~30 MB/idioma) descargados de servidores de Google bajo demanda. Revisar los términos y la declaración de datos de Play antes de publicar. Ver [TRANSLATION.md](TRANSLATION.md). |
 | PdfBox-Android | Apache-2.0 | Importación de PDF. Incluye tablas CMap y una fuente Liberation (SIL OFL) como recursos. |
 | Libros importados por el usuario | Del usuario | Se guardan solo en el dispositivo (`license.id = user-import`); no se redistribuyen. |

@@ -377,6 +377,7 @@
 
     <!-- Ficha de palabra y frase (ui/reader/ReaderSheets.kt, WordPopup.kt) -->
     <string name="word_listen">Listen to word</string>
+    <string name="word_translation_arrow" translatable="false">→</string>
     <string name="word_lemma">Lemma: %1$s</string>
     <string name="word_base_form">Base form: %1$s</string>
     <string name="word_examples">Examples</string>

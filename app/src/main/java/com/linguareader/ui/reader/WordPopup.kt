@@ -16,6 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.pointerInput
@@ -117,10 +118,22 @@ private fun MiniWordCard(card: WordCardState, onMoreInfo: () -> Unit, onSave: ()
 private fun WordTranslation(lookup: WordLookup, target: String) {
     val expression = lookup.expression?.takeIf { it.isMultiToken }
     val result = expression?.let { lookup.expressionTranslation } ?: lookup.word
-    Column(Modifier.padding(end = 8.dp)) {
-        if (expression != null) {
-            Text(stringResource(R.string.common_quoted, expression.surface), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
+    // Original (palabra o expresión) a la izquierda, traducción a la derecha.
+    Row(Modifier.padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            expression?.surface ?: lookup.token.text,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
+        )
+        Text(
+            stringResource(R.string.word_translation_arrow),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 6.dp),
+        )
         when (result) {
             is TranslationResult.Translated -> Text(
                 result.text,
@@ -128,6 +141,7 @@ private fun WordTranslation(lookup: WordLookup, target: String) {
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
             )
             is TranslationResult.Unavailable -> Text(
                 Labels.unavailable(result.reason, target),
@@ -135,6 +149,7 @@ private fun WordTranslation(lookup: WordLookup, target: String) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
             )
         }
     }

@@ -1,27 +1,35 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+/*
+ * Extractores de texto para importar libros del usuario (TXT, Markdown, HTML, EPUB, FB2, MOBI, DOCX/ODT, RTF, SRT/VTT...).
+ * Kotlin Multiplatform: la app Android consume el target jvm (y aquí corren los tests, sin emulador); iOS lo
+ * compartirá tal cual. Los formatos que necesitan APIs de plataforma (PDF) van en la app.
+ */
 plugins {
-    alias(libs.plugins.kotlin.jvm)
-}
-
-java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    alias(libs.plugins.kotlin.multiplatform)
 }
 
 kotlin {
-    compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_17)
+    jvm {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
     }
-}
+    iosArm64()
+    iosSimulatorArm64()
 
-// Extractores de texto para importar libros del usuario (TXT, Markdown, HTML, EPUB, FB2, SRT/VTT...).
-// JVM puro: se prueban sin emulador. Los formatos que necesiten APIs de Android (PDF) van aparte.
-dependencies {
-    api(project(":core"))
-    implementation(libs.jsoup)
-    implementation(libs.kotlinx.serialization.json)
-
-    testImplementation(libs.junit)
-    testImplementation(libs.kotlinx.coroutines.test)
+    sourceSets {
+        commonMain.dependencies {
+            api(project(":core"))
+            implementation(libs.ksoup)
+            implementation(libs.kotlinx.serialization.json)
+        }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
+        }
+        jvmTest.dependencies {
+            implementation(libs.junit)
+        }
+    }
 }

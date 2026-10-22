@@ -114,6 +114,25 @@ Leyenda: ✅ hecho y verificado · 🟡 parcial · ⬜ pendiente
 - ⬜ Mensajes técnicos de `core`/`importer`/descargas en español (se ven como «Detalle técnico»): pasarlos a inglés o
   a motivos tipados si molestan.
 
+## App iOS (análisis hecho; Fase 0 en marcha) 🟡
+
+Análisis de octubre de 2026: viable con Kotlin Multiplatform para la lógica + SwiftUI para la UI + frameworks de
+Apple para los motores (`AVSpeechSynthesizer`, `AVAudioEngine`, `PDFKit`, ML Kit iOS o `Translation`). Requiere
+Mac con Xcode y cuenta Apple Developer; el escaneo de todo el dispositivo no existe en iOS; Supertonic debe medirse
+en un iPhone real antes de prometerlo.
+
+- ✅ **Fase 0 (sin Mac), módulos compartidos:** `:core`, `:importer`, `:engine:onnx`, `:engine:alignment` y
+  `:engine:supertonic` son KMP (jvm + iosArm64 + iosSimulatorArm64). Sin `java.*` en `commonMain`; Okio para
+  ficheros y ZIP; Ksoup en lugar de jsoup; puerto `OnnxRuntime`; puerto `FileDownloader`. Las klib de iOS compilan
+  desde Windows. Android no cambia de comportamiento (misma suite verde: core 170, importer 41, alignment 16,
+  supertonic 21). Ver [ARCHITECTURE.md](ARCHITECTURE.md#kotlin-multiplatform-y-la-app-ios).
+- ⬜ **Fase 0, dentro de `:app`:** Room y DataStore en KMP, Koin (o grafo manual) en lugar de Hilt, y
+  `ReaderViewModel`/`CatalogViewModel` en `commonMain`.
+- ⬜ **Fase 1 (Mac):** XCFramework, tests de `core` en simulador, `actual`s de iOS validados, binding de
+  `onnxruntime-c`, descargas con `URLSession` en segundo plano, `AVSpeechSynthesizer` con marcas de palabra,
+  `AVAudioEngine`, Now Playing, medir Supertonic y wav2vec2 en iPhone.
+- ⬜ **Fase 2:** app SwiftUI (lector con TextKit 2, catálogo, ajustes, onboarding, visor PDF con PDFKit, String Catalog).
+
 ## Deuda técnica conocida
 
 - Los ids de pasaje (`ch1-p1`) no son globalmente únicos entre libros. El controlador de audio es

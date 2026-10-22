@@ -1,5 +1,6 @@
 package com.linguareader.engine.alignment
 
+import okio.Path.Companion.toOkioPath
 import android.content.Context
 import android.os.StatFs
 import android.util.Log
@@ -120,7 +121,7 @@ class AlignmentModelManager @Inject constructor(
         if (!isInstalled(spec)) return null
         val dir = dirOf(spec)
         val model = File(dir, "model.onnx")
-        return AlignerModelFiles(model, File(dir, "vocab.json"), version = "${spec.id}@${spec.sourceRevision.take(8)}:${model.length()}", startLeadMs = spec.startLeadMs)
+        return AlignerModelFiles(model.toOkioPath(), File(dir, "vocab.json").toOkioPath(), version = "${spec.id}@${spec.sourceRevision.take(8)}:${model.length()}", startLeadMs = spec.startLeadMs)
     }
 
     private fun set(id: String, state: ModelState) = _states.update { it + (id to state) }

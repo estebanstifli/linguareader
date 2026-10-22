@@ -1,5 +1,6 @@
 package com.linguareader.ui.settings
 
+import okio.Path.Companion.toOkioPath
 import android.content.Context
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -140,7 +141,7 @@ class TtsSettingsViewModel @Inject constructor(
         val out = File(context.cacheDir, "supertonic-test-$language.wav")
         val result = engine.synthesizeTo(
             SpeechRequest(TEST_TEXT.getValue(language), language, p.supertonicVoice, 1.0f, mapOf("steps" to "${p.supertonicSteps}")),
-            out,
+            out.toOkioPath(),
         )
         when (result) {
             is SynthesisOutcome.Written -> {

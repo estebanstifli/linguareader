@@ -1,5 +1,6 @@
 package com.linguareader.engine.supertonic
 
+import okio.Path.Companion.toOkioPath
 import android.content.Context
 import android.os.Debug
 import android.os.StatFs
@@ -55,7 +56,7 @@ class SupertonicModelManager @Inject constructor(
     var beforeDelete: () -> Unit = {}
 
     private fun currentState(): ModelState = try {
-        val dir = SupertonicModelDir(modelDir)
+        val dir = SupertonicModelDir(modelDir.toOkioPath())
         if (dir.isComplete()) ModelState.Installed(dir.bytesOnDisk(), modelDir.path)
         else ModelState.NotInstalled(SupertonicModel.TOTAL_BYTES, if (modelDir.exists()) dir.bytesOnDisk() else 0)
     } catch (e: Exception) {
@@ -71,7 +72,7 @@ class SupertonicModelManager @Inject constructor(
         if (job?.isActive == true) return
         job = appScope.launch(Dispatchers.IO) {
             try {
-                val needed = SupertonicModel.TOTAL_BYTES - (if (modelDir.exists()) SupertonicModelDir(modelDir).bytesOnDisk() else 0)
+                val needed = SupertonicModel.TOTAL_BYTES - (if (modelDir.exists()) SupertonicModelDir(modelDir.toOkioPath()).bytesOnDisk() else 0)
                 if (!modelDir.mkdirs() && !modelDir.isDirectory) {
                     _state.value = ModelState.Failed(UiText.res(R.string.model_folder_create_failed))
                     return@launch
@@ -112,8 +113,8 @@ class SupertonicModelManager @Inject constructor(
         if (job?.isActive == true) return
         job = appScope.launch(Dispatchers.IO) {
             try {
-                val dir = SupertonicModelDir(modelDir)
-                dir.file(SupertonicModel.MARKER).delete()
+                val dir = SupertonicModelDir(modelDir.toOkioPath())
+                dir.fileSystem.delete(dir.file(SupertonicModel.MARKER), mustExist = false)
                 val bad = dir.verify { done -> _state.value = ModelState.Verifying(done.toFloat() / SupertonicModel.TOTAL_BYTES) }
                 _state.value = if (bad.isEmpty()) currentState() else ModelState.Failed(UiText.res(R.string.model_files_corrupt, bad.joinToString()))
             } catch (e: Exception) {
@@ -126,7 +127,7 @@ class SupertonicModelManager @Inject constructor(
     suspend fun delete() {
         cancel()
         beforeDelete()
-        withContext(Dispatchers.IO) { runCatching { SupertonicModelDir(modelDir).delete() } }
+        withContext(Dispatchers.IO) { runCatching { SupertonicModelDir(modelDir.toOkioPath()).delete() } }
         _state.value = currentState()
     }
 

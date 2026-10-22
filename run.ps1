@@ -91,7 +91,8 @@ $env:ANDROID_HOME = $sdk
 Info "ANDROID_HOME = $sdk"
 
 $localProps = Join-Path $ProjectDir "local.properties"
-$sdkDirLine = "sdk.dir=" + ($sdk -replace '\\', '/')
+# Formato .properties: barras normales y ':' escapado (C\:/Users/...), como lo escribe Android Studio.
+$sdkDirLine = "sdk.dir=" + (($sdk -replace '\\', '/') -replace ':', '\:')
 if (-not (Test-Path $localProps) -or -not ((Get-Content $localProps -Raw) -match [regex]::Escape($sdkDirLine))) {
     Set-Content -Path $localProps -Value $sdkDirLine -Encoding ASCII
     Info "local.properties actualizado"

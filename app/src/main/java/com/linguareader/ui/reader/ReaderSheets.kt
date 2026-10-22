@@ -71,16 +71,26 @@ fun WordCardSheet(
                 CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
                 return@Column
             }
+            val expressionIsSameEntry = lookup.expression?.let { !it.isMultiToken } == true
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(lookup.token.text, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                if (expressionIsSameEntry) {
+                    Text(lookup.token.text, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                } else {
+                    Text(lookup.token.text, style = MaterialTheme.typography.headlineSmall)
+                    Text(
+                        stringResource(R.string.word_translation_arrow),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 10.dp),
+                    )
+                    TranslationLine(lookup.word, card.targetLanguage, modifier = Modifier.weight(1f))
+                }
                 IconButton(onClick = { onSpeak(lookup.token.text) }) {
                     Icon(painterResource(R.drawable.ic_volume_up), contentDescription = stringResource(R.string.word_listen))
                 }
             }
-            val expressionIsSameEntry = lookup.expression?.let { !it.isMultiToken } == true
             if (!expressionIsSameEntry) {
                 lookup.wordLemma?.let { Text(stringResource(R.string.word_lemma, it), style = MaterialTheme.typography.labelLarge) }
-                TranslationLine(lookup.word, card.targetLanguage)
             }
 
             lookup.expression?.let { match ->
@@ -156,9 +166,9 @@ fun SentenceCardSheet(card: SentenceCardState, onDismiss: () -> Unit, onSpeak: (
 }
 
 @Composable
-private fun TranslationLine(result: TranslationResult, target: String, italic: Boolean = false) {
+private fun TranslationLine(result: TranslationResult, target: String, italic: Boolean = false, modifier: Modifier = Modifier) {
     when (result) {
-        is TranslationResult.Translated -> Column {
+        is TranslationResult.Translated -> Column(modifier) {
             Text(
                 result.text,
                 style = MaterialTheme.typography.bodyLarge,
@@ -173,6 +183,7 @@ private fun TranslationLine(result: TranslationResult, target: String, italic: B
         }
         is TranslationResult.Unavailable -> Text(
             Labels.unavailable(result.reason, target),
+            modifier = modifier,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

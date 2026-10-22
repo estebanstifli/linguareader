@@ -159,7 +159,7 @@ regenerar las bibliotecas: la app reimporta solo los libros cambiados y conserva
 
 ## Validación
 
-`./gradlew :core:test` ejecuta `SampleContentTest` sobre los libros empaquetados: parseo, carpeta =
+`./gradlew :core:jvmTest` ejecuta `SampleContentTest` sobre los libros empaquetados: parseo, carpeta =
 id, existencia y sha256 de imágenes, `alt` presente, cobertura de traducción al español y presencia
 de cada expresión del glosario en el texto.
 

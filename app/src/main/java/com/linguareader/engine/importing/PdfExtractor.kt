@@ -30,7 +30,7 @@ class PdfExtractor(private val context: Context) : DocumentExtractor {
         PDFBoxResourceLoader.init(context.applicationContext)
         val document = try {
             // Contraseña vacía: abre los PDF que solo restringen permisos (copiar/imprimir).
-            PDDocument.load(source.file, "", MemoryUsageSetting.setupMixed(MAX_MEMORY_BYTES))
+            PDDocument.load(source.path.toFile(), "", MemoryUsageSetting.setupMixed(MAX_MEMORY_BYTES))
         } catch (_: InvalidPasswordException) {
             throw ImportException(ImportException.Reason.DRM_PROTECTED, "El PDF está protegido con contraseña.")
         }
@@ -59,7 +59,7 @@ class PdfExtractor(private val context: Context) : DocumentExtractor {
                 title = info?.title?.trim()?.takeIf { it.isNotEmpty() } ?: source.titleFromName,
                 authors = listOfNotNull(info?.author?.trim()?.takeIf { it.isNotEmpty() }),
                 language = pdf.documentCatalog?.language?.trim()?.takeIf { it.isNotEmpty() },
-                cover = PdfFirstPage.render(source.file),
+                cover = PdfFirstPage.render(source.path.toFile()),
                 pageCount = pdf.numberOfPages,
             )
         }

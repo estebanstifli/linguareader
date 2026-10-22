@@ -1,5 +1,6 @@
 package com.linguareader
 
+import okio.Path.Companion.toOkioPath
 import android.os.Debug
 import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
@@ -29,7 +30,7 @@ class MmsAlignOnDeviceTest {
         assumeTrue("Copia el modelo a ${model.path}", model.exists())
         val pssBefore = Debug.getPss() / 1024
         val t0 = System.nanoTime()
-        val aligner = MmsOnnxAligner.load(model, File(dir, "vocab.json"), threads = 4)
+        val aligner = MmsOnnxAligner.load(model.toOkioPath(), File(dir, "vocab.json").toOkioPath(), threads = 4)
         val loadMs = (System.nanoTime() - t0) / 1_000_000
         val pssLoaded = Debug.getPss() / 1024
         val corpus = Json.parseToJsonElement(File(dir, "corpus.json").readText()).jsonArray.map { it.jsonObject }
@@ -40,7 +41,7 @@ class MmsAlignOnDeviceTest {
             val wav = File(dir, item["wav"]!!.jsonPrimitive.content.substringAfterLast('/'))
             if (!wav.exists()) continue
             val words = item["words"]!!.jsonArray.map { it.jsonPrimitive.content }
-            val (samples, sr) = MmsOnnxAligner.readWav(wav)
+            val (samples, sr) = MmsOnnxAligner.readWav(wav.toOkioPath())
             val s = System.nanoTime()
             val timings = aligner.align(samples, sr, words)
             infer += (System.nanoTime() - s) / 1e9

@@ -1,5 +1,6 @@
 package com.linguareader.engine.tts
 
+import okio.Path
 import android.content.Context
 import android.media.AudioAttributes
 import android.os.Bundle
@@ -223,7 +224,7 @@ class AndroidTtsEngine @Inject constructor(
      * posición en el audio (frames → ms). Recorta el silencio inicial y final como Supertonic y desplaza las marcas.
      * Una sola síntesis a la vez: el motor del sistema es una cola y la voz se fija por petición.
      */
-    override suspend fun synthesizeTo(request: SpeechRequest, target: File): SynthesisOutcome = fileMutex.withLock {
+    override suspend fun synthesizeTo(request: SpeechRequest, target: Path): SynthesisOutcome = fileMutex.withLock {
         val t = engine() ?: return SynthesisOutcome.Failed(SpeechResult.Failure(EngineUnavailableReason.ENGINE_NOT_INSTALLED, "Sin motor TTS"))
         val readiness = prepare(request.languageTag, request.voiceId)
         if (readiness is EngineReadiness.Unavailable) {
@@ -235,9 +236,9 @@ class AndroidTtsEngine @Inject constructor(
         try {
             t.setSpeechRate(request.speed)
             val params = Bundle().apply { putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, utteranceId) }
-            val started = t.synthesizeToFile(request.text, params, target, utteranceId) == TextToSpeech.SUCCESS
+            val started = t.synthesizeToFile(request.text, params, target.toFile(), utteranceId) == TextToSpeech.SUCCESS
             val ok = started && (withTimeoutOrNull(SYNTH_TIMEOUT_MS) { job.done.await() } ?: false)
-            if (!ok || target.length() <= WAV_HEADER_BYTES) {
+            if (!ok || target.toFile().length() <= WAV_HEADER_BYTES) {
                 return SynthesisOutcome.Failed(SpeechResult.Failure(EngineUnavailableReason.SYNTHESIS_ERROR, "Fallo al sintetizar"))
             }
             val leadMs = WavSilenceTrim.trim(target) ?: 0L

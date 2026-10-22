@@ -1,5 +1,6 @@
 package com.linguareader.di
 
+import okio.Path.Companion.toOkioPath
 import android.content.Context
 import android.util.Log
 import androidx.room.Room
@@ -124,7 +125,7 @@ object TtsEngineModule {
     @Provides @Singleton
     fun supertonicEngine(manager: SupertonicModelManager, settings: EngineSettingsHolder): SupertonicEngine =
         SupertonicEngine(
-            modelDir = { manager.modelDir },
+            modelDir = { manager.modelDir.toOkioPath() },
             steps = { settings.supertonicSteps },
             memory = AndroidMemoryProbe,
             log = { Log.i("Supertonic", it) },
@@ -142,7 +143,7 @@ object TtsEngineModule {
         // Almacenamiento interno persistente (no cacheDir, que Android puede vaciar sin avisar): los segmentos
         // ya generados y alineados se conservan hasta que el LRU los expulse por superar el límite elegido.
         File(context.cacheDir, "tts-audio").deleteRecursively() // caché antigua, sin alineaciones
-        return FileAudioCache(File(context.filesDir, "audio-cache"), maxBytesProvider = { settings.audioCacheBytes })
+        return FileAudioCache(File(context.filesDir, "audio-cache").toOkioPath(), maxBytesProvider = { settings.audioCacheBytes })
     }
 
     @Provides @Singleton

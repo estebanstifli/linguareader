@@ -1,5 +1,6 @@
 package com.linguareader
 
+import okio.Path.Companion.toOkioPath
 import android.util.Log
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasScrollToNodeAction
@@ -61,7 +62,7 @@ class PageFlipTest {
         File(androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.filesDir, "audio-cache").deleteRecursively()
         hilt.inject()
         grantNotifications()
-        assumeTrue("Modelo Supertonic no instalado en ${models.modelDir}", SupertonicModelDir(models.modelDir).isComplete())
+        assumeTrue("Modelo Supertonic no instalado en ${models.modelDir}", SupertonicModelDir(models.modelDir.toOkioPath()).isComplete())
         runBlocking {
             skipOnboarding(preferences, scanSettings, UserPreferences(translationSetupDone = true, readingLanguage = "en", autoContinue = true))
             withContext(Dispatchers.Main) { selector.selectEngine(SupertonicModel.ENGINE_ID) }

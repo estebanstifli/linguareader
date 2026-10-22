@@ -7,6 +7,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
+import android.graphics.text.LineBreaker
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
@@ -131,7 +132,7 @@ class CoverThumbnails @Inject constructor(
             .setLineSpacing(0f, 1.15f)
             .setMaxLines(maxLines)
             .setEllipsize(TextUtils.TruncateAt.END)
-            .setJustificationMode(Layout.JUSTIFICATION_MODE_INTER_WORD)
+            .setJustificationMode(LineBreaker.JUSTIFICATION_MODE_INTER_WORD)
             .build()
         canvas.save()
         canvas.translate(margin, bodyTop)

@@ -1,5 +1,6 @@
 package com.linguareader
 
+import okio.Path.Companion.toOkioPath
 import android.os.Debug
 import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
@@ -39,9 +40,9 @@ class Wav2Vec2AlignOnDeviceTest {
         val align: (FloatArray, Int, List<String>) -> List<WordTiming>
         val close: () -> Unit
         if (kind == "mms") {
-            val a = MmsOnnxAligner.load(model, File(dir, "vocab.json"), threads = 4); align = a::align; close = a::close
+            val a = MmsOnnxAligner.load(model.toOkioPath(), File(dir, "vocab.json").toOkioPath(), threads = 4); align = a::align; close = a::close
         } else {
-            val a = Wav2Vec2OnnxAligner.load(model, File(dir, "vocab.json"), threads = 4); align = a::align; close = a::close
+            val a = Wav2Vec2OnnxAligner.load(model.toOkioPath(), File(dir, "vocab.json").toOkioPath(), threads = 4); align = a::align; close = a::close
         }
         val loadMs = (System.nanoTime() - t0) / 1_000_000
         val pssLoaded = Debug.getPss() / 1024
@@ -57,7 +58,7 @@ class Wav2Vec2AlignOnDeviceTest {
             val wav = File(root, item["wav"]!!.jsonPrimitive.content.substringAfterLast('/'))
             if (!wav.exists()) continue
             val words = item["words"]!!.jsonArray.map { it.jsonPrimitive.content }
-            val (samples, sr) = MmsOnnxAligner.readWav(wav)
+            val (samples, sr) = MmsOnnxAligner.readWav(wav.toOkioPath())
             val s = System.nanoTime()
             val timings = align(samples, sr, words)
             infer += (System.nanoTime() - s) / 1e9

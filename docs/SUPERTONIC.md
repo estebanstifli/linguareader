@@ -51,7 +51,7 @@ Convive con el TTS del sistema (Android TTS), que no cambia. Se elige en **Ajust
   `StreamingSpeechEngine` (Android TTS) y `SpeechSynthesizer` (Supertonic y futuros) la extienden.
 - **Añadir otro motor** = implementar `FileSpeechSynthesizer` (o `StreamingSpeechEngine`), registrarlo
   en `TtsEngineRegistry` y en `SwitchingReaderAudioController` (DI: `TtsEngineModule`).
-- **Módulo `:engine:supertonic`** (Kotlin/JVM puro): compila contra la API Java de ONNX Runtime.
+- **Módulo `:engine:supertonic`** (Kotlin Multiplatform): la inferencia pasa por el puerto `:engine:onnx`, que en JVM/Android usa la API Java de ONNX Runtime.
   En Android la aporta `onnxruntime-android`; en el PC, `onnxruntime` de escritorio. Así la
   misma implementación se prueba en Windows y en el móvil.
 

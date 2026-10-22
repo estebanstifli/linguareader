@@ -23,6 +23,8 @@ import java.io.File
  * [ClipPlayer] sobre Media3/ExoPlayer: cola de WAV generados (un clip por frase) reproducidos
  * seguidos. Gestiona el foco de audio si [handleAudioFocus]. Debe usarse desde el hilo principal.
  */
+// setLooper y SilenceMediaSource son API «inestable» de Media3: se aceptan para toda la clase.
+@androidx.annotation.OptIn(UnstableApi::class)
 class Media3ClipPlayer(context: Context, handleAudioFocus: Boolean) : ClipPlayer {
 
     private val player: ExoPlayer = ExoPlayer.Builder(context.applicationContext)
@@ -65,7 +67,6 @@ class Media3ClipPlayer(context: Context, handleAudioFocus: Boolean) : ClipPlayer
     }
 
     /** Pausa como silencio en la propia cola de ExoPlayer: precisa y sin grabarla en el audio. */
-    @androidx.annotation.OptIn(UnstableApi::class)
     override fun enqueueSilence(durationMs: Long) {
         if (durationMs <= 0) return
         append { player.addMediaSource(SilenceMediaSource(durationMs * 1000)) }

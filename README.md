@@ -104,8 +104,10 @@ Windows (PowerShell), desde la raíz del repo:
 
 ```powershell
 $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
-.\gradlew.bat :core:test                     # 76 tests JVM (dominio, contenido, controladores de audio, caché)
-.\gradlew.bat :engine:supertonic:test        # 17 tests (texto, WAV, descargador, Supertonic real si está en .models/)
+.\gradlew.bat :core:jvmTest                  # 170 tests JVM (dominio, contenido, controladores de audio, caché)
+.\gradlew.bat :importer:jvmTest              # 41 tests (extractores de formatos)
+.\gradlew.bat :engine:alignment:jvmTest :engine:supertonic:jvmTest  # alineación y Supertonic (modelos reales si están en .models/)
+.\gradlew.bat :core:compileKotlinIosArm64    # comprueba que el código compartido compila para iOS (no necesita Mac)
 .\gradlew.bat :engine:supertonic:smokeTest   # descarga el modelo (si falta) y sintetiza inglés/francés en el PC
 .\gradlew.bat :app:assembleDebug             # un APK por arquitectura en app\build\outputs\apk\debug\:
                                              #   app-arm64-v8a-debug.apk (móviles) y app-x86_64-debug.apk (emulador)
@@ -136,9 +138,11 @@ El idioma de la interfaz es independiente del idioma de lectura (el del libro) y
 ## Estructura
 
 ```
-core/   Kotlin/JVM puro: modelos, puertos (TTS, alineación, traducción, contenido),
-        tokenizador, parser de manifiestos, controlador de audio, traducción por glosario.
-importer/ Kotlin/JVM puro: extractores de formatos (EPUB, MOBI, DOCX, ODT, RTF, FB2, HTML, TXT,
+core/   Kotlin Multiplatform (jvm + iOS): modelos, puertos (TTS, alineación, traducción, contenido),
+        tokenizador, parser de manifiestos, controladores de audio, caché de audio, traducción por glosario.
+engine/ Kotlin Multiplatform: onnx (puerto de ONNX Runtime), alignment (alineación por palabra),
+        supertonic (motor Supertonic 3).
+importer/ Kotlin Multiplatform: extractores de formatos (EPUB, MOBI, DOCX, ODT, RTF, FB2, HTML, TXT,
         Markdown, SRT/VTT) y constructor de libros importados. Ver docs/IMPORT.md.
 app/    Android: Compose UI, Room, DataStore, Hilt, adaptador Android TTS, libros en assets/books,
         importación (SAF, intents, PDF con PdfBox-Android).

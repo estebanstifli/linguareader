@@ -1,5 +1,6 @@
 package com.linguareader.data.scan
 
+import okio.Path.Companion.toOkioPath
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -161,7 +162,7 @@ class DocumentScanner @Inject constructor(
     }
 
     private fun entityFor(file: File, format: String, now: Long): DeviceDocumentEntity {
-        val meta = QuickMetadata.read(file)
+        val meta = QuickMetadata.read(file.toOkioPath())
         return DeviceDocumentEntity(
             location = file.absolutePath,
             fileName = file.name,

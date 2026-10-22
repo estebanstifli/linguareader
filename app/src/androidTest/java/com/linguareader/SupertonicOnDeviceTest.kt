@@ -1,5 +1,6 @@
 package com.linguareader
 
+import okio.Path.Companion.toOkioPath
 import android.util.Log
 import com.linguareader.core.audio.CachingSpeechSynthesizer
 import com.linguareader.core.audio.SynthesisOutcome
@@ -37,14 +38,14 @@ class SupertonicOnDeviceTest {
     @Before
     fun setUp() {
         hilt.inject()
-        assumeTrue("Modelo Supertonic no instalado en ${models.modelDir}", SupertonicModelDir(models.modelDir).isComplete())
+        assumeTrue("Modelo Supertonic no instalado en ${models.modelDir}", SupertonicModelDir(models.modelDir.toOkioPath()).isComplete())
     }
 
     @Test
     fun shortEnglishTextIsSynthesizedOfflineWithMetrics() = runBlocking {
         assertEquals(EngineReadiness.Ready, engine.availability("en", "F1"))
         val out = File.createTempFile("supertonic-test", ".wav")
-        val result = engine.synthesizeTo(SpeechRequest("Hello! This is a short Supertonic test on Android.", "en", "F1", 1.0f), out)
+        val result = engine.synthesizeTo(SpeechRequest("Hello! This is a short Supertonic test on Android.", "en", "F1", 1.0f), out.toOkioPath())
         assertTrue(result.toString(), result is SynthesisOutcome.Written)
         val m = engine.stats.value.lastSynthesis!!
         Log.i("SupertonicTest", "load=${engine.stats.value.lastLoad} synth=${m.synthMs}ms audio=${m.audioMs}ms rtf=${m.rtf} pss=${m.memoryMb}MB")
@@ -69,7 +70,7 @@ class SupertonicOnDeviceTest {
     @Test
     fun frenchFromTheDemoBook() = runBlocking {
         val out = File.createTempFile("supertonic-fr", ".wav")
-        val result = engine.synthesizeTo(SpeechRequest("Lila habite à Lyon avec sa grand-mère.", "fr", "F2", 1.0f), out)
+        val result = engine.synthesizeTo(SpeechRequest("Lila habite à Lyon avec sa grand-mère.", "fr", "F2", 1.0f), out.toOkioPath())
         assertTrue(result is SynthesisOutcome.Written)
     }
 }
