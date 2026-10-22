@@ -28,7 +28,6 @@ import com.linguareader.core.engine.VoiceInfo
 import com.linguareader.core.model.LanguageTags
 import com.linguareader.core.platform.formatFixed
 import com.linguareader.di.EngineSettingsHolder
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -43,8 +42,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlin.coroutines.resume
 
 /**
@@ -59,9 +56,8 @@ import kotlin.coroutines.resume
  *
  * Prefiere voces que no requieren red para mantener el modo offline.
  */
-@Singleton
-class AndroidTtsEngine @Inject constructor(
-    @param:ApplicationContext private val context: Context,
+class AndroidTtsEngine(
+    private val context: Context,
     private val settings: EngineSettingsHolder,
 ) : StreamingSpeechEngine, FileSpeechSynthesizer {
 

@@ -57,7 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -71,16 +71,13 @@ import com.linguareader.core.model.OriginalOpenMode
 import com.linguareader.data.prefs.UserPreferencesRepository
 import com.linguareader.ui.common.Labels
 import com.linguareader.ui.common.Languages
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Locale
-import javax.inject.Inject
 
-@HiltViewModel
-class SettingsViewModel @Inject constructor(
+class SettingsViewModel(
     private val repo: UserPreferencesRepository,
     documents: DeviceDocumentDao,
 ) : ViewModel() {
@@ -111,7 +108,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onOpenDocuments: () -> Unit = {},
     initialPage: SettingsPage? = null,
-    vm: SettingsViewModel = hiltViewModel(),
+    vm: SettingsViewModel = koinViewModel(),
 ) {
     val prefs by vm.preferences.collectAsStateWithLifecycle()
     val documentCount by vm.documentCount.collectAsStateWithLifecycle()

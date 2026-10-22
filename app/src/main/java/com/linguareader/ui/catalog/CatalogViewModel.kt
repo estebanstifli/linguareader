@@ -23,7 +23,6 @@ import com.linguareader.data.content.CoverThumbnails
 import com.linguareader.data.content.OriginalDocument
 import androidx.compose.ui.graphics.asImageBitmap
 import com.linguareader.ui.common.UiText
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -42,7 +41,6 @@ import com.linguareader.data.db.DeviceDocumentDao
 import com.linguareader.data.scan.ScanSettingsRepository
 import kotlinx.coroutines.flow.first
 import com.linguareader.engine.packs.LibraryPackManager
-import javax.inject.Inject
 
 data class CatalogItem(
     val summary: BookSummary,
@@ -122,8 +120,7 @@ data class CatalogUiState(
     val collections: List<Shelf> get() = shelves.filter { it.isCustom }
 }
 
-@HiltViewModel
-class CatalogViewModel @Inject constructor(
+class CatalogViewModel(
     private val books: BookRepository,
     private val preferences: UserPreferencesRepository,
     private val imported: ImportedBookRepository,

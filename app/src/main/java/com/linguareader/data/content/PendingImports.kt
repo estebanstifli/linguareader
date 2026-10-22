@@ -8,8 +8,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.getAndUpdate
-import javax.inject.Inject
-import javax.inject.Singleton
 
 sealed interface ImportRequest {
     data class Document(val uri: Uri) : ImportRequest
@@ -21,8 +19,7 @@ sealed interface ImportRequest {
  * Peticiones de importación que llegan desde fuera ("Abrir con…", "Compartir" desde el navegador
  * u otra app). La Activity las deposita y la pantalla de biblioteca las recoge.
  */
-@Singleton
-class PendingImports @Inject constructor() {
+class PendingImports() {
     private val _request = MutableStateFlow<ImportRequest?>(null)
     val request: StateFlow<ImportRequest?> = _request
 

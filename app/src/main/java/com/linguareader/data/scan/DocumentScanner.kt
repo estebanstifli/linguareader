@@ -16,11 +16,9 @@ import androidx.core.content.ContextCompat
 import com.linguareader.R
 import com.linguareader.data.db.DeviceDocumentDao
 import com.linguareader.data.db.DeviceDocumentEntity
-import com.linguareader.di.ApplicationScope
 import com.linguareader.importer.ExtractorRegistry
 import com.linguareader.importer.extract.QuickMetadata
 import com.linguareader.ui.common.UiText
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -32,8 +30,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.coroutines.coroutineContext
 import java.io.File
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /** Estado de la búsqueda de documentos en el dispositivo. */
 sealed interface ScanState {
@@ -63,13 +59,12 @@ object StorageAccess {
  * autor e idioma cuando el formato los trae (EPUB, FB2). Es incremental: un fichero que no cambió (tamaño y fecha)
  * no se vuelve a leer. Corre en segundo plano y no bloquea la interfaz.
  */
-@Singleton
-class DocumentScanner @Inject constructor(
-    @param:ApplicationContext private val context: Context,
+class DocumentScanner(
+    private val context: Context,
     private val settings: ScanSettingsRepository,
     private val dao: DeviceDocumentDao,
     private val registry: ExtractorRegistry,
-    @param:ApplicationScope private val scope: CoroutineScope,
+    private val scope: CoroutineScope,
 ) {
     private val _state = MutableStateFlow<ScanState>(ScanState.Idle)
     val state: StateFlow<ScanState> = _state

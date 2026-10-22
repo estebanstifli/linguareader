@@ -144,7 +144,8 @@ engine/ Kotlin Multiplatform: onnx (puerto de ONNX Runtime), alignment (alineaci
         supertonic (motor Supertonic 3).
 importer/ Kotlin Multiplatform: extractores de formatos (EPUB, MOBI, DOCX, ODT, RTF, FB2, HTML, TXT,
         Markdown, SRT/VTT) y constructor de libros importados. Ver docs/IMPORT.md.
-app/    Android: Compose UI, Room, DataStore, Hilt, adaptador Android TTS, libros en assets/books,
+data/   Kotlin Multiplatform: base de datos Room y preferencias del usuario (DataStore).
+app/    Android: Compose UI, grafo Koin, adaptador Android TTS, libros en assets/books,
         importación (SAF, intents, PDF con PdfBox-Android).
 docs/   ARCHITECTURE.md, CONTENT_FORMAT.md, IMPORT.md, I18N.md, content-pack.schema.json, ROADMAP.md.
 tools/  generate_demo_images.py (ilustraciones provisionales + sha256 en manifiestos).

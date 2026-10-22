@@ -33,7 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -44,16 +44,13 @@ import com.linguareader.data.prefs.UserPreferencesRepository
 import com.linguareader.engine.translation.ModelDownload
 import com.linguareader.engine.translation.TranslationModelManager
 import com.linguareader.ui.common.Languages
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
-@HiltViewModel
-class TranslationViewModel @Inject constructor(
+class TranslationViewModel(
     private val repo: UserPreferencesRepository,
     private val models: TranslationModelManager,
 ) : ViewModel() {
@@ -106,7 +103,7 @@ private fun WifiOnlyRow(checked: Boolean, onChange: (Boolean) -> Unit) {
 
 /** Sección de Ajustes: idioma nativo (al que se traduce), modelos descargados y política de descarga. */
 @Composable
-fun TranslationSection(vm: TranslationViewModel = hiltViewModel()) {
+fun TranslationSection(vm: TranslationViewModel = koinViewModel()) {
     val prefs by vm.preferences.collectAsStateWithLifecycle()
     val downloaded by vm.downloaded.collectAsStateWithLifecycle()
     val downloads by vm.downloads.collectAsStateWithLifecycle()

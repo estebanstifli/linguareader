@@ -25,7 +25,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -33,22 +33,19 @@ import com.linguareader.R
 import com.linguareader.data.db.VocabularyDao
 import com.linguareader.data.db.VocabularyEntity
 import com.linguareader.ui.common.Languages
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
-@HiltViewModel
-class VocabularyViewModel @Inject constructor(private val dao: VocabularyDao) : ViewModel() {
+class VocabularyViewModel(private val dao: VocabularyDao) : ViewModel() {
     val entries: StateFlow<List<VocabularyEntity>?> = dao.observeAll().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     fun delete(id: Long) = viewModelScope.launch { dao.delete(id) }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VocabularyScreen(onBack: () -> Unit, vm: VocabularyViewModel = hiltViewModel()) {
+fun VocabularyScreen(onBack: () -> Unit, vm: VocabularyViewModel = koinViewModel()) {
     val entries by vm.entries.collectAsStateWithLifecycle()
     Scaffold(
         topBar = {

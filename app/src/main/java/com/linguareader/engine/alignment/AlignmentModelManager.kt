@@ -5,13 +5,11 @@ import android.content.Context
 import android.os.StatFs
 import android.util.Log
 import com.linguareader.R
-import com.linguareader.di.ApplicationScope
 import com.linguareader.engine.packs.GithubPackSource
 import com.linguareader.engine.supertonic.DownloadResult
 import com.linguareader.engine.supertonic.ModelFile
 import com.linguareader.engine.supertonic.ModelState
 import com.linguareader.ui.common.UiText
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,8 +23,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /** Modelo de alineación descargable para un idioma de lectura (entrada de assets/aligners/catalog.json). */
 @Serializable
@@ -62,10 +58,9 @@ private data class AlignerCatalog(val version: Int, val models: List<AlignerMode
  * Los ficheros son adjuntos de la release de paquetes de GitHub ([GithubPackSource]) con nombre
  * `<id>.<path>` (p. ej. `w2v2-en.model.onnx`).
  */
-@Singleton
-class AlignmentModelManager @Inject constructor(
-    @param:ApplicationContext private val context: Context,
-    @param:ApplicationScope private val appScope: CoroutineScope,
+class AlignmentModelManager(
+    private val context: Context,
+    private val appScope: CoroutineScope,
     private val source: GithubPackSource,
 ) {
     val hostingConfigured: Boolean get() = source.configured

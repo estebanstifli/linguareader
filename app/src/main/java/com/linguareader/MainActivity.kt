@@ -1,5 +1,6 @@
 package com.linguareader
 
+import org.koin.android.ext.android.inject
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.os.Bundle
@@ -16,14 +17,11 @@ import com.linguareader.data.prefs.UserPreferencesRepository
 import com.linguareader.ui.navigation.AppNavHost
 import com.linguareader.ui.onboarding.OnboardingGate
 import com.linguareader.ui.theme.LinguaReaderTheme
-import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
 
-@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    @Inject lateinit var preferences: UserPreferencesRepository
-    @Inject lateinit var pendingImports: PendingImports
+    private val preferences: UserPreferencesRepository by inject()
+    private val pendingImports: PendingImports by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,7 +43,7 @@ class MainActivity : ComponentActivity() {
             // Tras el primer frame con contenido, arranca lo pesado (ver LinguaReaderApp.startDeferredServices).
             LaunchedEffect(Unit) {
                 withFrameNanos { }
-                (application as? LinguaReaderApp)?.startDeferredServices() // en los tests la app es HiltTestApplication
+                (application as LinguaReaderApp).startDeferredServices() // en los tests, TestApp no arranca nada
             }
             LinguaReaderTheme(theme = prefs.theme) {
                 OnboardingGate(content = { AppNavHost(pendingImports) })

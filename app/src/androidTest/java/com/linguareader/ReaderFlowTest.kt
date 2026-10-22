@@ -1,5 +1,7 @@
 package com.linguareader
 
+import org.koin.core.component.inject
+import org.koin.core.component.KoinComponent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.click
@@ -20,36 +22,29 @@ import com.linguareader.core.model.UserPreferences
 import com.linguareader.data.content.BookImportService
 import com.linguareader.data.prefs.UserPreferencesRepository
 import com.linguareader.data.scan.ScanSettingsRepository
-import dagger.hilt.android.testing.HiltAndroidRule
-import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import java.io.File
-import javax.inject.Inject
 
 /**
  * Integración extremo a extremo con DI real salvo el motor de voz (falso) y la BD (en memoria).
  * Demuestra que la UI funciona con otro motor sin cambios.
  */
 @OptIn(ExperimentalTestApi::class)
-@HiltAndroidTest
-class ReaderFlowTest {
-
-    @get:Rule(order = 0) val hilt = HiltAndroidRule(this)
+class ReaderFlowTest : KoinComponent {
     @get:Rule(order = 1) val compose = createAndroidComposeRule<MainActivity>()
 
-    @Inject lateinit var preferences: UserPreferencesRepository
-    @Inject lateinit var scanSettings: ScanSettingsRepository
-    @Inject lateinit var importer: BookImportService
+    private val preferences: UserPreferencesRepository by inject()
+    private val scanSettings: ScanSettingsRepository by inject()
+    private val importer: BookImportService by inject()
 
     private lateinit var bookId: String
 
     @Before
     fun setUp() {
-        hilt.inject()
         grantNotifications()
         // Sin las pantallas iniciales (modo y traducción), que taparían la biblioteca.
         runBlocking { skipOnboarding(preferences, scanSettings, UserPreferences(translationSetupDone = true, ttsModeChosen = true, translationLanguage = "es")) }

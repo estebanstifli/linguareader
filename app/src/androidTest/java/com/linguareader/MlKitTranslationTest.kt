@@ -1,5 +1,7 @@
 package com.linguareader
 
+import org.koin.core.component.inject
+import org.koin.core.component.KoinComponent
 import android.content.Context
 import android.net.Uri
 import com.linguareader.core.engine.TranslationEngine
@@ -15,9 +17,6 @@ import com.linguareader.data.scan.ScanSettingsRepository
 import com.linguareader.engine.translation.BookTranslationService
 import com.linguareader.engine.translation.BookTranslationState
 import com.linguareader.engine.translation.TranslationModelManager
-import dagger.hilt.android.qualifiers.ApplicationContext
-import dagger.hilt.android.testing.HiltAndroidRule
-import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -28,29 +27,24 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import java.io.File
-import javax.inject.Inject
 
 /**
  * ML Kit real en el dispositivo: descarga de modelos (requiere red; si no hay, se omite),
  * traducción con caché y pretraducción completa de un libro importado.
  */
-@HiltAndroidTest
-class MlKitTranslationTest {
+class MlKitTranslationTest : KoinComponent {
 
-    @get:Rule val hilt = HiltAndroidRule(this)
-
-    @Inject lateinit var models: TranslationModelManager
-    @Inject lateinit var engine: TranslationEngine
-    @Inject lateinit var importer: BookImportService
-    @Inject lateinit var imported: ImportedBookRepository
-    @Inject lateinit var bookTranslations: BookTranslationService
-    @Inject lateinit var preferences: UserPreferencesRepository
-    @Inject lateinit var scanSettings: ScanSettingsRepository
-    @Inject @ApplicationContext lateinit var context: Context
+    private val models: TranslationModelManager by inject()
+    private val engine: TranslationEngine by inject()
+    private val importer: BookImportService by inject()
+    private val imported: ImportedBookRepository by inject()
+    private val bookTranslations: BookTranslationService by inject()
+    private val preferences: UserPreferencesRepository by inject()
+    private val scanSettings: ScanSettingsRepository by inject()
+    private val context: Context by inject()
 
     @Before
     fun setUp() {
-        hilt.inject()
         runBlocking {
             skipOnboarding(preferences, scanSettings, UserPreferences(translationSetupDone = true, translationWifiOnly = false, translationLanguage = "es"))
             val ready = withTimeout(180_000) { models.awaitDownload("fr") && models.awaitDownload("es") }

@@ -11,8 +11,6 @@ import com.linguareader.data.content.BookImportService
 import com.linguareader.data.content.ImportedBookRepository
 import com.linguareader.ui.common.UiText
 import com.linguareader.ui.navigation.PdfViewerRoute
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import android.provider.OpenableColumns
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -20,7 +18,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 sealed interface PdfViewerState {
     data object Opening : PdfViewerState
@@ -34,9 +31,8 @@ sealed interface PdfViewerState {
  * Visor del PDF original: de un libro importado ([PdfViewerRoute.bookId], con su referencia al
  * fichero) o de un fichero suelto sin importar ([PdfViewerRoute.uri], desde Examinar archivos).
  */
-@HiltViewModel
-class PdfViewerViewModel @Inject constructor(
-    @param:ApplicationContext private val context: Context,
+class PdfViewerViewModel(
+    private val context: Context,
     private val imported: ImportedBookRepository,
     private val importer: BookImportService,
     savedState: SavedStateHandle,

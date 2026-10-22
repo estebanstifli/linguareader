@@ -71,7 +71,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.linguareader.R
 import kotlinx.coroutines.FlowPreview
@@ -94,7 +94,7 @@ import kotlin.math.roundToInt
 fun PdfViewerScreen(
     onBack: () -> Unit,
     onOpenReader: ((String) -> Unit)?,
-    vm: PdfViewerViewModel = hiltViewModel(),
+    vm: PdfViewerViewModel = koinViewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val title by vm.title.collectAsStateWithLifecycle()

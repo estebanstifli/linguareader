@@ -49,7 +49,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.linguareader.R
@@ -59,14 +59,11 @@ import com.linguareader.data.db.DeviceDocumentDao
 import com.linguareader.data.db.DeviceDocumentEntity
 import com.linguareader.ui.common.Languages
 import com.linguareader.ui.settings.formatLabel
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import java.io.File
 import java.util.Locale
-import javax.inject.Inject
 
-@HiltViewModel
-class DeviceDocumentsViewModel @Inject constructor(
+class DeviceDocumentsViewModel(
     dao: DeviceDocumentDao,
     private val pending: PendingImports,
 ) : ViewModel() {
@@ -94,7 +91,7 @@ fun DeviceDocumentsScreen(
     onBack: () -> Unit,
     onOpenScanSettings: () -> Unit,
     onViewPdf: (uri: String, title: String) -> Unit = { _, _ -> },
-    vm: DeviceDocumentsViewModel = hiltViewModel(),
+    vm: DeviceDocumentsViewModel = koinViewModel(),
 ) {
     val documents by vm.documents.collectAsStateWithLifecycle(initialValue = null)
     var choosing by remember { mutableStateOf<DeviceDocumentEntity?>(null) }

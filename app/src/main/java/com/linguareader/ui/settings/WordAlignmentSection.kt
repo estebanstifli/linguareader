@@ -18,7 +18,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -30,16 +30,13 @@ import com.linguareader.engine.alignment.AlignerModelSpec
 import com.linguareader.engine.alignment.AlignmentModelManager
 import com.linguareader.engine.supertonic.ModelState
 import com.linguareader.ui.common.Languages
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Locale
-import javax.inject.Inject
 
-@HiltViewModel
-class WordAlignmentViewModel @Inject constructor(
+class WordAlignmentViewModel(
     repo: UserPreferencesRepository,
     private val manager: AlignmentModelManager,
 ) : ViewModel() {
@@ -62,7 +59,7 @@ private fun mb(bytes: Long) = "%d MB".format(Locale.ROOT, bytes / 1_000_000)
  * lectura. Sin modelo, Supertonic sigue resaltando por frase.
  */
 @Composable
-fun WordAlignmentSection(vm: WordAlignmentViewModel = hiltViewModel()) {
+fun WordAlignmentSection(vm: WordAlignmentViewModel = koinViewModel()) {
     val prefs by vm.preferences.collectAsStateWithLifecycle()
     val states by vm.states.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()

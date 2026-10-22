@@ -15,7 +15,6 @@ import com.linguareader.importer.ImportedBookBuilder
 import com.linguareader.data.narration.NarrationLibrary
 import com.linguareader.importer.extract.HtmlExtractor
 import com.linguareader.importer.extract.TextExtractor
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.fleeksoft.ksoup.Ksoup
@@ -27,8 +26,6 @@ import java.net.URL
 import java.security.MessageDigest
 import java.util.Locale
 import java.util.UUID
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /** Documento leído y listo para que el usuario confirme título, idioma y nivel. */
 data class ImportDraft(
@@ -47,9 +44,8 @@ data class ImportDraft(
  * compartido) y [commit] lo convierte en libro con las opciones confirmadas y lo guarda.
  * El id deriva del contenido, así que reimportar lo mismo reemplaza en lugar de duplicar.
  */
-@Singleton
-class BookImportService @Inject constructor(
-    @param:ApplicationContext private val context: Context,
+class BookImportService(
+    private val context: Context,
     private val registry: ExtractorRegistry,
     private val repository: ImportedBookRepository,
     private val narrations: NarrationLibrary,

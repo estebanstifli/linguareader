@@ -12,21 +12,18 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Aplica las preferencias de motor (motor activo, pasos de Supertonic) y libera los modelos
  * pesados cuando el sistema pide memoria.
  */
-@Singleton
-class TtsEngineCoordinator @Inject constructor(
+class TtsEngineCoordinator(
     private val preferences: UserPreferencesRepository,
     private val selector: TtsEngineSelector,
     private val registry: TtsEngineRegistry,
     private val settings: EngineSettingsHolder,
     private val supertonic: SupertonicEngine,
-    @param:ApplicationScope private val scope: CoroutineScope,
+    private val scope: CoroutineScope,
 ) {
     fun start() {
         scope.launch {

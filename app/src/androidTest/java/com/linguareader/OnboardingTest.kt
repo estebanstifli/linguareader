@@ -1,5 +1,7 @@
 package com.linguareader
 
+import org.koin.core.component.inject
+import org.koin.core.component.KoinComponent
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -10,8 +12,6 @@ import com.linguareader.core.model.UserPreferences
 import com.linguareader.data.prefs.UserPreferencesRepository
 import com.linguareader.data.scan.ScanSettings
 import com.linguareader.data.scan.ScanSettingsRepository
-import dagger.hilt.android.testing.HiltAndroidRule
-import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -20,22 +20,17 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import javax.inject.Inject
 
 /** Primera apertura con toques reales: cada camino pregunta solo lo suyo y termina en la biblioteca. Sin descargas. */
 @OptIn(ExperimentalTestApi::class)
-@HiltAndroidTest
-class OnboardingTest {
-
-    @get:Rule(order = 0) val hilt = HiltAndroidRule(this)
+class OnboardingTest : KoinComponent {
     @get:Rule(order = 1) val compose = createAndroidComposeRule<MainActivity>()
 
-    @Inject lateinit var preferences: UserPreferencesRepository
-    @Inject lateinit var scanSettings: ScanSettingsRepository
+    private val preferences: UserPreferencesRepository by inject()
+    private val scanSettings: ScanSettingsRepository by inject()
 
     @Before
     fun setUp() {
-        hilt.inject()
         runBlocking {
             preferences.update { UserPreferences() }
             scanSettings.update { ScanSettings() }

@@ -5,11 +5,9 @@ import android.net.Uri
 import android.util.Log
 import com.linguareader.core.engine.BookRepository
 import com.linguareader.core.model.Book
-import com.linguareader.di.ApplicationScope
 import com.linguareader.engine.importing.PdfWordExtractor
 import com.linguareader.importer.layout.TokenBox
 import com.linguareader.importer.layout.WordBoxAligner
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -21,8 +19,6 @@ import kotlinx.coroutines.launch
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /** Posición de cada token del libro sobre las páginas del PDF original. */
 class PdfTextLayout(
@@ -62,12 +58,11 @@ sealed interface PdfLayoutState {
  * importar, o al abrir el original si aún no existe— y se guarda en la carpeta del libro, que se
  * reemplaza al reimportar (así nunca queda desfasado).
  */
-@Singleton
-class PdfTextLayouts @Inject constructor(
-    @param:ApplicationContext private val context: Context,
+class PdfTextLayouts(
+    private val context: Context,
     private val imported: ImportedBookRepository,
     private val books: BookRepository,
-    @param:ApplicationScope private val scope: CoroutineScope,
+    private val scope: CoroutineScope,
 ) {
     private val states = MutableStateFlow<Map<String, PdfLayoutState>>(emptyMap())
     private val jobs = HashMap<String, Job>()

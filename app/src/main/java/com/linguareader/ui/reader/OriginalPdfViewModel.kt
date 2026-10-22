@@ -15,8 +15,6 @@ import com.linguareader.ui.common.UiText
 import com.linguareader.ui.navigation.ReaderRoute
 import com.linguareader.ui.viewer.PdfDocumentSession
 import com.linguareader.ui.viewer.PdfViewerState
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -24,16 +22,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 /**
  * El PDF original dentro del lector («Ver original»): abre el fichero referenciado y obtiene la
  * posición de cada palabra sobre las páginas. La voz, la traducción y el progreso siguen siendo
  * los de [ReaderViewModel]; esto solo aporta las páginas y dónde está cada token.
  */
-@HiltViewModel
-class OriginalPdfViewModel @Inject constructor(
-    @param:ApplicationContext private val context: Context,
+class OriginalPdfViewModel(
+    private val context: Context,
     private val imported: ImportedBookRepository,
     private val importer: BookImportService,
     private val layouts: PdfTextLayouts,

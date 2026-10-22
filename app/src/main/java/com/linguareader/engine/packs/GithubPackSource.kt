@@ -13,8 +13,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Origen de los paquetes descargables (voces pregeneradas, modelos de alineación, bibliotecas EPUB): los
@@ -23,8 +21,7 @@ import javax.inject.Singleton
  * El repositorio es público: no hace falta token.
  * Se resuelven los ids de los ficheros con la API y se descargan con `Accept: application/octet-stream`.
  */
-@Singleton
-class GithubPackSource @Inject constructor() {
+class GithubPackSource() {
 
     val repo: String = BuildConfig.PACKS_REPO
     val tag: String = BuildConfig.PACKS_TAG

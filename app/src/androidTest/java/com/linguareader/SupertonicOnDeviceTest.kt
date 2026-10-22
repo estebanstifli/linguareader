@@ -1,5 +1,7 @@
 package com.linguareader
 
+import org.koin.core.component.inject
+import org.koin.core.component.KoinComponent
 import okio.Path.Companion.toOkioPath
 import android.util.Log
 import com.linguareader.core.audio.CachingSpeechSynthesizer
@@ -10,8 +12,6 @@ import com.linguareader.core.engine.SpeechResult
 import com.linguareader.engine.supertonic.SupertonicEngine
 import com.linguareader.engine.supertonic.SupertonicModelDir
 import com.linguareader.engine.supertonic.SupertonicModelManager
-import dagger.hilt.android.testing.HiltAndroidRule
-import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -20,24 +20,19 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import java.io.File
-import javax.inject.Inject
 
 /**
  * Supertonic real en el dispositivo (ONNX Runtime Android, CPU). Se omite si el modelo no está
  * instalado: instálalo desde Ajustes o con `.\run.cmd -Supertonic` (adb push desde .models/).
  */
-@HiltAndroidTest
-class SupertonicOnDeviceTest {
+class SupertonicOnDeviceTest : KoinComponent {
 
-    @get:Rule val hilt = HiltAndroidRule(this)
-
-    @Inject lateinit var engine: SupertonicEngine
-    @Inject lateinit var synthesizer: CachingSpeechSynthesizer
-    @Inject lateinit var models: SupertonicModelManager
+    private val engine: SupertonicEngine by inject()
+    private val synthesizer: CachingSpeechSynthesizer by inject()
+    private val models: SupertonicModelManager by inject()
 
     @Before
     fun setUp() {
-        hilt.inject()
         assumeTrue("Modelo Supertonic no instalado en ${models.modelDir}", SupertonicModelDir(models.modelDir.toOkioPath()).isComplete())
     }
 

@@ -9,12 +9,10 @@ import com.linguareader.core.model.RemoteFile
 import com.linguareader.core.narration.AssKaraoke
 import com.linguareader.core.narration.Narration
 import com.linguareader.core.narration.NarrationAligner
-import com.linguareader.di.ApplicationScope
 import com.linguareader.engine.packs.LibraryPackManager
 import com.linguareader.engine.supertonic.DownloadResult
 import com.linguareader.engine.supertonic.ModelDownloader
 import com.linguareader.engine.supertonic.ModelFile
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,8 +23,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Narraciones pregrabadas (audio + ASS de karaoke) que declaran los libros de la biblioteca ([Book.narration]).
@@ -38,10 +34,9 @@ import javax.inject.Singleton
  *   libro se sigue leyendo con el motor TTS, sin avisos. Un libro se intenta descargar como mucho una vez por sesión.
  * - Solo libros de la biblioteca: un EPUB importado por el usuario no hace que la app descargue de URL arbitrarias.
  */
-@Singleton
-class NarrationLibrary @Inject constructor(
-    @param:ApplicationContext context: Context,
-    @param:ApplicationScope private val appScope: CoroutineScope,
+class NarrationLibrary(
+    context: Context,
+    private val appScope: CoroutineScope,
 ) {
     private val root = File(context.filesDir, "narrations")
     private val mutex = Mutex()

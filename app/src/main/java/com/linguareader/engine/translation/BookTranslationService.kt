@@ -5,7 +5,6 @@ import com.linguareader.R
 import com.linguareader.core.engine.TranslationResult
 import com.linguareader.core.translation.WordLookupService
 import com.linguareader.data.content.ImportedBookRepository
-import com.linguareader.di.ApplicationScope
 import com.linguareader.ui.common.UiText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -16,8 +15,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
-import javax.inject.Singleton
 
 sealed interface BookTranslationState {
     val target: String
@@ -32,12 +29,11 @@ sealed interface BookTranslationState {
  * la caché compartida. Es reanudable: el idioma pendiente se guarda en el libro y, al volver a
  * abrir la app, se continúa (las frases ya traducidas salen de la caché al instante).
  */
-@Singleton
-class BookTranslationService @Inject constructor(
+class BookTranslationService(
     private val books: ImportedBookRepository,
     private val lookup: WordLookupService,
     private val models: TranslationModelManager,
-    @param:ApplicationScope private val scope: CoroutineScope,
+    private val scope: CoroutineScope,
 ) {
     private val _states = MutableStateFlow<Map<String, BookTranslationState>>(emptyMap())
     /** Libros en traducción (o con error). Los terminados desaparecen y quedan marcados en el libro. */

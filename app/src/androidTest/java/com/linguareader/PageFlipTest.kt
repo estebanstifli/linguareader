@@ -1,5 +1,7 @@
 package com.linguareader
 
+import org.koin.core.component.inject
+import org.koin.core.component.KoinComponent
 import okio.Path.Companion.toOkioPath
 import android.util.Log
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -21,8 +23,6 @@ import com.linguareader.engine.supertonic.SupertonicEngine
 import com.linguareader.engine.supertonic.SupertonicModel
 import com.linguareader.engine.supertonic.SupertonicModelDir
 import com.linguareader.engine.supertonic.SupertonicModelManager
-import dagger.hilt.android.testing.HiltAndroidRule
-import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -33,7 +33,6 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import java.io.File
-import javax.inject.Inject
 
 /**
  * Supertonic real: al terminar una página, la lectura pasa sola a la siguiente **sin** la pantalla
@@ -43,24 +42,20 @@ import javax.inject.Inject
  * despacio que el audio (RTF > 1), así que además comprueba que la lectura sigue sin pantalla de espera.
  */
 @OptIn(ExperimentalTestApi::class)
-@HiltAndroidTest
-class PageFlipTest {
-
-    @get:Rule(order = 0) val hilt = HiltAndroidRule(this)
+class PageFlipTest : KoinComponent {
     @get:Rule(order = 1) val compose = createAndroidComposeRule<MainActivity>()
 
-    @Inject lateinit var preferences: UserPreferencesRepository
-    @Inject lateinit var scanSettings: ScanSettingsRepository
-    @Inject lateinit var selector: TtsEngineSelector
-    @Inject lateinit var models: SupertonicModelManager
-    @Inject lateinit var importer: BookImportService
-    @Inject lateinit var engineSettings: EngineSettingsHolder
+    private val preferences: UserPreferencesRepository by inject()
+    private val scanSettings: ScanSettingsRepository by inject()
+    private val selector: TtsEngineSelector by inject()
+    private val models: SupertonicModelManager by inject()
+    private val importer: BookImportService by inject()
+    private val engineSettings: EngineSettingsHolder by inject()
 
     @Before
     fun setUp() {
         // Antes de la inyección: la caché de audio es un singleton que lee su carpeta al crearse.
         File(androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.filesDir, "audio-cache").deleteRecursively()
-        hilt.inject()
         grantNotifications()
         assumeTrue("Modelo Supertonic no instalado en ${models.modelDir}", SupertonicModelDir(models.modelDir.toOkioPath()).isComplete())
         runBlocking {

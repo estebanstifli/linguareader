@@ -22,7 +22,8 @@
 | `:engine:alignment` | Kotlin Multiplatform | Alineación forzada por palabra: Viterbi CTC, remuestreo, texto wav2vec2/MMS, `Wav2Vec2ClipAligner`. Ver [ALIGNMENT.md](ALIGNMENT.md) |
 | `:engine:supertonic` | Kotlin Multiplatform | Motor Supertonic 3: port del preprocesado de texto, runtime ONNX (4 sesiones), catálogo del modelo con sha256, métricas. El descargador con reanudación (`ModelDownloader`, HttpURLConnection) está en `jvmMain` tras el puerto `FileDownloader`. Ver [SUPERTONIC.md](SUPERTONIC.md) |
 | `:importer` | Kotlin Multiplatform | Puerto `DocumentExtractor`, `ExtractorRegistry` (detección por firma), extractores EPUB/MOBI/DOCX/ODT/RTF/FB2/HTML/TXT/Markdown/SRT (Ksoup + Okio), `PageTextCleaner` (PDF) e `ImportedBookBuilder` (texto → `manifest.json`). Ver [IMPORT.md](IMPORT.md) |
-| `:app` | Android | `data` (assets, Room, DataStore), `engine` (Android TTS, foco de audio, reproductor Media3, gestores de modelos, PDF), `di`, `ui` (catálogo, lector, ajustes, vocabulario) |
+| `:data` | Kotlin Multiplatform | Persistencia compartida: base de datos Room (`AppDatabase`: progreso, marcadores, vocabulario, caché de traducciones, estanterías, papelera, correcciones, documentos del dispositivo; esquemas exportados en `data/schemas`) y `UserPreferencesRepository` sobre DataStore. Room genera la implementación para jvm e iOS (`@ConstructedBy`); tests JVM con `sqlite-bundled` |
+| `:app` | Android | `data` (assets, libros importados, biblioteca, escaneo, `DataStore` de Android), `engine` (Android TTS, foco de audio, reproductor Media3, gestores de modelos, PDF), `di` (grafo Koin), `ui` (catálogo, lector, ajustes, vocabulario) |
 
 Los módulos compartidos no contienen `android.*` ni `java.*`: lo que depende de la plataforma pasa por
 `core/platform` (expect/actual) o por puertos (`OnnxRuntime`, `FileDownloader`, `FileSystem` de Okio). Ver
@@ -127,8 +128,10 @@ Detalles, métricas y limitaciones: [SUPERTONIC.md](SUPERTONIC.md).
 
 ## Persistencia
 
-- Room (`linguareader.db`, esquema exportado en `app/schemas`): `reading_progress`, `bookmarks`, `vocabulary`.
-- DataStore Preferences: preferencias de usuario (`UserPreferences` en `core`).
+- Room (`linguareader.db`, módulo `:data`, esquema exportado en `data/schemas`): `reading_progress`, `bookmarks`,
+  `vocabulary`, `machine_translations`, `collections`, `collection_books`, `trash`, `book_overrides`, `device_documents`.
+- DataStore Preferences: preferencias de usuario (`UserPreferences` en `core`, `UserPreferencesRepository` en `:data`;
+  el `DataStore` lo crea cada plataforma: Android en `AndroidDataStores.kt`).
 
 ## Kotlin Multiplatform y la app iOS
 
@@ -156,9 +159,19 @@ que antes), `iosArm64` e `iosSimulatorArm64`. Es la **Fase 0** del plan de app i
 - **Qué compila dónde:** en Windows/Linux se compilan las klib de iOS (`./gradlew :core:compileKotlinIosArm64`),
   no se enlaza ningún framework ni se ejecutan tests nativos. El XCFramework, el binding de ONNX Runtime
   (`onnxruntime-c`), el descargador con `URLSession` y la app SwiftUI son trabajo de Mac (Fase 1 y 2).
-- **Pendiente de la Fase 0:** Room y DataStore en KMP (ambos lo soportan), sustituir Hilt por Koin o un grafo
-  manual compartido, y mover `ReaderViewModel`/`CatalogViewModel` a `commonMain`. Son cambios dentro de `:app`
-  y se harán en un cambio aparte.
+- **Persistencia (`:data`):** Room y DataStore son multiplataforma. `AppDatabase` (entidades, DAOs, automigraciones)
+  y `UserPreferencesRepository` están en `data/commonMain`; el compilador de Room (`kspJvm`, `kspIosArm64`,
+  `kspIosSimulatorArm64`) genera la implementación de cada destino y el `actual` de `AppDatabaseConstructor`.
+  Android abre la misma base de siempre con el SQLite del sistema (`Room.databaseBuilder(context, …)`) y el mismo
+  fichero de preferencias; iOS usará `BundledSQLiteDriver` y `PreferenceDataStoreFactory.createWithPath`. Los
+  tests de `:data` abren la base con `sqlite-bundled` en JVM, sin emulador.
+- **Inyección de dependencias: Koin** en lugar de Hilt (que es solo Android). El grafo está en `app/di/AppModule.kt`
+  (`dataModule`, `translationModule`, `speechEngineModule`, `ttsEngineModule`, `viewModelModule`); las clases ya no
+  llevan anotaciones de DI. `LinguaReaderApp` arranca Koin y los tests instrumentados superponen `testModule`
+  (motor de voz falso, base en memoria) desde `TestApp` (`KoinTestRunner`). Lo que Hilt verificaba al compilar lo
+  comprueba `KoinModulesTest` (`module.verify()`) en los tests unitarios.
+- **Pendiente de la Fase 0:** mover `ReaderViewModel`/`CatalogViewModel` a `commonMain`. Depende de sacar de ellos
+  `R.string` (`UiText` con claves de recurso), `ImageBitmap` y los servicios de Android que usan (ver ROADMAP).
 
 ## Decisiones de dependencias (octubre 2026)
 
@@ -169,8 +182,8 @@ que antes), `iosArm64` e `iosSimulatorArm64`. Es la **Fase 0** del plan de app i
 | Kotlin | 2.4.21 | Última estable; plugin Compose con la misma versión. |
 | KSP | 2.3.12 | KSP2 (versión desacoplada de Kotlin), compatible con Kotlin integrado de AGP 9. |
 | Compose BOM | 2026.09.00 | UI 1.12 / Material3. |
-| Hilt / androidx.hilt | 2.60.1 / 1.4.0 | DI recomendada en CLAUDE.md; `hiltViewModel` desde `hilt-lifecycle-viewmodel-compose`. |
-| Room / DataStore | 2.8.5 / 1.2.1 | Persistencia local. |
+| Koin | 4.2.2 | Inyección de dependencias multiplataforma (sustituye a Hilt desde octubre de 2026): `koin-android`, `koin-androidx-compose`, `koin-compose-viewmodel` (`koinViewModel`), `koin-test` (verificación del grafo). Apache-2.0. |
+| Room / DataStore | 2.8.5 / 1.2.1 | Persistencia local, multiplataforma, en `:data`. `sqlite-bundled` 2.6.2 solo en los tests JVM. |
 | Navigation Compose | 2.10.2 | Rutas tipadas con kotlinx.serialization. |
 | Espresso (solo tests) | 3.7.0 | Las versiones anteriores fallan en API 36 (`InputManager.getInstance`). |
 | ONNX Runtime Android | 1.31.0 | Inferencia de Supertonic en CPU. MIT. Natives alineadas a 16 KB. Solo `arm64-v8a` y `x86_64` (`abiFilters`). |
@@ -203,7 +216,7 @@ que antes), `iosArm64` e `iosSimulatorArm64`. Es la **Fase 0** del plan de app i
 
 | Elemento | Licencia | Nota |
 |---|---|---|
-| AndroidX, Compose, Room, DataStore, Navigation, Hilt/Dagger, kotlinx | Apache-2.0 | Dependencias de compilación. |
+| AndroidX, Compose, Room, DataStore, Navigation, Koin, kotlinx | Apache-2.0 | Dependencias de compilación. |
 | Iconos (`res/drawable/ic_*.xml`) | Apache-2.0 | Trazados de Material Icons (Google). |
 | Icono de la app (`ic_launcher_foreground`) | Propio | Dibujo vectorial original. |
 | Textos de los libros demo | `LicenseRef-LinguaReader-Demo` | Originales del proyecto; **el titular debe fijar la licencia definitiva** (p. ej. CC-BY-4.0) antes de distribuir. |

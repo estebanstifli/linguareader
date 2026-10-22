@@ -6,9 +6,7 @@ import android.os.Debug
 import android.os.StatFs
 import android.util.Log
 import com.linguareader.R
-import com.linguareader.di.ApplicationScope
 import com.linguareader.ui.common.UiText
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,8 +17,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import javax.inject.Inject
-import javax.inject.Singleton
 
 sealed interface ModelState {
     data class NotInstalled(val totalBytes: Long, val partialBytes: Long) : ModelState
@@ -39,10 +35,9 @@ sealed interface ModelState {
  * La descarga reanuda ficheros parciales y verifica el sha256 de cada fichero.
  * Ninguna operación lanza excepciones a la app: los errores se publican como [ModelState.Failed].
  */
-@Singleton
-class SupertonicModelManager @Inject constructor(
-    @param:ApplicationContext private val context: Context,
-    @param:ApplicationScope private val appScope: CoroutineScope,
+class SupertonicModelManager(
+    private val context: Context,
+    private val appScope: CoroutineScope,
 ) {
     val modelDir: File by lazy {
         File(context.filesDir, "models/${SupertonicModel.ENGINE_ID}/${SupertonicModel.REVISION}")

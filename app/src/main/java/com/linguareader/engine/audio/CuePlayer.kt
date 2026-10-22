@@ -2,19 +2,15 @@ package com.linguareader.engine.audio
 
 import android.content.Context
 import com.linguareader.core.reader.ClipEvent
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Reproduce una frase pregenerada corta (p. ej. «Preparando la lectura…») y suspende hasta que
  * termina. Sin foco de audio propio: es solo un aviso mientras se prepara la lectura real.
  */
-@Singleton
-class CuePlayer @Inject constructor(@param:ApplicationContext private val context: Context) {
+class CuePlayer(private val context: Context) {
 
     private var player: Media3ClipPlayer? = null
 

@@ -25,7 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -34,16 +34,13 @@ import com.linguareader.data.prefs.UserPreferencesRepository
 import com.linguareader.engine.packs.GithubPackSource
 import com.linguareader.engine.packs.VoicePackManager
 import com.linguareader.engine.supertonic.ModelState
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Locale
-import javax.inject.Inject
 
-@HiltViewModel
-class PacksViewModel @Inject constructor(
+class PacksViewModel(
     private val repo: UserPreferencesRepository,
     private val voicePacks: VoicePackManager,
     val source: GithubPackSource,
@@ -61,7 +58,7 @@ private fun mb(bytes: Long) = "%.1f MB".format(Locale.ROOT, bytes / 1_000_000.0)
  * GitHub (público).
  */
 @Composable
-fun PacksSection(vm: PacksViewModel = hiltViewModel()) {
+fun PacksSection(vm: PacksViewModel = koinViewModel()) {
     val voices by vm.voicePack.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 

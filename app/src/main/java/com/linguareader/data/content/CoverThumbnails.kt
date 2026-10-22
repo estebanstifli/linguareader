@@ -17,13 +17,10 @@ import com.linguareader.core.content.Hashing
 import com.linguareader.core.content.MediaResult
 import com.linguareader.core.engine.BookRepository
 import com.linguareader.core.model.BookSummary
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.withContext
 import java.io.File
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Miniaturas de portada del catálogo, calculadas una vez y guardadas en disco (`cacheDir/covers/<id>/`).
@@ -36,9 +33,8 @@ import javax.inject.Singleton
  * La clave incluye el hash de la portada (o el título y tamaño del texto), así que un cambio
  * genera una miniatura nueva sin invalidar nada a mano. Si el sistema vacía la caché, se regenera.
  */
-@Singleton
-class CoverThumbnails @Inject constructor(
-    @param:ApplicationContext private val context: Context,
+class CoverThumbnails(
+    private val context: Context,
     private val books: BookRepository,
 ) {
     private val dir: File get() = File(context.cacheDir, DIR)

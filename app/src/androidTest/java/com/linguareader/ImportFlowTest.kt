@@ -1,5 +1,7 @@
 package com.linguareader
 
+import org.koin.core.component.inject
+import org.koin.core.component.KoinComponent
 import android.content.Context
 import android.net.Uri
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -16,9 +18,6 @@ import com.linguareader.data.content.PendingImports
 import com.linguareader.data.prefs.UserPreferencesRepository
 import com.linguareader.data.scan.ScanSettingsRepository
 import com.linguareader.importer.ImportException
-import dagger.hilt.android.qualifiers.ApplicationContext
-import dagger.hilt.android.testing.HiltAndroidRule
-import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -29,26 +28,21 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import java.io.File
-import javax.inject.Inject
 
 /** Importación real en el dispositivo: ContentResolver → extracción → guardado → catálogo → lector. */
 @OptIn(ExperimentalTestApi::class)
-@HiltAndroidTest
-class ImportFlowTest {
-
-    @get:Rule(order = 0) val hilt = HiltAndroidRule(this)
+class ImportFlowTest : KoinComponent {
     @get:Rule(order = 1) val compose = createAndroidComposeRule<MainActivity>()
 
-    @Inject lateinit var importer: BookImportService
-    @Inject lateinit var books: BookRepository
-    @Inject lateinit var preferences: UserPreferencesRepository
-    @Inject lateinit var scanSettings: ScanSettingsRepository
-    @Inject lateinit var pendingImports: PendingImports
-    @Inject @ApplicationContext lateinit var context: Context
+    private val importer: BookImportService by inject()
+    private val books: BookRepository by inject()
+    private val preferences: UserPreferencesRepository by inject()
+    private val scanSettings: ScanSettingsRepository by inject()
+    private val pendingImports: PendingImports by inject()
+    private val context: Context by inject()
 
     @Before
     fun setUp() {
-        hilt.inject()
         // Sin la pantalla inicial de traducción, que taparía la biblioteca.
         runBlocking { skipOnboarding(preferences, scanSettings, UserPreferences(translationSetupDone = true)) }
     }

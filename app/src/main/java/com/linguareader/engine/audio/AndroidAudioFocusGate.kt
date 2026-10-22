@@ -5,14 +5,10 @@ import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import com.linguareader.core.reader.AudioFocusGate
-import dagger.hilt.android.qualifiers.ApplicationContext
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /** Pide foco de audio al reproducir y pausa la lectura si otra app lo toma. */
-@Singleton
-class AndroidAudioFocusGate @Inject constructor(
-    @ApplicationContext context: Context,
+class AndroidAudioFocusGate(
+    context: Context,
 ) : AudioFocusGate {
 
     private val audioManager = context.getSystemService(AudioManager::class.java)

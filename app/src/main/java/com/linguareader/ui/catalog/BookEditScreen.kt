@@ -37,7 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -50,11 +50,9 @@ import com.linguareader.data.content.CompositeBookRepository
 import com.linguareader.data.library.LibraryRepository
 import com.linguareader.ui.common.Languages
 import com.linguareader.ui.navigation.BookEditRoute
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 /** Datos editables de un libro, tal como se ven ahora (con las correcciones anteriores aplicadas). */
 data class BookEditForm(
@@ -74,8 +72,7 @@ sealed interface BookEditState {
     data object Done : BookEditState
 }
 
-@HiltViewModel
-class BookEditViewModel @Inject constructor(
+class BookEditViewModel(
     savedState: SavedStateHandle,
     private val books: CompositeBookRepository,
     private val library: LibraryRepository,
@@ -116,7 +113,7 @@ class BookEditViewModel @Inject constructor(
 /** Pantalla «Editar» del menú ⋮ de un libro: título, autor, idioma y nivel. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BookEditScreen(onBack: () -> Unit, vm: BookEditViewModel = hiltViewModel()) {
+fun BookEditScreen(onBack: () -> Unit, vm: BookEditViewModel = koinViewModel()) {
     val state by vm.state.collectAsStateWithLifecycle()
     LaunchedEffect(state) { if (state == BookEditState.Done) onBack() }
     Scaffold(

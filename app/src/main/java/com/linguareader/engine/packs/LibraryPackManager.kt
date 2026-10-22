@@ -7,11 +7,9 @@ import com.linguareader.R
 import com.linguareader.core.model.CefrLevel
 import com.linguareader.core.model.LanguageTags
 import com.linguareader.data.content.BookImportService
-import com.linguareader.di.ApplicationScope
 import com.linguareader.engine.supertonic.DownloadResult
 import com.linguareader.engine.supertonic.ModelFile
 import com.linguareader.ui.common.UiText
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,8 +21,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /** Estado de la biblioteca de un idioma. */
 sealed interface LibraryState {
@@ -44,10 +40,9 @@ sealed interface LibraryState {
  * El catálogo (`libraries.json`) viene en el APK y se refresca desde la release, para que las
  * bibliotecas nuevas o ampliadas lleguen sin actualizar la app.
  */
-@Singleton
-class LibraryPackManager @Inject constructor(
-    @param:ApplicationContext private val context: Context,
-    @param:ApplicationScope private val appScope: CoroutineScope,
+class LibraryPackManager(
+    private val context: Context,
+    private val appScope: CoroutineScope,
     private val source: GithubPackSource,
     private val importer: BookImportService,
 ) {

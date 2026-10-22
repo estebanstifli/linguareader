@@ -13,7 +13,6 @@ import com.linguareader.core.model.CefrLevel
 import com.linguareader.core.model.MediaRef
 import com.linguareader.core.model.Passage
 import com.linguareader.importer.ImportedBook
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,17 +25,14 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Libros que el usuario importa (EPUB, TXT, FB2...). Cada uno es una carpeta en
  * `filesDir/imported/<id>/` con el mismo `manifest.json` que la biblioteca empaquetada, sus
  * imágenes en `media/` y un `summary.json` para pintar el catálogo sin parsear libros enteros.
  */
-@Singleton
-class ImportedBookRepository @Inject constructor(
-    @param:ApplicationContext private val context: Context,
+class ImportedBookRepository(
+    private val context: Context,
 ) : BookRepository {
 
     private val root: File get() = File(context.filesDir, DIR)

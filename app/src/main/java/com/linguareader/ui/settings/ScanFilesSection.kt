@@ -51,7 +51,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModel
@@ -67,7 +67,6 @@ import com.linguareader.data.scan.ScanSettings
 import com.linguareader.data.scan.ScanSettingsRepository
 import com.linguareader.data.scan.ScanState
 import com.linguareader.data.scan.StorageAccess
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -75,10 +74,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.text.DateFormat
 import java.util.Date
-import javax.inject.Inject
 
-@HiltViewModel
-class ScanViewModel @Inject constructor(
+class ScanViewModel(
     private val repo: ScanSettingsRepository,
     private val scanner: DocumentScanner,
     documents: DeviceDocumentDao,
@@ -140,7 +137,7 @@ internal fun treeLabel(uri: String, internalStorage: String): String = runCatchi
 /** Ajustes › Examinar archivos: buscar en el dispositivo los documentos que la app sabe abrir. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ScanFilesSection(onOpenDocuments: () -> Unit, vm: ScanViewModel = hiltViewModel()) {
+fun ScanFilesSection(onOpenDocuments: () -> Unit, vm: ScanViewModel = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val state by vm.state.collectAsStateWithLifecycle()
     val documents by vm.documents.collectAsStateWithLifecycle()
@@ -393,7 +390,7 @@ private fun ItemRow(icon: Int, title: String, subtitle: String, onRemove: () -> 
  * donde se concede) y empieza a buscar en segundo plano. Se puede omitir; queda en Ajustes › Examinar archivos.
  */
 @Composable
-fun ScanOfferScreen(step: Int = 0, steps: Int = 0, vm: ScanViewModel = hiltViewModel()) {
+fun ScanOfferScreen(step: Int = 0, steps: Int = 0, vm: ScanViewModel = koinViewModel()) {
     val context = LocalContext.current
     var waitingForSettings by remember { mutableStateOf(false) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle

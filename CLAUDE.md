@@ -18,7 +18,7 @@ Crear una app Android **nativa, offline-first y vertical (portrait)** para apren
 - Kotlin, Jetpack Compose, Material 3, Coroutines/Flow, Navigation Compose, ViewModel.
 - Room/SQLite para biblioteca, progreso, glosario, vocabulario, caché de metadatos y alineaciones.
 - Media3/ExoPlayer para reproducción, audio focus, notificación y media session.
-- Hilt para inyección de dependencias; Gradle version catalog; tests unitarios y de integración.
+- Koin para inyección de dependencias (multiplataforma; sustituyó a Hilt en la Fase 0 del port a iOS); Gradle version catalog; tests unitarios y de integración.
 - EPUB mediante Readium Kotlin Toolkit si la licencia y la integración se verifican; TXT mediante parser propio; no presuponer soporte sencillo para PDF.
 - TTS inicial: implementación intercambiable de Android TextToSpeech (prototipo) y adaptador Supertonic ONNX (fase posterior), condicionado a medir CPU/RAM/latencia y revisar licencias del código y pesos. Nunca acoplar la UI a ONNX.
 - Traducción inicial: diccionario local y proveedor mock; adaptador opcional de traducción por modelos locales o API remota, sin claves embebidas. La traducción de expresiones requiere contexto.

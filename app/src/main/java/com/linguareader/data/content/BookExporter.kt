@@ -5,19 +5,15 @@ import android.net.Uri
 import androidx.core.content.FileProvider
 import com.linguareader.R
 import com.linguareader.core.model.Book
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Genera un TXT del libro (título, autoría, capítulos y texto) para compartirlo. Sirve para cualquier libro,
  * incluido o importado: la app no guarda el archivo original importado, solo su contenido normalizado.
  */
-@Singleton
-class BookExporter @Inject constructor(@param:ApplicationContext private val context: Context) {
+class BookExporter(private val context: Context) {
 
     suspend fun exportText(book: Book): Uri = withContext(Dispatchers.IO) {
         val dir = File(context.cacheDir, SHARED_DIR).apply { deleteRecursively(); mkdirs() }

@@ -1,5 +1,6 @@
 package com.linguareader.engine.audio
 
+import org.koin.android.ext.android.inject
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -16,7 +17,6 @@ import androidx.core.app.ServiceCompat
 import com.linguareader.MainActivity
 import com.linguareader.R
 import com.linguareader.core.reader.ReaderAudioController
-import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -26,17 +26,15 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 /**
  * Mantiene viva la lectura en voz alta con la pantalla bloqueada: servicio en primer plano (tipo `mediaPlayback`)
  * con notificación y botón de pausa, y un wake lock parcial mientras suena. Se detiene solo cuando la lectura
  * lleva unos segundos parada (entre páginas el estado pasa un instante por «completado»).
  */
-@AndroidEntryPoint
 class ReadingService : Service() {
 
-    @Inject lateinit var audio: ReaderAudioController
+    private val audio: ReaderAudioController by inject()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var wakeLock: PowerManager.WakeLock? = null

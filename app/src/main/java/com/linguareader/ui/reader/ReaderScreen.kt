@@ -95,7 +95,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.linguareader.R
 import com.linguareader.core.engine.EngineReadiness
@@ -121,8 +121,8 @@ fun ReaderScreen(
     onBack: () -> Unit,
     onOpenSettings: () -> Unit = {},
     startInOriginal: Boolean = false,
-    vm: ReaderViewModel = hiltViewModel(),
-    pdfVm: OriginalPdfViewModel = hiltViewModel(),
+    vm: ReaderViewModel = koinViewModel(),
+    pdfVm: OriginalPdfViewModel = koinViewModel(),
 ) {
     val ui by vm.state.collectAsStateWithLifecycle()
     val pdfAvailable by pdfVm.available.collectAsStateWithLifecycle()

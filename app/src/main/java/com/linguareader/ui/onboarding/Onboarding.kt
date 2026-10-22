@@ -51,7 +51,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -77,7 +77,6 @@ import com.linguareader.engine.translation.ModelDownload
 import com.linguareader.engine.translation.TranslationModelManager
 import com.linguareader.ui.common.Languages
 import com.linguareader.ui.settings.ScanOfferScreen
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -86,7 +85,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Locale
-import javax.inject.Inject
 
 /** Estado de la voz del sistema para el idioma que se aprende (resumen final). */
 sealed interface VoiceCheck {
@@ -97,8 +95,7 @@ sealed interface VoiceCheck {
     data object NoEngine : VoiceCheck
 }
 
-@HiltViewModel
-class OnboardingViewModel @Inject constructor(
+class OnboardingViewModel(
     private val repo: UserPreferencesRepository,
     private val scanSettings: ScanSettingsRepository,
     private val libraries: LibraryPackManager,
@@ -190,7 +187,7 @@ class OnboardingViewModel @Inject constructor(
  * en segundo plano. Se dibuja encima de [content], que ya se va cargando debajo.
  */
 @Composable
-fun OnboardingGate(content: @Composable () -> Unit, vm: OnboardingViewModel = hiltViewModel()) {
+fun OnboardingGate(content: @Composable () -> Unit, vm: OnboardingViewModel = koinViewModel()) {
     val prefs by vm.preferences.collectAsStateWithLifecycle()
     val scan by vm.scan.collectAsStateWithLifecycle()
     Box(Modifier.fillMaxSize()) {

@@ -3,8 +3,6 @@ plugins {
     // AGP 9 incluye Kotlin integrado: no se aplica org.jetbrains.kotlin.android.
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.ksp)
-    alias(libs.plugins.hilt)
 }
 
 android {
@@ -25,7 +23,7 @@ android {
         buildConfigField("String", "LIBRARY_TAG", "\"$libraryTag\"")
         versionCode = 2
         versionName = "0.2.0"
-        testInstrumentationRunner = "com.linguareader.HiltTestRunner"
+        testInstrumentationRunner = "com.linguareader.KoinTestRunner"
 
         // Arquitecturas: solo móviles de 64 bits y el emulador (ver `splits` más abajo). ONNX Runtime
         // aporta ~34 MB nativos por ABI y un modelo de ~400 MB en fp32 no es práctico en 32 bits.
@@ -111,14 +109,18 @@ dependencies {
 
     implementation(libs.androidx.datastore.preferences)
 
-    implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
-    implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
+    implementation(platform(libs.koin.bom))
+    implementation(libs.koin.android)
+    implementation(libs.koin.androidx.compose)
+    implementation(libs.koin.compose.viewmodel)
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.junit)
+    testImplementation(platform(libs.koin.bom))
+    testImplementation(libs.koin.test) // verificación del grafo (KoinModulesTest)
+    testImplementation(kotlin("reflect"))
     testImplementation(libs.kotlinx.coroutines.test)
 
     androidTestImplementation(platform(libs.androidx.compose.bom))
@@ -127,7 +129,5 @@ dependencies {
     // Espresso >= 3.7 es necesario en API 36 (InputManager.getInstance ya no existe).
     androidTestImplementation(libs.androidx.test.espresso.core)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation(libs.hilt.android.testing)
-    kspAndroidTest(libs.hilt.compiler)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

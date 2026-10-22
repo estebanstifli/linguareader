@@ -4,7 +4,7 @@ Leyenda: ✅ hecho y verificado · 🟡 parcial · ⬜ pendiente
 
 ## Fase 1 — MVP demostrable ✅
 
-- ✅ Proyecto Android que compila (AGP 9.4.1, Kotlin 2.4.21, Compose, Hilt, Room, DataStore).
+- ✅ Proyecto Android que compila (AGP 9.4.1, Kotlin 2.4.21, Compose, Koin, Room, DataStore).
 - ✅ Catálogo local con 2 libros originales (en A1, fr A2), filtros de idioma y nivel, portadas y progreso.
 - ✅ Biblioteca con menú lateral (apartados = filtros: Leyendo ahora, Libros, Aprender inglés/francés/otros,
   estanterías, colecciones, papelera) y vista de lista o cuadrícula de portadas adaptable.
@@ -15,7 +15,7 @@ Leyenda: ✅ hecho y verificado · 🟡 parcial · ⬜ pendiente
 - ✅ Idioma de lectura y de traducción independientes y persistentes.
 - ✅ Marcadores, tamaño de letra, interlineado, tema claro/oscuro/sistema.
 - ✅ Android TTS con aviso claro e «Instalar voz» si falta la voz.
-- ✅ Tests: 57 JVM en `:core`, 4 instrumentados (Hilt + motor falso) en emulador API 36.
+- ✅ Tests: 57 JVM en `:core`, 4 instrumentados (motor falso superpuesto en el grafo) en emulador API 36.
 
 ## Fase 2 — Sincronización real 🟡
 
@@ -126,8 +126,15 @@ en un iPhone real antes de prometerlo.
   ficheros y ZIP; Ksoup en lugar de jsoup; puerto `OnnxRuntime`; puerto `FileDownloader`. Las klib de iOS compilan
   desde Windows. Android no cambia de comportamiento (misma suite verde: core 170, importer 41, alignment 16,
   supertonic 21). Ver [ARCHITECTURE.md](ARCHITECTURE.md#kotlin-multiplatform-y-la-app-ios).
-- ⬜ **Fase 0, dentro de `:app`:** Room y DataStore en KMP, Koin (o grafo manual) en lugar de Hilt, y
-  `ReaderViewModel`/`CatalogViewModel` en `commonMain`.
+- ✅ **Fase 0, dentro de `:app` (1/2):** Room y DataStore en el módulo KMP `:data` (misma base y mismas preferencias
+  en Android; tests JVM con `sqlite-bundled`) y Koin en lugar de Hilt (grafo en `app/di/AppModule.kt`, verificado por
+  `KoinModulesTest`; los tests instrumentados superponen sus módulos desde `TestApp`).
+- ⬜ **Fase 0, dentro de `:app` (2/2):** `ReaderViewModel`/`CatalogViewModel` en `commonMain`. Requiere antes:
+  `UiText` con claves de recurso en vez de `@StringRes` (y resolverlas en cada plataforma), portadas como rutas o
+  bytes en lugar de `ImageBitmap`, y puertos para lo que hoy usan de Android (`NarrationLibrary`, `VoicePackManager`,
+  `CuePlayer`, `BookExporter`, `ImportedBookRepository`, `TranslationModelManager`, `CoverThumbnails`,
+  `BookTranslationService`, `ScanSettingsRepository`). Es un cambio de varios pasos; se hará al empezar la app iOS,
+  cuando se sepa qué adaptadores existen en cada plataforma.
 - ⬜ **Fase 1 (Mac):** XCFramework, tests de `core` en simulador, `actual`s de iOS validados, binding de
   `onnxruntime-c`, descargas con `URLSession` en segundo plano, `AVSpeechSynthesizer` con marcas de palabra,
   `AVAudioEngine`, Now Playing, medir Supertonic y wav2vec2 en iPhone.

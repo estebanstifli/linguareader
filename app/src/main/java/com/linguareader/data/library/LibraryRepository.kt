@@ -13,8 +13,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /** Estantería con los libros que contiene. */
 data class Shelf(val id: Long, val name: String, val kind: String, val bookIds: Set<String>) {
@@ -31,8 +29,7 @@ data class LibraryState(val shelves: List<Shelf> = emptyList(), val trash: List<
  * Favoritos, «Para leer», «Leídos» (estanterías fijas, se crean la primera vez), colecciones del usuario y papelera.
  * Un libro en la papelera desaparece de la biblioteca; se puede restaurar o, si es importado, borrar del todo.
  */
-@Singleton
-class LibraryRepository @Inject constructor(
+class LibraryRepository(
     private val dao: LibraryDao,
     private val imported: ImportedBookRepository,
     private val importer: BookImportService,

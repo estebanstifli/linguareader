@@ -21,7 +21,6 @@ import com.linguareader.core.text.Tokenizer
 import com.linguareader.data.db.MachineTranslationDao
 import com.linguareader.data.db.MachineTranslationEntity
 import com.linguareader.data.prefs.UserPreferencesRepository
-import com.linguareader.di.ApplicationScope
 import com.linguareader.ui.common.UiText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,8 +32,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.Locale
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -54,10 +51,9 @@ sealed interface ModelDownload {
  * Modelos de traducción de ML Kit (~30 MB por idioma, descarga bajo demanda). Los idiomas se
  * identifican con el código de ML Kit, que coincide con la subetiqueta primaria BCP-47 ("es", "fr", "zh").
  */
-@Singleton
-class TranslationModelManager @Inject constructor(
+class TranslationModelManager(
     private val preferences: UserPreferencesRepository,
-    @param:ApplicationScope private val scope: CoroutineScope,
+    private val scope: CoroutineScope,
 ) {
     private val models = RemoteModelManager.getInstance()
 

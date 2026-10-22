@@ -9,13 +9,10 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import java.io.IOException
-import javax.inject.Inject
-import javax.inject.Singleton
 
 private val Context.scanStore: DataStore<Preferences> by preferencesDataStore(name = "scan_settings")
 
@@ -42,8 +39,7 @@ data class ScanSettings(
     val foundBannerDismissed: Boolean = false,
 )
 
-@Singleton
-class ScanSettingsRepository @Inject constructor(@param:ApplicationContext private val context: Context) {
+class ScanSettingsRepository(private val context: Context) {
 
     private object Keys {
         val autoStart = booleanPreferencesKey("auto_start")

@@ -28,7 +28,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -38,14 +38,11 @@ import com.linguareader.engine.packs.LibraryInfo
 import com.linguareader.engine.packs.LibraryPackManager
 import com.linguareader.engine.packs.LibraryState
 import com.linguareader.ui.common.Languages
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.util.Locale
-import javax.inject.Inject
 
-@HiltViewModel
-class LibraryViewModel @Inject constructor(
+class LibraryViewModel(
     private val libraries: LibraryPackManager,
 ) : ViewModel() {
     val catalog: StateFlow<Map<String, LibraryInfo>> = libraries.catalog
@@ -62,7 +59,7 @@ private fun summary(info: LibraryInfo) = "${pluralStringResource(R.plurals.commo
 
 /** Ajustes → Bibliotecas: descargar, actualizar o borrar la biblioteca de cada idioma. */
 @Composable
-fun LibrarySection(vm: LibraryViewModel = hiltViewModel()) {
+fun LibrarySection(vm: LibraryViewModel = koinViewModel()) {
     val catalog by vm.catalog.collectAsStateWithLifecycle()
     val states by vm.states.collectAsStateWithLifecycle()
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -143,7 +140,7 @@ private fun LibraryProgress(state: LibraryState) {
  * para que el usuario sepa que los libros están llegando.
  */
 @Composable
-fun LibraryDownloadBanner(vm: LibraryViewModel = hiltViewModel()) {
+fun LibraryDownloadBanner(vm: LibraryViewModel = koinViewModel()) {
     val states by vm.states.collectAsStateWithLifecycle()
     val (lang, state) = states.entries.firstOrNull { (_, s) ->
         s is LibraryState.Downloading || s is LibraryState.Installing || s is LibraryState.Failed

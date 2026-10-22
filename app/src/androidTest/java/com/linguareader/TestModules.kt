@@ -1,29 +1,19 @@
 package com.linguareader
 
-import android.content.Context
 import androidx.room.Room
 import com.linguareader.core.engine.EngineReadiness
+import com.linguareader.core.engine.EngineUnavailableReason
 import com.linguareader.core.engine.SpeechEvent
 import com.linguareader.core.engine.SpeechRequest
 import com.linguareader.core.engine.SpeechResult
 import com.linguareader.core.engine.SpeechSynthesizer
 import com.linguareader.core.engine.StreamingSpeechEngine
 import com.linguareader.core.engine.VoiceInfo
-import com.linguareader.core.engine.EngineUnavailableReason
 import com.linguareader.data.db.AppDatabase
-import com.linguareader.data.db.BookmarkDao
-import com.linguareader.data.db.ProgressDao
-import com.linguareader.data.db.VocabularyDao
-import com.linguareader.di.DatabaseModule
-import com.linguareader.di.SpeechEngineModule
-import dagger.Module
-import dagger.Provides
-import dagger.hilt.android.qualifiers.ApplicationContext
-import dagger.hilt.components.SingletonComponent
-import dagger.hilt.testing.TestInstallIn
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
-import javax.inject.Singleton
+import org.koin.android.ext.koin.androidContext
+import org.koin.dsl.module
 
 /**
  * Motor TTS falso: al encolar la primera frase emite Started + un evento de palabra y se queda
@@ -49,24 +39,8 @@ class FakeSpeechEngine : StreamingSpeechEngine, SpeechSynthesizer {
         SpeechResult.Failure(EngineUnavailableReason.SYNTHESIS_ERROR, "fake")
 }
 
-@Module
-@TestInstallIn(components = [SingletonComponent::class], replaces = [SpeechEngineModule::class])
-object FakeSpeechEngineModule {
-    private val engine = FakeSpeechEngine()
-    @Provides @Singleton fun streaming(): StreamingSpeechEngine = engine
-}
-
-@Module
-@TestInstallIn(components = [SingletonComponent::class], replaces = [DatabaseModule::class])
-object InMemoryDatabaseModule {
-    @Provides @Singleton
-    fun database(@ApplicationContext context: Context): AppDatabase =
-        Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
-
-    @Provides fun progressDao(db: AppDatabase): ProgressDao = db.progressDao()
-    @Provides fun bookmarkDao(db: AppDatabase): BookmarkDao = db.bookmarkDao()
-    @Provides fun vocabularyDao(db: AppDatabase): VocabularyDao = db.vocabularyDao()
-    @Provides fun libraryDao(db: AppDatabase): com.linguareader.data.db.LibraryDao = db.libraryDao()
-    @Provides fun machineTranslationDao(db: AppDatabase): com.linguareader.data.db.MachineTranslationDao = db.machineTranslationDao()
-    @Provides fun deviceDocumentDao(db: AppDatabase): com.linguareader.data.db.DeviceDocumentDao = db.deviceDocumentDao()
+/** Sustituye el motor del sistema por el falso y la base de datos por una en memoria. */
+val testModule = module {
+    single<StreamingSpeechEngine> { FakeSpeechEngine() }
+    single<AppDatabase> { Room.inMemoryDatabaseBuilder(androidContext(), AppDatabase::class.java).build() }
 }

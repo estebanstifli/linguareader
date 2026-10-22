@@ -13,15 +13,12 @@ import com.linguareader.data.db.LibraryDao
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Biblioteca empaquetada + libros importados por el usuario, vistos como un único catálogo, con los datos que el
  * usuario haya corregido (título, autor, idioma, nivel) aplicados encima.
  */
-@Singleton
-class CompositeBookRepository @Inject constructor(
+class CompositeBookRepository(
     private val bundled: AssetBookRepository,
     private val imported: ImportedBookRepository,
     private val library: LibraryDao,

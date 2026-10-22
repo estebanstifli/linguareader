@@ -41,7 +41,6 @@ import com.linguareader.data.content.BookExporter
 import com.linguareader.data.content.ImportedBookRepository
 import com.linguareader.data.library.LibraryRepository
 import com.linguareader.data.library.LibraryState
-import com.linguareader.di.ApplicationScope
 import com.linguareader.engine.audio.CuePlayer
 import com.linguareader.engine.packs.VoiceClip
 import com.linguareader.engine.packs.VoicePackManager
@@ -52,7 +51,6 @@ import com.linguareader.ui.navigation.ReaderRoute
 import com.linguareader.ui.reader.paging.BookBlocks
 import com.linguareader.ui.reader.paging.TextPos
 import java.text.Normalizer
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -74,7 +72,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
-import javax.inject.Inject
 
 /** Resultado de buscar texto en el libro. */
 data class SearchHit(val pos: TextPos, val chapterTitle: String, val before: String, val match: String, val after: String)
@@ -125,8 +122,7 @@ data class ReaderUiState(
     val hasNext: Boolean get() = passageIndex < totalPassages - 1
 }
 
-@HiltViewModel
-class ReaderViewModel @Inject constructor(
+class ReaderViewModel(
     savedStateHandle: SavedStateHandle,
     private val books: BookRepository,
     private val audio: ReaderAudioController,
@@ -145,7 +141,7 @@ class ReaderViewModel @Inject constructor(
     private val importedBooks: ImportedBookRepository,
     private val narrations: NarrationLibrary,
     private val narrationSelector: NarrationSelector,
-    @param:ApplicationScope private val appScope: CoroutineScope,
+    private val appScope: CoroutineScope,
 ) : ViewModel() {
 
     /** Estanterías y papelera (menú «Agregar» del lector). */

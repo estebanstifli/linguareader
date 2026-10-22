@@ -88,7 +88,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.linguareader.R
 import com.linguareader.core.model.CefrLevel
@@ -115,8 +115,8 @@ fun CatalogScreen(
     onOpenDeviceDocuments: () -> Unit = {},
     onViewOriginal: (bookId: String, title: String) -> Unit = { _, _ -> },
     onViewPdf: (uri: String) -> Unit = {},
-    vm: CatalogViewModel = hiltViewModel(),
-    importVm: ImportViewModel = hiltViewModel(),
+    vm: CatalogViewModel = koinViewModel(),
+    importVm: ImportViewModel = koinViewModel(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val covers by vm.covers.collectAsStateWithLifecycle()

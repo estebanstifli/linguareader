@@ -45,7 +45,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -73,8 +73,6 @@ import com.linguareader.engine.tts.SystemTtsProbe
 import com.linguareader.ui.common.Languages
 import com.linguareader.ui.common.voiceDetail
 import com.linguareader.ui.common.voiceTitle
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -89,7 +87,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
-import javax.inject.Inject
 
 sealed interface VoiceTestState {
     data object Idle : VoiceTestState
@@ -109,15 +106,14 @@ sealed interface WordTimingState {
     data object Failed : WordTimingState
 }
 
-@HiltViewModel
-class TtsSettingsViewModel @Inject constructor(
+class TtsSettingsViewModel(
     private val repo: UserPreferencesRepository,
     private val manager: SupertonicModelManager,
     private val engine: SupertonicEngine,
     private val cache: FileAudioCache,
     private val voicePacks: VoicePackManager,
     streaming: StreamingSpeechEngine,
-    @param:ApplicationContext private val context: Context,
+    private val context: Context,
 ) : ViewModel() {
 
     val preferences: StateFlow<UserPreferences> = repo.preferences.stateIn(viewModelScope, SharingStarted.Eagerly, UserPreferences())
@@ -275,7 +271,7 @@ internal fun modelNotInstalled(m: ModelState.NotInstalled): String =
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TtsEngineSection(vm: TtsSettingsViewModel = hiltViewModel()) {
+fun TtsEngineSection(vm: TtsSettingsViewModel = koinViewModel()) {
     val prefs by vm.preferences.collectAsStateWithLifecycle()
     var showLicense by remember { mutableStateOf(false) }
 

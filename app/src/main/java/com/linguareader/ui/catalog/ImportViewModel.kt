@@ -14,7 +14,6 @@ import com.linguareader.engine.translation.TranslationModelManager
 import com.linguareader.core.model.LanguageTags
 import com.linguareader.importer.ImportException
 import com.linguareader.ui.common.UiText
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,7 +21,6 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 sealed interface ImportUiState {
     data object Idle : ImportUiState
@@ -51,8 +49,7 @@ sealed interface ImportUiState {
     data class Done(val bookId: String, val language: String) : ImportUiState
 }
 
-@HiltViewModel
-class ImportViewModel @Inject constructor(
+class ImportViewModel(
     private val service: BookImportService,
     private val preferences: UserPreferencesRepository,
     private val translations: BookTranslationService,

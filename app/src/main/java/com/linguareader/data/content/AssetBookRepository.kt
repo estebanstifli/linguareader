@@ -11,7 +11,6 @@ import com.linguareader.core.model.BookSummary
 import com.linguareader.core.model.CatalogFilter
 import com.linguareader.core.model.MediaRef
 import com.linguareader.core.model.Passage
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -19,16 +18,13 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.IOException
-import javax.inject.Inject
-import javax.inject.Singleton
 
 /**
  * Biblioteca empaquetada en `assets/books/`. Un manifiesto inválido se descarta (con log)
  * sin impedir que el resto del catálogo funcione. Todo es local: no requiere red.
  */
-@Singleton
-class AssetBookRepository @Inject constructor(
-    @param:ApplicationContext private val context: Context,
+class AssetBookRepository(
+    private val context: Context,
 ) : BookRepository {
 
     private val mutex = Mutex()
