@@ -148,10 +148,11 @@ en un iPhone real antes de prometerlo.
     la app funciona en un iPhone real manejado desde el navegador.
   - ⬜ Run automatizado en Device Farm (humo XCTest UI, paridad y spike en iPhone real) con los `.ipa` del artefacto
     `ios-device-farm`, para tener vídeo, logs y el recuento de marcas de palabra de las voces del dispositivo.
-  - 🟡 **Hito 1 (biblioteca completa):** módulo `:domain` con los gestores compartidos (ver ARCHITECTURE.md), descarga
-    real de la biblioteca inglesa verificada en Android con el código común; app iOS con catálogo por apartados,
-    estanterías, colecciones y papelera, Ajustes › Bibliotecas, primera apertura, vocabulario y edición de libro.
-    Pendiente: run verde en CI con el test de primera apertura que descarga la biblioteca, y prueba en Device Farm.
+  - ✅ **Hito 1 (biblioteca completa, 22-10-2026):** módulo `:domain` con los gestores compartidos (ver
+    ARCHITECTURE.md); packs y bibliotecas por URL directa de la release (sin la API de GitHub); app iOS con
+    catálogo por apartados, estanterías, colecciones y papelera, Ajustes › Bibliotecas, primera apertura,
+    vocabulario y edición de libro. CI verde: la primera apertura descarga e instala la biblioteca inglesa en el
+    simulador (38 libros) y Android la descarga con el mismo código. Pendiente: probarlo en Device Farm.
   - ⬜ Síntesis a fichero con marcas (`write(_:toBufferCallback:toMarkerCallback:)`) para el flujo renderizado con caché.
   - ⬜ Binding de `onnxruntime-c`, medir Supertonic y wav2vec2 en iPhone; descargas con `URLSession` en segundo plano;
     `AVAudioEngine` y Now Playing.
