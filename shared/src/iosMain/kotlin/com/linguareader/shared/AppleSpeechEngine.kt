@@ -221,7 +221,24 @@ class AppleSpeechEngine : StreamingSpeechEngine, FileSpeechSynthesizer {
         val durationMs = GapFiller.wavDurationMs(target) ?: 0L
         val rawDurationMs = job.samples.size * 1000L / job.sampleRate
         val marks = job.marks(request.text.length, rawDurationMs).map { (start, end, ms) -> SpokenMark(start, end, (ms - leadMs).coerceAtLeast(0L)) }
-        SynthesisOutcome.Written(durationMs, marks.takeIf { it.isNotEmpty() })
+        val usable = marks.takeIf { it.size >= 2 && plausible(it, durationMs) }
+        NSLog(
+            "AppleSpeechEngine: %d chars → %lld ms, rate %d, %d raw marks, %d usable; first %@",
+            request.text.length, durationMs, job.sampleRate, marks.size, usable?.size ?: 0,
+            marks.take(3).joinToString(" ") { "[${it.start},${it.end})@${it.ms}" },
+        )
+        SynthesisOutcome.Written(durationMs, usable)
+    }
+
+    /**
+     * Marcas creíbles: tiempos crecientes (no todas al principio, como entrega iOS 18 en algunos dispositivos) y
+     * repartidas por el clip. Si no, mejor resaltar por frase que inventar.
+     */
+    private fun plausible(marks: List<SpokenMark>, durationMs: Long): Boolean {
+        if (durationMs <= 0) return false
+        val increasing = marks.zipWithNext().all { (a, b) -> b.ms > a.ms }
+        val spread = marks.last().ms >= durationMs * 3 / 10 && marks.last().ms <= durationMs + 200
+        return increasing && spread
     }
 
     /** Recibe los bloques de audio y las marcas de una síntesis a fichero. */

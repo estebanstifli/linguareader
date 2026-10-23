@@ -41,6 +41,7 @@ final class ReaderModel: ObservableObject {
     @Published private(set) var playback: PlaybackState?
     @Published private(set) var bookmarks: [BookmarkEntity] = []
     @Published private(set) var voices: [VoiceInfo] = []
+    @Published private(set) var engineId = "apple-tts"
     @Published var showOffset: Int?
     @Published var controlsVisible = true
     @Published var wordCard: WordCard?
@@ -82,6 +83,7 @@ final class ReaderModel: ObservableObject {
         watchers = [
             LinguaShared.shared.watchPlayback { [weak self] state in self?.onPlayback(state) },
             LinguaShared.shared.watchBookmarks(bookId: bookId) { [weak self] list in self?.bookmarks = list },
+            LinguaShared.shared.watchSelectedEngine { [weak self] id in self?.engineId = id },
         ]
         do {
             let loaded = try await LinguaShared.shared.books.loadBook(bookId: bookId)
@@ -307,6 +309,18 @@ final class ReaderModel: ObservableObject {
         guard let playback else { return }
         try? await audio.seekToSentence(index: playback.sentenceIndex)
         if !isPlaying { try? await audio.play() }
+    }
+
+    /// Cambia entre lectura en directo y audio en caché; recarga el pasaje en el controlador nuevo.
+    func selectEngine(_ id: String) async {
+        guard id != engineId else { return }
+        let wasPlaying = isPlaying
+        try? await audio.pause()
+        try? await LinguaShared.shared.selectEngine(id: id)
+        if let book, let passage {
+            try? await audio.load(passage: passage, languageTag: book.learningLanguage, voiceId: voiceId, startOffset: playback?.resumeOffset ?? 0)
+            if wasPlaying { try? await audio.play() }
+        }
     }
 
     func setSpeed(_ speed: Float) async {

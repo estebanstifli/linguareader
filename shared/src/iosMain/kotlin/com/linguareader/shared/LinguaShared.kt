@@ -48,6 +48,7 @@ import com.linguareader.core.reader.LazyClipPlayer
 import com.linguareader.core.reader.NarratedReaderAudioController
 import com.linguareader.core.reader.RenderedReaderAudioController
 import com.linguareader.core.reader.SpeechPauses
+import com.linguareader.core.reader.StreamingReaderAudioController
 import com.linguareader.core.reader.SwitchingReaderAudioController
 import com.linguareader.core.reader.TtsEngineRegistry
 import com.linguareader.core.reader.TtsEngineSelector
@@ -168,17 +169,23 @@ object LinguaShared {
                     single<TranslationModels> { NoTranslationModels }
                     single { BookTranslationService(get(), get(), get(), get(), log = { NSLog("BookTranslation: %s", it) }) }
 
-                    // Audio: el mismo flujo que Android. La voz del sistema sintetiza frase a frase a la caché de disco
-                    // (con marcas de palabra) y suena por AVAudioEngine; la narración pregrabada, por AVAudioPlayer.
+                    // Audio. Dos modos con la misma voz de Apple:
+                    // - «Apple voices» (predeterminado): lectura en directo con AVSpeechSynthesizer; los rangos de palabra
+                    //   (`willSpeakRangeOfSpeechString`) son fiables en iPhone real (comprobado en Device Farm).
+                    // - «Apple voices (cached audio)»: el flujo de Android (frase a frase a la caché, AVAudioEngine); sus
+                    //   marcas salen de `write(_:toMarkerCallback:)`, que en los iPhone probados no las da bien. Queda
+                    //   como alternativa hasta aclararlo (ver el log «AppleSpeechEngine» del dispositivo).
                     single { AppleSpeechEngine() } binds arrayOf(StreamingSpeechEngine::class, FileSpeechSynthesizer::class)
+                    single { CachedAppleVoice(get<AppleSpeechEngine>()) }
                     single { EngineSettings() }
                     single<AudioFocusGate> { AppleAudioFocusGate() }
                     single { FileAudioCache(root / "audio-cache", maxBytesProvider = { get<EngineSettings>().audioCacheBytes }, fileSystem = fs) }
-                    single { CachingSpeechSynthesizer(get<FileSpeechSynthesizer>(), get(), log = { NSLog("AudioCache: %s", it) }) }
-                    single { TtsEngineRegistry(listOf(get<StreamingSpeechEngine>())) }
+                    single { CachingSpeechSynthesizer(get<CachedAppleVoice>(), get(), log = { NSLog("AudioCache: %s", it) }) }
+                    single { TtsEngineRegistry(listOf(get<StreamingSpeechEngine>(), get<CachingSpeechSynthesizer>())) }
                     single {
                         val settings = get<EngineSettings>()
                         val main = Dispatchers.Main
+                        val live = StreamingReaderAudioController(get<StreamingSpeechEngine>(), get<AudioFocusGate>(), main) { settings.pauses }
                         val rendered = RenderedReaderAudioController(
                             synthesizer = get<CachingSpeechSynthesizer>(),
                             player = LazyClipPlayer { AudioEngineClipPlayer() },
@@ -189,8 +196,9 @@ object LinguaShared {
                             fileSystem = fs,
                         )
                         val engine = get<StreamingSpeechEngine>()
+                        val cached = get<CachingSpeechSynthesizer>()
                         SwitchingReaderAudioController(
-                            controllers = mapOf(engine.id to rendered),
+                            controllers = mapOf(engine.id to live, cached.id to rendered),
                             engines = get(),
                             defaultEngineId = engine.id,
                             dispatcher = main,
@@ -411,6 +419,12 @@ object LinguaShared {
     @Throws(Throwable::class) suspend fun setSpeechRate(rate: Float) = preferences.update { it.copy(speechRate = rate) }
     @Throws(Throwable::class) suspend fun setSentencePause(ms: Int) = preferences.update { it.copy(sentencePauseMs = ms) }
     @Throws(Throwable::class) suspend fun setParagraphPause(ms: Int) = preferences.update { it.copy(paragraphPauseMs = ms) }
+
+    /** Modo de audio activo: `apple-tts` (lectura en directo) o `apple-tts-cached` (frase a frase a la caché). */
+    fun watchSelectedEngine(block: (String) -> Unit): FlowWatcher = watch(engineSelector.selectedEngineId, block)
+
+    @Throws(Throwable::class)
+    suspend fun selectEngine(id: String) = engineSelector.selectEngine(id)
 
     /** Voz del sistema elegida para un idioma (null = automática). */
     @Throws(Throwable::class)

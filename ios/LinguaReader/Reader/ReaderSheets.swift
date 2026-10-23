@@ -226,6 +226,11 @@ struct ReaderSettingsSheet: View {
                     }
                     Section("Voice") {
                         Toggle("Learning mode with voice", isOn: Binding(get: { p.ttsMode }, set: { v in Task { try? await LinguaShared.shared.setTtsMode(enabled: v) } }))
+                        Picker("Audio mode", selection: Binding(get: { model.engineId }, set: { id in Task { await model.selectEngine(id) } })) {
+                            Text("Live voice").tag("apple-tts")
+                            Text("Cached audio (experimental)").tag("apple-tts-cached")
+                        }
+                        .accessibilityIdentifier("settings.engine")
                         Picker("Translate to", selection: Binding(get: { Languages.primary(p.translationLanguage) }, set: { l in Task { try? await LinguaShared.shared.setTranslationLanguage(tag: l, wifiOnly: p.translationWifiOnly) } })) {
                             ForEach(Languages.translationTargets, id: \.self) { Text(Languages.name($0)).tag($0) }
                         }
