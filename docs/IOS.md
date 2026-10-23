@@ -21,29 +21,30 @@ Estado: **Fase 1 en marcha** (octubre de 2026). La app iOS vive en [`ios/`](../i
 Xcode solo existe en macOS. El repositorio es público, así que los runners `macos-15` de GitHub son gratuitos
 (en un repositorio privado cada minuto de macOS cuenta por 10 sobre los 2000 mensuales del plan gratuito). El
 workflow se lanza en cada push que toque los módulos compartidos, `shared/`, `ios/` o el propio workflow, y también
-a mano (**Actions › iOS › Run workflow**). Tres jobs en paralelo:
+a mano (**Actions › iOS › Run workflow**). Dos jobs en paralelo:
 
-1. **Shared modules on the iOS simulator**: `./gradlew :core:iosSimulatorArm64Test :importer:iosSimulatorArm64Test
-   :engine:alignment:iosSimulatorArm64Test :engine:supertonic:iosSimulatorArm64Test :data:iosSimulatorArm64Test`.
-   Es la misma suite que corre en la JVM, ejecutada con los `actual` de iOS (normalización Unicode, cortes de
-   frase, hashing, charsets…), que hasta ahora solo compilaban.
-2. **Device Farm packages**: `./gradlew :shared:linkDebugFrameworkIosArm64` (solo la rebanada de iPhone) →
+1. **Device Farm packages**: `./gradlew :shared:linkDebugFrameworkIosArm64` (solo la rebanada de iPhone) →
    `xcodebuild -create-xcframework` → `xcodegen generate` → `xcodebuild build-for-testing` para
-   `generic/platform=iOS` **sin firma** (`CODE_SIGNING_ALLOWED=NO`) → `package-ipa.sh`. Deja el artefacto
-   **`ios-device-farm`** con:
+   `generic/platform=iOS` **sin firma** (`CODE_SIGNING_ALLOWED=NO`) → `package-ipa.sh`. Tarda ~4 min y deja el
+   artefacto **`ios-device-farm`** con:
    - `LinguaReader.ipa`: la app (Device Farm: *run type* «iOS app»).
    - `LinguaReaderUITests.ipa`: el runner de XCTest UI (*framework* «XCTest UI»).
    - `LinguaReaderTests.xctest.zip`: el bundle de XCTest (*framework* «XCTest»), con la paridad y el spike de voz.
-3. **SwiftUI app tests in the simulator**: arranca un iPhone 16 del simulador en segundo plano
-   (`ios/scripts/prepare-simulator.sh`) mientras Gradle enlaza la rebanada de simulador, y luego `xcodebuild test`.
-   Deja `ios-simulator-results` (logs, `.xcresult`, informes de cierre) para depurar.
+2. **Shared suites and SwiftUI app tests in the simulator**: una sola invocación de Gradle ejecuta
+   `:core:iosSimulatorArm64Test :importer:… :engine:alignment:… :engine:supertonic:… :data:iosSimulatorArm64Test`
+   (la misma suite que corre en la JVM, con los `actual` de iOS) y enlaza la rebanada de simulador; después
+   `xcodegen generate`, arranque del iPhone 16 del simulador (`ios/scripts/prepare-simulator.sh`, que solo ejecuta
+   `xcodebuild -runFirstLaunch` si Xcode lo pide) y `xcodebuild test`. Deja `shared-ios-test-reports` y
+   `ios-simulator-results` (logs, `.xcresult`, informes de cierre resumidos en el log del job) para depurar.
 
 Por qué está así (medido el 23-10-2026 sobre el job único anterior, 11,5 min): enlazar las dos rebanadas costaba
-2 min y el `.ipa` solo salía al final; `xcodebuild -runFirstLaunch` (80 s) y el arranque del simulador (45 s)
-se pagaban en serie; el índice de código de Xcode se generaba sin que nadie lo usara. Ahora el `.ipa` está en
-~4 min y los tests en ~7. Lo que se cachea entre runs: `~/.gradle` (dependencias y caché de compilación, con
-`gradle/actions/setup-gradle`; solo se escribe desde `main`) y `~/.konan` (toolchain de Kotlin/Native, ~1 GB).
-Lo que no: `DerivedData` de Xcode (apenas ahorra y da problemas al cambiar de Xcode).
+2 min y el `.ipa` solo salía al final; `xcodebuild -runFirstLaunch` (80 s) sobra en estos runners; el índice
+de código de Xcode se generaba sin que nadie lo usara. Arrancar el simulador en segundo plano mientras Gradle
+enlaza **no** funciona: el runner (3 vCPU, 7 GB) se arrastra y el enlace pasa de 22 s a 7 min. Y cada job
+restaura ~1 GB de caché (`~/.gradle` con `gradle/actions/setup-gradle`, solo escrita desde `main`, y `~/.konan`,
+el toolchain de Kotlin/Native): GitHub limita el egreso de caché por cuenta, con tres jobs ya saltó el aviso
+«Egress is over the account limit» y la caché dejó de restaurarse. `DerivedData` de Xcode no se cachea (apenas
+ahorra y da problemas al cambiar de Xcode).
 
 En Windows solo se comprueba que compila: `./gradlew :shared:compileKotlinIosArm64`.
 

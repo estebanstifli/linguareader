@@ -1,10 +1,10 @@
 # App iOS sin Mac: compila el framework compartido y la app SwiftUI en runners macOS de GitHub (gratis en un
 # repositorio público), ejecuta los tests en simulador y deja los .ipa listos para AWS Device Farm (docs/IOS.md).
 #
-# Tres jobs en paralelo para que el .ipa esté cuanto antes:
-#   shared-tests   suites de los módulos compartidos en el simulador (Gradle).
-#   ios-device     framework para iPhone (solo esa rebanada) + build sin firma + paquetes para Device Farm.
-#   ios-simulator  framework para simulador + XCTest y XCTest UI; el simulador arranca mientras Gradle enlaza.
+# Dos jobs en paralelo (cada job restaura ~1 GB de caché y GitHub limita el egreso de caché por cuenta, así que no más):
+#   ios-device     framework para iPhone (solo esa rebanada) + build sin firma + paquetes para Device Farm (~4 min).
+#   ios-simulator  suites de los módulos compartidos y framework para simulador en una sola invocación de Gradle,
+#                  luego XCTest y XCTest UI de la app en el simulador.
 name: iOS
 
 on:
@@ -31,49 +31,10 @@ concurrency:
 env:
   XCODE: /Applications/Xcode_16.4.app
   XCFRAMEWORK: shared/build/XCFrameworks/debug/LinguaShared.xcframework
-  # Sin índice de código (solo lo usa el IDE) ni validación de plugins de paquetes: menos trabajo por compilación.
+  # Sin índice de código (solo lo usa el IDE) y sin firma: menos trabajo por compilación.
   XCODEBUILD_FLAGS: COMPILER_INDEX_STORE_ENABLE=NO CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
 
 jobs:
-  shared-tests:
-    name: Shared modules on the iOS simulator
-    runs-on: macos-15
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
-      - name: Cache Kotlin/Native toolchain
-        uses: actions/cache@v4
-        with:
-          path: ~/.konan
-          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
-      - run: sudo xcode-select -s "$XCODE"
-      - name: Run the shared test suites in the simulator
-        run: >
-          ./gradlew --console=plain
-          :core:iosSimulatorArm64Test
-          :importer:iosSimulatorArm64Test
-          :engine:alignment:iosSimulatorArm64Test
-          :engine:supertonic:iosSimulatorArm64Test
-          :data:iosSimulatorArm64Test
-      - name: Upload test reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: shared-ios-test-reports
-          path: |
-            core/build/reports/tests
-            importer/build/reports/tests
-            engine/*/build/reports/tests
-            data/build/reports/tests
-          if-no-files-found: ignore
-
   ios-device:
     name: Device Farm packages (iPhone build, unsigned)
     runs-on: macos-15
@@ -133,7 +94,7 @@ jobs:
           if-no-files-found: ignore
 
   ios-simulator:
-    name: SwiftUI app tests in the simulator
+    name: Shared suites and SwiftUI app tests in the simulator
     runs-on: macos-15
     timeout-minutes: 60
     steps:
@@ -151,13 +112,27 @@ jobs:
           path: ~/.konan
           key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
       - run: sudo xcode-select -s "$XCODE"
-      - name: Boot an iPhone simulator in the background
-        run: |
-          mkdir -p ios/build
-          nohup bash ios/scripts/prepare-simulator.sh ios/build/sim-udid.txt > ios/build/prepare-simulator.log 2>&1 &
-      - name: Link LinguaShared for the simulator (arm64)
-        run: ./gradlew --console=plain :shared:linkDebugFrameworkIosSimulatorArm64
-      - name: Wrap it as an XCFramework with just that slice
+      - name: Shared test suites in the simulator and LinguaShared for the simulator (arm64)
+        run: >
+          ./gradlew --console=plain
+          :core:iosSimulatorArm64Test
+          :importer:iosSimulatorArm64Test
+          :engine:alignment:iosSimulatorArm64Test
+          :engine:supertonic:iosSimulatorArm64Test
+          :data:iosSimulatorArm64Test
+          :shared:linkDebugFrameworkIosSimulatorArm64
+      - name: Upload shared test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shared-ios-test-reports
+          path: |
+            core/build/reports/tests
+            importer/build/reports/tests
+            engine/*/build/reports/tests
+            data/build/reports/tests
+          if-no-files-found: ignore
+      - name: Wrap the framework as an XCFramework with just that slice
         run: |
           rm -rf "$XCFRAMEWORK"
           xcodebuild -create-xcframework -framework shared/build/bin/iosSimulatorArm64/debugFramework/LinguaShared.framework -output "$XCFRAMEWORK"
@@ -166,14 +141,10 @@ jobs:
       - name: Generate the Xcode project
         working-directory: ios
         run: xcodegen generate
-      - name: Wait for the simulator
+      - name: Boot an iPhone simulator
         run: |
-          for i in $(seq 1 60); do
-            [ -s ios/build/sim-udid.txt ] && break
-            sleep 5
-          done
-          cat ios/build/prepare-simulator.log
-          [ -s ios/build/sim-udid.txt ] || { echo "The simulator did not boot in time"; exit 1; }
+          mkdir -p ios/build
+          bash ios/scripts/prepare-simulator.sh ios/build/sim-udid.txt | tee ios/build/prepare-simulator.log
           echo "SIM_UDID=$(cat ios/build/sim-udid.txt)" >> "$GITHUB_ENV"
       - name: Unit and UI tests in the simulator
         working-directory: ios

@@ -25,7 +25,9 @@ object Diagnostics {
     val text: StateFlow<String> = _text
 
     fun log(tag: String, message: String) {
-        NSLog("%@: %@", tag, message)
+        // Sin argumentos variádicos: Kotlin/Native pasa las cadenas Kotlin tal cual a las funciones variádicas de C
+        // (no las convierte a NSString) y `NSLog("%@", kotlinString)` cierra la app con SIGSEGV.
+        NSLog("$tag: $message".replace("%", "%%"))
         val line = "${formatter.stringFromDate(NSDate())} $tag: $message"
         _text.value = synchronized(lock) {
             lines.addLast(line)
