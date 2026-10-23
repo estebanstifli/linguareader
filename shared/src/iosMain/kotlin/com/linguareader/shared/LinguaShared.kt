@@ -12,7 +12,9 @@ import com.linguareader.core.engine.TranslationEngine
 import com.linguareader.core.model.BookSummary
 import com.linguareader.core.model.CatalogFilter
 import com.linguareader.core.content.MediaResult
+import com.linguareader.core.engine.TranslationRequest
 import com.linguareader.core.engine.TranslationResult
+import com.linguareader.core.engine.TranslationUnit
 import com.linguareader.core.engine.VoiceInfo
 import com.linguareader.core.model.AppPurpose
 import com.linguareader.core.model.Book
@@ -118,6 +120,7 @@ object LinguaShared {
         packsRepo: String = "estebanstifli/linguareader",
         packsTag: String = "packs-v1",
         libraryTag: String = "library-v1",
+        translator: IosTranslator? = null,
     ) {
         if (koinInstance != null) return
         val root = appSupportDir.toPath()
@@ -165,10 +168,18 @@ object LinguaShared {
                         )
                     }
 
-                    // Traducción: por ahora solo lo incluido en el libro (glosario); ML Kit llega en el hito 3.
-                    single<TranslationEngine> { FallbackTranslationEngine(listOf(BundledTranslationEngine(get()))) }
+                    // Traducción: glosario del libro y, detrás, el traductor del dispositivo (ML Kit desde Swift).
+                    if (translator != null) {
+                        single { IosTranslationModels(translator, get(), get()) }
+                        single<TranslationModels> { get<IosTranslationModels>() }
+                        single<TranslationEngine> {
+                            FallbackTranslationEngine(listOf(BundledTranslationEngine(get()), IosTranslationEngine(translator, get(), get())))
+                        }
+                    } else {
+                        single<TranslationEngine> { FallbackTranslationEngine(listOf(BundledTranslationEngine(get()))) }
+                        single<TranslationModels> { NoTranslationModels }
+                    }
                     single { WordLookupService(get()) }
-                    single<TranslationModels> { NoTranslationModels }
                     single { BookTranslationService(get(), get(), get(), get(), log = { Diagnostics.log("BookTranslation", it) }) }
 
                     // Audio. Dos modos con la misma voz de Apple:
@@ -456,6 +467,43 @@ object LinguaShared {
     @Throws(Throwable::class)
     suspend fun synthesizeToFile(text: String, languageTag: String, targetPath: String, speed: Float = 1.0f): SynthesisOutcome =
         koin.get<FileSpeechSynthesizer>().synthesizeTo(SpeechRequest(text, languageTag, null, speed), targetPath.toPath())
+
+    // MARK: Traducción automática (null si la app no pasó un traductor en start()).
+
+    val translationModels: IosTranslationModels? get() = koin.getOrNull()
+
+    /** Idiomas soportados, descargados y descargas en curso; null si no hay traductor. */
+    fun watchTranslationModels(block: (TranslationModelsState) -> Unit): FlowWatcher? = translationModels?.let { watch(it.state, block) }
+
+    /** Código del traductor para una etiqueta BCP-47 ("es-ES" → "es"), o null si no lo traduce. */
+    fun translationCode(languageTag: String): String? = translationModels?.code(languageTag)
+
+    fun downloadTranslationModel(code: String) { translationModels?.download(code) }
+
+    @Throws(Throwable::class)
+    suspend fun deleteTranslationModel(code: String) { translationModels?.delete(code) }
+
+    /** Descarga en segundo plano lo que falte para traducir del idioma del libro al del usuario (onboarding y ajustes). */
+    fun downloadTranslationModelsFor(sourceLanguage: String?, targetLanguage: String) {
+        val models = translationModels ?: return
+        koin.get<CoroutineScope>().launch {
+            listOfNotNull(sourceLanguage, targetLanguage).flatMap { models.missingFor(it, targetLanguage) }.distinct().forEach { models.download(it) }
+        }
+    }
+
+    /** Descarga lo que falte y espera; true si ya se puede traducir de [sourceLanguage] a [targetLanguage]. */
+    @Throws(Throwable::class)
+    suspend fun ensureTranslationModels(sourceLanguage: String, targetLanguage: String): Boolean {
+        val models = translationModels ?: return false
+        return models.missingFor(sourceLanguage, targetLanguage).all { models.awaitDownload(it) }
+    }
+
+    /** Traduce un texto suelto con el mismo motor que el lector (tests y muestras). */
+    @Throws(Throwable::class)
+    suspend fun translateText(text: String, sourceLanguage: String, targetLanguage: String): TranslationResult =
+        koin.get<TranslationEngine>().translate(
+            TranslationRequest(text = text, contextBefore = "", contextAfter = "", sourceLanguage = sourceLanguage, targetLanguage = targetLanguage, unit = TranslationUnit.SENTENCE),
+        )
 
     /** Versión del código compartido que ve la app (para la pantalla «Acerca de» y los logs de Device Farm). */
     const val VERSION = "0.3.0-ios"

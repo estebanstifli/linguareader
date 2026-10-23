@@ -10,6 +10,8 @@ struct SettingsView: View {
                     Label { Text("Libraries"); } icon: { Image(systemName: "books.vertical") }
                 }
                 .accessibilityIdentifier("settings.libraries")
+                NavigationLink { TranslationView() } label: { Label("Translation", systemImage: "character.bubble") }
+                    .accessibilityIdentifier("settings.translation")
             }
             Section("App") {
                 NavigationLink { AboutView() } label: { Label("About", systemImage: "info.circle") }

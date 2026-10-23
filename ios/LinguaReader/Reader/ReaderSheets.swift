@@ -25,6 +25,14 @@ struct WordCardSheet: View {
                         if let pos = (card.lookup.word as? TranslationResultTranslated)?.partOfSpeech { Text(pos).font(.footnote).foregroundStyle(.secondary) }
                     } else {
                         Text(unavailable(card.lookup.word)).foregroundStyle(.secondary)
+                        if (card.lookup.word as? TranslationResultUnavailable)?.reason == TranslationResultReason.modelMissing {
+                            if model.translatorDownloading {
+                                HStack { ProgressView(); Text("Downloading the translator…").font(.footnote).foregroundStyle(.secondary) }
+                            } else {
+                                Button { Task { await model.downloadTranslators(card) } } label: { Label("Download translator (about 30 MB per language)", systemImage: "arrow.down.circle") }
+                                    .accessibilityIdentifier("word.downloadTranslator")
+                            }
+                        }
                     }
                     if let lemma = card.lookup.wordLemma, lemma != card.token.text { Text("Base form: \(lemma)").font(.footnote).foregroundStyle(.secondary) }
                 }
@@ -69,7 +77,7 @@ struct WordCardSheet: View {
     private func unavailable(_ result: TranslationResult) -> String {
         guard let reason = (result as? TranslationResultUnavailable)?.reason else { return "No translation available for this word." }
         if reason == TranslationResultReason.sameLanguage { return "Same language as the book." }
-        if reason == TranslationResultReason.modelMissing { return "The translator for this language is not installed yet (coming in a later update)." }
+        if reason == TranslationResultReason.modelMissing { return "The translator for this language is not downloaded yet." }
         if reason == TranslationResultReason.languagePairUnsupported { return "This language pair is not supported." }
         return "No translation available for this word."
     }
@@ -232,7 +240,10 @@ struct ReaderSettingsSheet: View {
                         }
                         .accessibilityIdentifier("settings.engine")
                         NavigationLink("Audio diagnostics") { DiagnosticsView() }
-                        Picker("Translate to", selection: Binding(get: { Languages.primary(p.translationLanguage) }, set: { l in Task { try? await LinguaShared.shared.setTranslationLanguage(tag: l, wifiOnly: p.translationWifiOnly) } })) {
+                        Picker("Translate to", selection: Binding(get: { Languages.primary(p.translationLanguage) }, set: { l in Task {
+                            try? await LinguaShared.shared.setTranslationLanguage(tag: l, wifiOnly: p.translationWifiOnly)
+                            LinguaShared.shared.downloadTranslationModelsFor(sourceLanguage: model.book?.learningLanguage, targetLanguage: l)
+                        } })) {
                             ForEach(Languages.translationTargets, id: \.self) { Text(Languages.name($0)).tag($0) }
                         }
                         HStack {

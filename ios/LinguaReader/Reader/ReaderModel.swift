@@ -48,6 +48,7 @@ final class ReaderModel: ObservableObject {
     @Published var sentenceCard: SentenceCard?
     @Published var showFullCard = false
     @Published var error: String?
+    @Published var translatorDownloading = false
 
     let bookId: String
     private var watchers: [FlowWatcher] = []
@@ -387,6 +388,18 @@ final class ReaderModel: ObservableObject {
             sourceLanguage: book.learningLanguage, targetLanguage: translationLanguage, context: card.lookup.sentence.text
         )
         wordCard?.saved = true
+    }
+
+    /// Descarga los modelos que faltan para el libro y el idioma del usuario y vuelve a consultar la palabra de la ficha.
+    func downloadTranslators(_ card: WordCard) async {
+        guard let book, card.passageIndex < book.passages.count else { return }
+        translatorDownloading = true
+        defer { translatorDownloading = false }
+        let ready = (try? await LinguaShared.shared.ensureTranslationModels(sourceLanguage: book.learningLanguage, targetLanguage: translationLanguage))?.boolValue ?? false
+        guard ready else { error = "The translator could not be downloaded. Check the connection (or the Wi-Fi only setting) and try again."; return }
+        guard wordCard?.token.id == card.token.id,
+              let lookup = try? await LinguaShared.shared.lookupWord(book: book, passage: book.passages[card.passageIndex], token: card.token, targetLanguage: translationLanguage) else { return }
+        wordCard = WordCard(passageIndex: card.passageIndex, token: card.token, lookup: lookup, saved: card.saved, pausedByTap: card.pausedByTap)
     }
 
     func resumeAfterCard() async {

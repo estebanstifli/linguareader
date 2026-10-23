@@ -13,7 +13,11 @@ final class AppStore: ObservableObject {
     @Published var libraryCatalog: [String: LibraryInfo] = [:]
     @Published var libraryStates: [String: LibraryPackState] = [:]
     @Published var vocabulary: [VocabularyEntity] = []
+    @Published var translationModels: TranslationModelsState?
     @Published var status: String = ""
+
+    /// Traductor ML Kit; vive lo que la app porque ML Kit avisa de las descargas por notificaciones.
+    private let translator = MlKitTranslator()
 
     private var watchers: [FlowWatcher] = []
     private var covers: [String: UIImage] = [:]
@@ -26,7 +30,8 @@ final class AppStore: ObservableObject {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("LinguaReader", isDirectory: true)
         let catalog = Bundle.main.url(forResource: "libraries", withExtension: "json").flatMap { try? String(contentsOf: $0, encoding: .utf8) }
         LinguaShared.shared.start(appSupportDir: support.path, cacheDir: caches.path, librariesCatalogJson: catalog,
-                                  packsRepo: "estebanstifli/linguareader", packsTag: "packs-v1", libraryTag: "library-v1")
+                                  packsRepo: "estebanstifli/linguareader", packsTag: "packs-v1", libraryTag: "library-v1",
+                                  translator: translator)
         let shared = LinguaShared.shared
         watchers = [
             shared.watchCatalog { [weak self] list in self?.books = list },
@@ -37,6 +42,7 @@ final class AppStore: ObservableObject {
             shared.watchLibraryStates { [weak self] s in self?.libraryStates = s },
             shared.watchVocabulary { [weak self] v in self?.vocabulary = v },
         ]
+        if let models = shared.watchTranslationModels({ [weak self] s in self?.translationModels = s }) { watchers.append(models) }
         Task {
             if arguments.contains("-resetOnboarding") { try? await shared.resetOnboarding() }
             if arguments.contains("-skipOnboarding") { try? await shared.skipOnboarding() }

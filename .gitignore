@@ -40,3 +40,9 @@ test_mp3/
 /ios/LinguaReader.xcodeproj/
 /ios/LinguaReader/Info.plist
 /ios/build/
+
+# iOS: CocoaPods (se instalan en CI tras XcodeGen) y proyecto generado
+ios/Pods/
+ios/*.xcworkspace
+ios/*.xcodeproj
+ios/Podfile.lock

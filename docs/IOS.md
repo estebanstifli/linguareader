@@ -13,6 +13,8 @@ Estado: **Fase 1 en marcha** (octubre de 2026). La app iOS vive en [`ios/`](../i
 | `ios/LinguaReader/` | App mínima: catálogo, lector con resaltado por palabra y controles; importa `Resources/cinderella.epub` en la primera apertura con el importador compartido. |
 | `ios/LinguaReaderTests/` | Paridad con la JVM (tokenizador, clave de caché, frases) y el spike de marcas de palabra de las voces de Apple. |
 | `ios/LinguaReaderUITests/` | Humo: arranca, abre el libro de muestra, empieza a leer, pasa de página. |
+| `ios/Podfile` | Dependencias por CocoaPods: `GoogleMLKit/Translate` (traducción en el dispositivo, mismos modelos que Android; ML Kit no se distribuye de otra forma). `pod install` corre en CI tras XcodeGen; se compila el `.xcworkspace`. |
+| `ios/LinguaReader/Translation/` | `MlKitTranslator`: adaptador Swift del puente `IosTranslator` (callbacks) que el código compartido envuelve en `IosTranslationEngine` (caché en Room, `MODEL_MISSING` si falta modelo) e `IosTranslationModels` (descarga, «solo Wi-Fi», borrado). Ajustes › Translation gestiona los modelos; la ficha de palabra ofrece descargar el que falte. |
 | `ios/scripts/package-ipa.sh` | Empaqueta la salida de `build-for-testing` en los `.ipa`/`.zip` que pide Device Farm. |
 | `.github/workflows/ios.yml` | Lo que haría un Mac: tests de los módulos compartidos en simulador, XCFramework, proyecto Xcode, tests de la app en simulador, build para dispositivo y artefactos para Device Farm. |
 

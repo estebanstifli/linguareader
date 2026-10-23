@@ -182,7 +182,10 @@ private struct NativeLanguageStep: View {
             if sameAsLearning { Text("Choose a language different from the one you are learning.").foregroundStyle(.red).font(.footnote) }
             Toggle("Download translators only over Wi-Fi", isOn: $wifiOnly)
             Button {
-                Task { try? await LinguaShared.shared.setTranslationLanguage(tag: initial, wifiOnly: wifiOnly) }
+                Task {
+                    try? await LinguaShared.shared.setTranslationLanguage(tag: initial, wifiOnly: wifiOnly)
+                    LinguaShared.shared.downloadTranslationModelsFor(sourceLanguage: learning, targetLanguage: initial)
+                }
             } label: { Text("Continue").frame(maxWidth: .infinity) }
                 .buttonStyle(.borderedProminent).controlSize(.large).disabled(sameAsLearning)
                 .accessibilityIdentifier("onboarding.continue")
