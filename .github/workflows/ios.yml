@@ -114,6 +114,36 @@ jobs:
           CODE_SIGNING_ALLOWED=NO
           | tee build/xcodebuild-simulator.log | grep -E "Test Case|error:|warning: unre|\*\* TEST|Executed" || true;
           grep -q "\*\* TEST SUCCEEDED \*\*" build/xcodebuild-simulator.log
+      - name: Collect crash reports and the app log
+        if: always()
+        run: |
+          mkdir -p ios/build/diagnostics
+          cp ~/Library/Logs/DiagnosticReports/LinguaReader* ios/build/diagnostics/ 2>/dev/null || true
+          xcrun simctl spawn "$SIM_UDID" log show --last 20m --predicate 'process == "LinguaReader"' --style compact > ios/build/diagnostics/app.log 2>/dev/null || true
+          for f in ios/build/diagnostics/*.ips; do
+            [ -f "$f" ] || continue
+            echo "=== $f"
+            python3 - "$f" <<'PY'
+          import json, sys
+          lines = open(sys.argv[1], encoding="utf-8", errors="ignore").read().split("
+", 1)
+          try:
+              body = json.loads(lines[1])
+          except Exception:
+              print(lines[1][:3000]); sys.exit()
+          print("exception:", body.get("exception"))
+          print("termination:", body.get("termination"))
+          print("asi:", body.get("asi"))
+          faulting = body.get("faultingThread", 0)
+          threads = body.get("threads", [])
+          if faulting < len(threads):
+              images = body.get("usedImages", [])
+              for frame in threads[faulting].get("frames", [])[:40]:
+                  img = images[frame.get("imageIndex", 0)].get("name") if frame.get("imageIndex", 0) < len(images) else "?"
+                  print(f"  {img}: {frame.get('symbol', '?')} +{frame.get('symbolLocation', 0)}")
+          PY
+          done
+          grep -E "Uncaught Kotlin|kotlin\.|Fatal error|Swift runtime failure" ios/build/diagnostics/app.log | head -40 || true
       - name: Build for a real device (unsigned; Device Farm re-signs)
         working-directory: ios
         run: >
@@ -143,4 +173,5 @@ jobs:
             ios/build/xcodebuild-simulator.log
             ios/build/xcodebuild-device.log
             ios/build/simulator/LinguaReader.xcresult
+            ios/build/diagnostics
           if-no-files-found: ignore

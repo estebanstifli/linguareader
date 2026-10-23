@@ -55,6 +55,7 @@ struct ReaderView: View {
             pageIndex: $model.pageIndex,
             highlight: model.highlight,
             showOffset: model.showOffset,
+            onShowOffsetApplied: { model.showOffset = nil },
             onPages: { offsets in model.pagesResolved(offsets) },
             onTap: { offset in Task { await model.tapped(chapterOffset: offset) } }
         )
@@ -109,8 +110,11 @@ struct ReaderView: View {
             }
             HStack {
                 Text("\(model.pageIndex + 1) / \(model.pageCount)").font(.caption).monospacedDigit()
-                Slider(value: Binding(get: { Double(model.pageIndex) }, set: { model.pageIndex = Int($0.rounded()) }), in: 0...Double(max(0, model.pageCount - 1)), step: 1)
-                    .disabled(model.pageCount <= 1)
+                if model.pageCount > 1 {
+                    Slider(value: Binding(get: { Double(min(model.pageIndex, model.pageCount - 1)) }, set: { model.pageIndex = Int($0.rounded()) }), in: 0...Double(model.pageCount - 1), step: 1)
+                } else {
+                    Spacer()
+                }
                 Button { Task { await model.toggleBookmark() } } label: {
                     Image(systemName: model.currentPageBookmark != nil ? "bookmark.fill" : "bookmark")
                 }

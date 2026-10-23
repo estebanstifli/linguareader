@@ -19,6 +19,7 @@ struct ChapterPageView: UIViewRepresentable {
     let highlight: PageHighlight
     /// Offset del capítulo que debe quedar visible (tras un salto o al seguir a la voz); nil = ninguno.
     let showOffset: Int?
+    let onShowOffsetApplied: () -> Void
     let onPages: ([Int]) -> Void
     let onTap: (Int?) -> Void
 
@@ -34,8 +35,11 @@ struct ChapterPageView: UIViewRepresentable {
         view.backgroundColor = theme.background
         if let layout { view.present(layout.attributed, key: layout.key) }
         view.apply(highlight: highlight, theme: theme)
-        if let showOffset, let page = view.page(forOffset: showOffset), page != pageIndex {
-            DispatchQueue.main.async { pageIndex = page }
+        if let showOffset, let page = view.page(forOffset: showOffset) {
+            DispatchQueue.main.async {
+                if page != pageIndex { pageIndex = page }
+                onShowOffsetApplied()
+            }
         }
         if view.pageIndex != pageIndex {
             view.pageIndex = pageIndex
