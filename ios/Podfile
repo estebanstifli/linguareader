@@ -13,6 +13,7 @@ post_install do |installer|
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '17.0'
       config.build_settings['COMPILER_INDEX_STORE_ENABLE'] = 'NO'
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'x86_64'
     end
   end
 end
