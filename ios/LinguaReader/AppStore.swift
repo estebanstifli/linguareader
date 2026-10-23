@@ -42,7 +42,7 @@ final class AppStore: ObservableObject {
             shared.watchLibraryStates { [weak self] s in self?.libraryStates = s },
             shared.watchVocabulary { [weak self] v in self?.vocabulary = v },
         ]
-        if let models = shared.watchTranslationModels({ [weak self] s in self?.translationModels = s }) { watchers.append(models) }
+        if let models = shared.watchTranslationModels(block: { [weak self] s in self?.translationModels = s }) { watchers.append(models) }
         Task {
             if arguments.contains("-resetOnboarding") { try? await shared.resetOnboarding() }
             if arguments.contains("-skipOnboarding") { try? await shared.skipOnboarding() }
