@@ -138,7 +138,7 @@ jobs:
           xcodebuild -create-xcframework -framework shared/build/bin/iosSimulatorArm64/debugFramework/LinguaShared.framework -output "$XCFRAMEWORK"
       - name: Install XcodeGen
         run: brew install xcodegen
-      - name: Generate the Xcode project (without pods: ML Kit has no arm64 simulator slice)
+      - name: "Generate the Xcode project (without pods: ML Kit has no arm64 simulator slice)"
         working-directory: ios
         run: xcodegen generate
       - name: Boot an iPhone simulator
