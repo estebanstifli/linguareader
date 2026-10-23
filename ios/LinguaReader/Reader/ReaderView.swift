@@ -169,6 +169,7 @@ struct PlayerBar: View {
         guard let p = model.playback else { return "" }
         if p.readiness is EngineReadinessUnavailable { return "voice not available" }
         var parts = [p.status.name.lowercased()]
+        if p.status == .error { parts.append("audio failed, see Diagnostics in reading settings") }
         if p.buffering { parts.append("generating audio…") }
         switch p.granularity {
         case .word: parts.append("word sync")

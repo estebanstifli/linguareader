@@ -231,6 +231,7 @@ struct ReaderSettingsSheet: View {
                             Text("Cached audio (experimental)").tag("apple-tts-cached")
                         }
                         .accessibilityIdentifier("settings.engine")
+                        NavigationLink("Audio diagnostics") { DiagnosticsView() }
                         Picker("Translate to", selection: Binding(get: { Languages.primary(p.translationLanguage) }, set: { l in Task { try? await LinguaShared.shared.setTranslationLanguage(tag: l, wifiOnly: p.translationWifiOnly) } })) {
                             ForEach(Languages.translationTargets, id: \.self) { Text(Languages.name($0)).tag($0) }
                         }

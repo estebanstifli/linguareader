@@ -85,7 +85,9 @@ import org.koin.core.context.startKoin
 import org.koin.dsl.binds
 import org.koin.dsl.module
 import platform.Foundation.NSLocale
-import platform.Foundation.NSLog
+import platform.Foundation.NSProcessInfo
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import platform.Foundation.preferredLanguages
 
 /**
@@ -149,9 +151,9 @@ object LinguaShared {
 
                     // Libros: importados e instalados desde bibliotecas (no hay biblioteca empaquetada en iOS).
                     single { ExtractorRegistry.default() }
-                    single { ImportedBookRepository(fs, root / ImportedBookRepository.DIR, log = { NSLog("ImportedBooks: %s", it) }) }
+                    single { ImportedBookRepository(fs, root / ImportedBookRepository.DIR, log = { Diagnostics.log("ImportedBooks", it) }) }
                     single { CompositeBookRepository(EmptyBookRepository, get(), get()) } binds arrayOf(BookRepository::class)
-                    single { NarrationLibrary(fs, root, get(), log = { NSLog("Narration: %s", it) }) }
+                    single { NarrationLibrary(fs, root, get(), log = { Diagnostics.log("Narration", it) }) }
                     single { LocalBookImporter(fs, cache / "import", get(), get(), get()) }
                     single { LibraryRepository(get(), get(), BookDeleter { get<LocalBookImporter>().delete(it) }) }
                     single { GithubPackSource(packsRepo, packsTag) }
@@ -159,7 +161,7 @@ object LinguaShared {
                         LibraryPackManager(
                             fs, root, cache, get(), get(), get(), libraryTag,
                             bundledCatalogJson = { librariesCatalogJson },
-                            log = { NSLog("LibraryPacks: %s", it) },
+                            log = { Diagnostics.log("LibraryPacks", it) },
                         )
                     }
 
@@ -167,7 +169,7 @@ object LinguaShared {
                     single<TranslationEngine> { FallbackTranslationEngine(listOf(BundledTranslationEngine(get()))) }
                     single { WordLookupService(get()) }
                     single<TranslationModels> { NoTranslationModels }
-                    single { BookTranslationService(get(), get(), get(), get(), log = { NSLog("BookTranslation: %s", it) }) }
+                    single { BookTranslationService(get(), get(), get(), get(), log = { Diagnostics.log("BookTranslation", it) }) }
 
                     // Audio. Dos modos con la misma voz de Apple:
                     // - «Apple voices» (predeterminado): lectura en directo con AVSpeechSynthesizer; los rangos de palabra
@@ -180,7 +182,7 @@ object LinguaShared {
                     single { EngineSettings() }
                     single<AudioFocusGate> { AppleAudioFocusGate() }
                     single { FileAudioCache(root / "audio-cache", maxBytesProvider = { get<EngineSettings>().audioCacheBytes }, fileSystem = fs) }
-                    single { CachingSpeechSynthesizer(get<CachedAppleVoice>(), get(), log = { NSLog("AudioCache: %s", it) }) }
+                    single { CachingSpeechSynthesizer(get<CachedAppleVoice>(), get(), log = { Diagnostics.log("AudioCache", it) }) }
                     single { TtsEngineRegistry(listOf(get<StreamingSpeechEngine>(), get<CachingSpeechSynthesizer>())) }
                     single {
                         val settings = get<EngineSettings>()
@@ -212,6 +214,14 @@ object LinguaShared {
                 },
             )
         }.koin
+        Diagnostics.log("App", "shared $VERSION on iOS ${NSProcessInfo.processInfo.operatingSystemVersionString}")
+        // Cambios de estado de la reproducción (sin la posición), para saber en el iPhone por qué no suena o no marca.
+        koin.get<CoroutineScope>().launch {
+            koin.get<ReaderAudioController>().playbackState
+                .map { "${it.status}, ${it.granularity}, readiness ${it.readiness}, error ${it.errorCode}, buffering ${it.buffering}, word events ${it.wordEventsObserved}" }
+                .distinctUntilChanged()
+                .collect { Diagnostics.log("Playback", it) }
+        }
         // Preferencias de motor que leen los hilos de audio (pausas, tono, caché, continuación), como TtsEngineCoordinator en Android.
         val settings = koin.get<EngineSettings>()
         koin.get<CoroutineScope>().launch {
@@ -424,7 +434,16 @@ object LinguaShared {
     fun watchSelectedEngine(block: (String) -> Unit): FlowWatcher = watch(engineSelector.selectedEngineId, block)
 
     @Throws(Throwable::class)
-    suspend fun selectEngine(id: String) = engineSelector.selectEngine(id)
+    suspend fun selectEngine(id: String) {
+        Diagnostics.log("Audio", "engine → $id")
+        engineSelector.selectEngine(id)
+    }
+
+    /** Registro de diagnóstico en pantalla (Ajustes › Acerca de › Diagnostics): texto completo con cada cambio. */
+    fun watchDiagnostics(block: (String) -> Unit): FlowWatcher = watch(Diagnostics.text, block)
+    fun clearDiagnostics() = Diagnostics.clear()
+    fun diagnosticsText(): String = Diagnostics.text.value
+    fun log(tag: String, message: String) = Diagnostics.log(tag, message)
 
     /** Voz del sistema elegida para un idioma (null = automática). */
     @Throws(Throwable::class)

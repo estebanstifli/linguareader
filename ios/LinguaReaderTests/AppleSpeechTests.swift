@@ -23,15 +23,17 @@ final class AppleSpeechTests: XCTestCase {
             throw XCTSkip("Synthesis to file not available on this host: \(outcome)")
         }
         let marks = written.marks ?? []
-        NSLog("Apple TTS file: %lld ms, %d marks, first: %@", written.durationMs, marks.count,
-              marks.prefix(4).map { "[\($0.start),\($0.end))@\($0.ms)ms" }.joined(separator: " "))
+        let summary = "\(written.durationMs) ms, \(marks.count) usable marks, first: "
+            + marks.prefix(4).map { "[\($0.start),\($0.end))@\($0.ms)ms" }.joined(separator: " ")
+            + " — diagnostics: " + LinguaShared.shared.diagnosticsText().split(separator: "\n").suffix(4).joined(separator: " | ")
+        NSLog("Apple TTS file: %@", summary)
         XCTAssertTrue(FileManager.default.fileExists(atPath: path))
-        XCTAssertGreaterThan(written.durationMs, 1000)
+        XCTAssertGreaterThan(written.durationMs, 1000, summary)
         #if targetEnvironment(simulator)
         if marks.isEmpty { throw XCTSkip("The simulator's compact voice reports no word markers when writing to a file; the reader highlights by sentence") }
         #endif
-        XCTAssertGreaterThan(marks.count, 5, "iOS voices should report one mark per word")
-        XCTAssertTrue(marks.allSatisfy { $0.ms >= 0 && $0.ms <= written.durationMs + 200 }, "marks must fall inside the clip")
+        XCTAssertGreaterThan(marks.count, 5, "iOS voices should report one usable mark per word — \(summary)")
+        XCTAssertTrue(marks.allSatisfy { $0.ms >= 0 && $0.ms <= written.durationMs + 200 }, "marks must fall inside the clip — \(summary)")
     }
 
     func testWordRangesArriveWhileSpeaking() async throws {

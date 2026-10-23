@@ -94,6 +94,9 @@ struct AboutView: View {
                 Text("Graded readers: adapted public-domain texts, see each book's information. Shared engine: Kotlin Multiplatform, Okio, Room, Koin (Apache-2.0).")
                     .font(.footnote)
             }
+            Section("Troubleshooting") {
+                NavigationLink { DiagnosticsView() } label: { Label("Diagnostics", systemImage: "stethoscope") }
+            }
         }
         .navigationTitle("About")
     }

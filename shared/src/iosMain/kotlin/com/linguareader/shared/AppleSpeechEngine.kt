@@ -52,7 +52,6 @@ import platform.AVFAudio.AVSpeechUtteranceDefaultSpeechRate
 import platform.AVFAudio.AVSpeechUtteranceMaximumSpeechRate
 import platform.AVFAudio.AVSpeechUtteranceMinimumSpeechRate
 import platform.AVFAudio.setActive
-import platform.Foundation.NSLog
 import platform.Foundation.NSProcessInfo
 import platform.Foundation.NSRange
 import platform.darwin.NSObject
@@ -212,8 +211,13 @@ class AppleSpeechEngine : StreamingSpeechEngine, FileSpeechSynthesizer {
                 toMarkerCallback = { markers: List<*>? -> job.onMarkers(markers) },
             )
         }
-        val ok = withTimeoutOrNull(SYNTH_TIMEOUT_MS) { job.done.await() } ?: false
-        if (!ok || job.samples.isEmpty() || job.sampleRate <= 0) {
+        val ok = withTimeoutOrNull(SYNTH_TIMEOUT_MS) { job.done.await() }
+        if (ok != true || job.samples.isEmpty() || job.sampleRate <= 0) {
+            Diagnostics.log(
+                TAG,
+                "write failed: ${if (ok == null) "timeout after ${SYNTH_TIMEOUT_MS / 1000} s" else "done=$ok"}, " +
+                    "${job.samples.size} samples at ${job.sampleRate} Hz, ${job.bufferCount} buffers, voice ${chosen.identifier}",
+            )
             return SynthesisOutcome.Failed(SpeechResult.Failure(EngineUnavailableReason.SYNTHESIS_ERROR, "Fallo al sintetizar"))
         }
         WavWriter.write(target, job.samples.toFloatArray(), job.sampleRate)
@@ -222,10 +226,12 @@ class AppleSpeechEngine : StreamingSpeechEngine, FileSpeechSynthesizer {
         val rawDurationMs = job.samples.size * 1000L / job.sampleRate
         val marks = job.marks(request.text.length, rawDurationMs).map { (start, end, ms) -> SpokenMark(start, end, (ms - leadMs).coerceAtLeast(0L)) }
         val usable = marks.takeIf { it.size >= 2 && plausible(it, durationMs) }
-        NSLog(
-            "AppleSpeechEngine: %d chars → %lld ms, rate %d, %d raw marks, %d usable; first %@",
-            request.text.length, durationMs, job.sampleRate, marks.size, usable?.size ?: 0,
-            marks.take(3).joinToString(" ") { "[${it.start},${it.end})@${it.ms}" },
+        Diagnostics.log(
+            TAG,
+            "${request.text.length} chars → $durationMs ms (lead $leadMs ms), ${job.sampleRate} Hz, ${job.bufferCount} buffers, " +
+                "${job.rawMarkCount} raw marks (${job.wordMarkCount} words), ${marks.size} in range, ${usable?.size ?: 0} usable; " +
+                "first " + marks.take(4).joinToString(" ") { "[${it.start},${it.end})@${it.ms}" } +
+                " last " + (marks.lastOrNull()?.let { "[${it.start},${it.end})@${it.ms}" } ?: "-"),
         )
         SynthesisOutcome.Written(durationMs, usable)
     }
@@ -236,7 +242,7 @@ class AppleSpeechEngine : StreamingSpeechEngine, FileSpeechSynthesizer {
      */
     private fun plausible(marks: List<SpokenMark>, durationMs: Long): Boolean {
         if (durationMs <= 0) return false
-        val increasing = marks.zipWithNext().all { (a, b) -> b.ms > a.ms }
+        val increasing = marks.zipWithNext().all { (a, b) -> b.ms >= a.ms }
         val spread = marks.last().ms >= durationMs * 3 / 10 && marks.last().ms <= durationMs + 200
         return increasing && spread
     }
@@ -247,6 +253,9 @@ class AppleSpeechEngine : StreamingSpeechEngine, FileSpeechSynthesizer {
         val samples = ArrayList<Float>(1 shl 16)
         var sampleRate = 0
         var bytesPerFrame = 4
+        var bufferCount = 0
+        var rawMarkCount = 0
+        var wordMarkCount = 0
         private val rawMarks = ArrayList<Triple<Int, Int, Long>>() // (inicio, fin, byteSampleOffset)
 
         fun onBuffer(buffer: AVAudioBuffer?) {
@@ -255,13 +264,19 @@ class AppleSpeechEngine : StreamingSpeechEngine, FileSpeechSynthesizer {
             val frames = pcm.frameLength.toInt()
             if (frames == 0) { done.complete(samples.isNotEmpty()); return }
             val format = pcm.format
-            if (sampleRate == 0) {
-                sampleRate = format.sampleRate.toInt()
-                bytesPerFrame = format.streamDescription?.pointed?.mBytesPerFrame?.toInt()?.takeIf { it > 0 } ?: 4
-            }
             val channels = format.channelCount.toInt().coerceAtLeast(1)
             val floats = pcm.floatChannelData
             val shorts = pcm.int16ChannelData
+            if (sampleRate == 0) {
+                sampleRate = format.sampleRate.toInt()
+                bytesPerFrame = format.streamDescription?.pointed?.mBytesPerFrame?.toInt()?.takeIf { it > 0 } ?: 4
+                Diagnostics.log(
+                    TAG,
+                    "first buffer: $frames frames, ${format.sampleRate.toInt()} Hz, $channels ch, $bytesPerFrame B/frame, " +
+                        (if (floats != null) "float32" else if (shorts != null) "int16" else "unsupported layout"),
+                )
+            }
+            bufferCount++
             when {
                 floats != null -> {
                     val channel = floats[0]!!
@@ -278,9 +293,10 @@ class AppleSpeechEngine : StreamingSpeechEngine, FileSpeechSynthesizer {
 
         fun onMarkers(markers: List<*>?) {
             val all = markers?.filterIsInstance<AVSpeechSynthesisMarker>().orEmpty()
-            if (rawMarks.isEmpty()) NSLog("AppleSpeechEngine: %d markers (%d items), first mark=%@", all.size, markers?.size ?: 0, all.firstOrNull()?.mark?.toString() ?: "-")
+            rawMarkCount += all.size
             all.forEach { m ->
                 if (m.mark != AVSpeechSynthesisMarkerMark.AVSpeechSynthesisMarkerMarkWord) return@forEach
+                wordMarkCount++
                 val (start, end) = m.textRange.useContents { location.toInt() to (location + length).toInt() }
                 rawMarks.add(Triple(start, end, m.byteSampleOffset.toLong()))
             }
@@ -331,6 +347,7 @@ class AppleSpeechEngine : StreamingSpeechEngine, FileSpeechSynthesizer {
     }
 
     companion object {
+        private const val TAG = "AppleSpeechEngine"
         private const val SYNTH_TIMEOUT_MS = 60_000L
         private const val PITCH_PARAM = "pitch"
 

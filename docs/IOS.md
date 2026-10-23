@@ -21,21 +21,29 @@ Estado: **Fase 1 en marcha** (octubre de 2026). La app iOS vive en [`ios/`](../i
 Xcode solo existe en macOS. El repositorio es público, así que los runners `macos-15` de GitHub son gratuitos
 (en un repositorio privado cada minuto de macOS cuenta por 10 sobre los 2000 mensuales del plan gratuito). El
 workflow se lanza en cada push que toque los módulos compartidos, `shared/`, `ios/` o el propio workflow, y también
-a mano (**Actions › iOS › Run workflow**). Dos jobs:
+a mano (**Actions › iOS › Run workflow**). Tres jobs en paralelo:
 
 1. **Shared modules on the iOS simulator**: `./gradlew :core:iosSimulatorArm64Test :importer:iosSimulatorArm64Test
    :engine:alignment:iosSimulatorArm64Test :engine:supertonic:iosSimulatorArm64Test :data:iosSimulatorArm64Test`.
    Es la misma suite que corre en la JVM, ejecutada con los `actual` de iOS (normalización Unicode, cortes de
    frase, hashing, charsets…), que hasta ahora solo compilaban.
-2. **SwiftUI app**: `./gradlew :shared:assembleLinguaSharedDebugXCFramework` → `xcodegen generate` →
-   `xcodebuild test` en el simulador (iPhone 16, iOS 18.5) → `xcodebuild build-for-testing` para
+2. **Device Farm packages**: `./gradlew :shared:linkDebugFrameworkIosArm64` (solo la rebanada de iPhone) →
+   `xcodebuild -create-xcframework` → `xcodegen generate` → `xcodebuild build-for-testing` para
    `generic/platform=iOS` **sin firma** (`CODE_SIGNING_ALLOWED=NO`) → `package-ipa.sh`. Deja el artefacto
    **`ios-device-farm`** con:
    - `LinguaReader.ipa`: la app (Device Farm: *run type* «iOS app»).
    - `LinguaReaderUITests.ipa`: el runner de XCTest UI (*framework* «XCTest UI»).
    - `LinguaReaderTests.xctest.zip`: el bundle de XCTest (*framework* «XCTest»), con la paridad y el spike de voz.
+3. **SwiftUI app tests in the simulator**: arranca un iPhone 16 del simulador en segundo plano
+   (`ios/scripts/prepare-simulator.sh`) mientras Gradle enlaza la rebanada de simulador, y luego `xcodebuild test`.
+   Deja `ios-simulator-results` (logs, `.xcresult`, informes de cierre) para depurar.
 
-   También deja `ios-simulator-results` (logs y `.xcresult`) para depurar.
+Por qué está así (medido el 23-10-2026 sobre el job único anterior, 11,5 min): enlazar las dos rebanadas costaba
+2 min y el `.ipa` solo salía al final; `xcodebuild -runFirstLaunch` (80 s) y el arranque del simulador (45 s)
+se pagaban en serie; el índice de código de Xcode se generaba sin que nadie lo usara. Ahora el `.ipa` está en
+~4 min y los tests en ~7. Lo que se cachea entre runs: `~/.gradle` (dependencias y caché de compilación, con
+`gradle/actions/setup-gradle`; solo se escribe desde `main`) y `~/.konan` (toolchain de Kotlin/Native, ~1 GB).
+Lo que no: `DerivedData` de Xcode (apenas ahorra y da problemas al cambiar de Xcode).
 
 En Windows solo se comprueba que compila: `./gradlew :shared:compileKotlinIosArm64`.
 
@@ -71,6 +79,15 @@ de su parque. Lo que hay que saber:
 Device Farm → *Remote access* → **Start a new session** → elige un iPhone → *Install application* y sube
 `LinguaReader.ipa`. Verás y manejarás el iPhone desde el navegador (toques, giro, teclado); la sesión captura vídeo
 y logs. Es la forma de «probarlo todo» sin tener un iPhone ni un Mac.
+
+**Diagnóstico en pantalla.** Lo que en Android va a Logcat, en iOS se ve dentro de la app: **Ajustes › Acerca de ›
+Diagnostics** (también «Audio diagnostics» en los ajustes de lectura). Lista cada síntesis de la voz de Apple
+(duración, formato de los búferes, marcas de palabra brutas y usables), la caché de audio, las descargas y cada
+cambio de estado de la reproducción (estado, granularidad del resaltado, motivo de error). Con el botón de copiar
+se lleva al portapapeles del iPhone. Las mismas líneas van a `NSLog`, pero en el log de Device Farm quedan con
+nivel *Default*: si filtras por *Error* no aparecen; filtra por el proceso `LinguaReader` sin filtrar por nivel.
+Líneas que son ruido normal: `AVAudioBuffer.mm … mDataByteSize (0)` (búfer vacío con el que `write(...)` cierra
+cada frase) y `Error in destroying pipe` (se libera el sintetizador tras cada frase).
 
 ### Automatizar más adelante
 

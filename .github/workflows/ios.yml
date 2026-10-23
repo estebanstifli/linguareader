@@ -1,5 +1,10 @@
-# App iOS sin Mac: compila el framework compartido y la app SwiftUI en un runner macOS de GitHub (gratis en un
+# App iOS sin Mac: compila el framework compartido y la app SwiftUI en runners macOS de GitHub (gratis en un
 # repositorio público), ejecuta los tests en simulador y deja los .ipa listos para AWS Device Farm (docs/IOS.md).
+#
+# Tres jobs en paralelo para que el .ipa esté cuanto antes:
+#   shared-tests   suites de los módulos compartidos en el simulador (Gradle).
+#   ios-device     framework para iPhone (solo esa rebanada) + build sin firma + paquetes para Device Farm.
+#   ios-simulator  framework para simulador + XCTest y XCTest UI; el simulador arranca mientras Gradle enlaza.
 name: iOS
 
 on:
@@ -25,6 +30,9 @@ concurrency:
 
 env:
   XCODE: /Applications/Xcode_16.4.app
+  XCFRAMEWORK: shared/build/XCFrameworks/debug/LinguaShared.xcframework
+  # Sin índice de código (solo lo usa el IDE) ni validación de plugins de paquetes: menos trabajo por compilación.
+  XCODEBUILD_FLAGS: COMPILER_INDEX_STORE_ENABLE=NO CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
 
 jobs:
   shared-tests:
@@ -38,6 +46,8 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - name: Cache Kotlin/Native toolchain
         uses: actions/cache@v4
         with:
@@ -64,10 +74,10 @@ jobs:
             data/build/reports/tests
           if-no-files-found: ignore
 
-  ios-app:
-    name: SwiftUI app (simulator tests + Device Farm packages)
+  ios-device:
+    name: Device Farm packages (iPhone build, unsigned)
     runs-on: macos-15
-    timeout-minutes: 90
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -75,43 +85,107 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - name: Cache Kotlin/Native toolchain
         uses: actions/cache@v4
         with:
           path: ~/.konan
           key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
       - run: sudo xcode-select -s "$XCODE"
-      - name: Build LinguaShared.xcframework
-        run: ./gradlew --console=plain :shared:assembleLinguaSharedDebugXCFramework
+      - name: Link LinguaShared for iPhone (arm64)
+        run: ./gradlew --console=plain :shared:linkDebugFrameworkIosArm64
+      - name: Wrap it as an XCFramework with just that slice
+        run: |
+          rm -rf "$XCFRAMEWORK"
+          xcodebuild -create-xcframework -framework shared/build/bin/iosArm64/debugFramework/LinguaShared.framework -output "$XCFRAMEWORK"
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate the Xcode project
         working-directory: ios
         run: xcodegen generate
-      - name: Pick (or create) an iPhone simulator
-        run: |
-          sudo xcodebuild -runFirstLaunch
-          xcrun simctl list runtimes
-          UDID=$(xcrun simctl list devices available -j | jq -r '.devices | to_entries[] | select(.key | contains("iOS")) | .value[] | select(.name == "iPhone 16") | .udid' | head -1)
-          if [ -z "$UDID" ]; then
-            RUNTIME=$(xcrun simctl list runtimes -j | jq -r '[.runtimes[] | select(.platform == "iOS" and .isAvailable)] | sort_by(.version) | last | .identifier')
-            echo "No iPhone 16 simulator; creating one on $RUNTIME"
-            UDID=$(xcrun simctl create "CI iPhone 16" "com.apple.CoreSimulator.SimDeviceType.iPhone-16" "$RUNTIME")
-          fi
-          xcrun simctl boot "$UDID" || true
-          xcrun simctl list devices | grep -i "iphone 16" || true
-          echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
-      - name: Unit and UI tests in the simulator
+      - name: Build for a real device (unsigned; Device Farm re-signs)
         working-directory: ios
         run: >
           set -o pipefail; mkdir -p build;
+          xcodebuild build-for-testing
+          -project LinguaReader.xcodeproj
+          -scheme LinguaReader
+          -destination "generic/platform=iOS"
+          -derivedDataPath build/device
+          $XCODEBUILD_FLAGS
+          | tee build/xcodebuild-device.log | grep -E "error:|\*\* BUILD|\*\* TEST" || true;
+          grep -q "SUCCEEDED" build/xcodebuild-device.log
+      - name: Package .ipa files for AWS Device Farm
+        working-directory: ios
+        run: bash scripts/package-ipa.sh build/device/Build/Products/Debug-iphoneos build/device-farm
+      - name: Upload Device Farm packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-device-farm
+          path: ios/build/device-farm/*
+      - name: Upload the device build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-device-build-log
+          path: ios/build/xcodebuild-device.log
+          if-no-files-found: ignore
+
+  ios-simulator:
+    name: SwiftUI app tests in the simulator
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+      - name: Cache Kotlin/Native toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+      - run: sudo xcode-select -s "$XCODE"
+      - name: Boot an iPhone simulator in the background
+        run: |
+          mkdir -p ios/build
+          nohup bash ios/scripts/prepare-simulator.sh ios/build/sim-udid.txt > ios/build/prepare-simulator.log 2>&1 &
+      - name: Link LinguaShared for the simulator (arm64)
+        run: ./gradlew --console=plain :shared:linkDebugFrameworkIosSimulatorArm64
+      - name: Wrap it as an XCFramework with just that slice
+        run: |
+          rm -rf "$XCFRAMEWORK"
+          xcodebuild -create-xcframework -framework shared/build/bin/iosSimulatorArm64/debugFramework/LinguaShared.framework -output "$XCFRAMEWORK"
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate the Xcode project
+        working-directory: ios
+        run: xcodegen generate
+      - name: Wait for the simulator
+        run: |
+          for i in $(seq 1 60); do
+            [ -s ios/build/sim-udid.txt ] && break
+            sleep 5
+          done
+          cat ios/build/prepare-simulator.log
+          [ -s ios/build/sim-udid.txt ] || { echo "The simulator did not boot in time"; exit 1; }
+          echo "SIM_UDID=$(cat ios/build/sim-udid.txt)" >> "$GITHUB_ENV"
+      - name: Unit and UI tests in the simulator
+        working-directory: ios
+        run: >
+          set -o pipefail;
           xcodebuild test
           -project LinguaReader.xcodeproj
           -scheme LinguaReader
           -destination "platform=iOS Simulator,id=$SIM_UDID"
           -derivedDataPath build/simulator
           -resultBundlePath build/simulator/LinguaReader.xcresult
-          CODE_SIGNING_ALLOWED=NO
+          $XCODEBUILD_FLAGS
           | tee build/xcodebuild-simulator.log | grep -E "Test Case|error:|warning: unre|\*\* TEST|Executed" || true;
           grep -q "\*\* TEST SUCCEEDED \*\*" build/xcodebuild-simulator.log
       - name: Collect crash reports and the app log
@@ -126,26 +200,6 @@ jobs:
             python3 ios/scripts/crash-summary.py "$f"
           done
           grep -E "Uncaught Kotlin|kotlin\.|Fatal error|Swift runtime failure" ios/build/diagnostics/app.log | head -40 || true
-      - name: Build for a real device (unsigned; Device Farm re-signs)
-        working-directory: ios
-        run: >
-          set -o pipefail;
-          xcodebuild build-for-testing
-          -project LinguaReader.xcodeproj
-          -scheme LinguaReader
-          -destination "generic/platform=iOS"
-          -derivedDataPath build/device
-          CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
-          | tee build/xcodebuild-device.log | grep -E "error:|\*\* BUILD|\*\* TEST" || true;
-          grep -q "SUCCEEDED" build/xcodebuild-device.log
-      - name: Package .ipa files for AWS Device Farm
-        working-directory: ios
-        run: bash scripts/package-ipa.sh build/device/Build/Products/Debug-iphoneos build/device-farm
-      - name: Upload Device Farm packages
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-device-farm
-          path: ios/build/device-farm/*
       - name: Upload simulator results
         if: always()
         uses: actions/upload-artifact@v4
@@ -153,7 +207,7 @@ jobs:
           name: ios-simulator-results
           path: |
             ios/build/xcodebuild-simulator.log
-            ios/build/xcodebuild-device.log
+            ios/build/prepare-simulator.log
             ios/build/simulator/LinguaReader.xcresult
             ios/build/diagnostics
           if-no-files-found: ignore
