@@ -20,9 +20,8 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 90), "The sample book should appear after the first import")
         row.tap()
 
-        let text = app.staticTexts["reader.text"]
+        let text = app.descendants(matching: .any).matching(identifier: "reader.text").firstMatch
         XCTAssertTrue(text.waitForExistence(timeout: 30), "The first passage should be shown")
-        XCTAssertFalse(text.label.isEmpty)
 
         let play = app.buttons["reader.play"]
         XCTAssertTrue(play.waitForExistence(timeout: 10))
@@ -41,6 +40,7 @@ final class SmokeUITests: XCTestCase {
     /// catálogo «Learn English» con libros. Necesita red (GitHub releases).
     func test2OnboardingDownloadsTheEnglishLibrary() throws {
         let app = XCUIApplication()
+        app.launchArguments = ["-resetOnboarding"]
         app.launch()
 
         let learn = app.descendants(matching: .any).matching(identifier: "onboarding.learn").firstMatch

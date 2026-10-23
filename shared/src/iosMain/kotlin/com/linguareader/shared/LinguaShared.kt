@@ -303,6 +303,12 @@ object LinguaShared {
     @Throws(Throwable::class)
     suspend fun setTtsMode(enabled: Boolean) = preferences.update { it.copy(ttsMode = enabled, ttsModeChosen = true) }
 
+    /** Solo para los tests de UI: vuelve a la primera apertura. */
+    @Throws(Throwable::class)
+    suspend fun resetOnboarding() = preferences.update {
+        it.copy(purpose = null, ttsModeChosen = false, learnLanguageChosen = false, translationSetupDone = false, learnerLevelChosen = false, onboardingSummaryShown = false, readingLanguage = null)
+    }
+
     /** Solo para los tests de UI: deja la app como si la primera apertura ya se hubiera completado. */
     @Throws(Throwable::class)
     suspend fun skipOnboarding() = preferences.update {

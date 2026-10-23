@@ -18,7 +18,7 @@ final class AppStore: ObservableObject {
     private var watchers: [FlowWatcher] = []
     private var covers: [String: UIImage] = [:]
 
-    /// Argumentos de lanzamiento de los tests de UI: `-skipOnboarding`, `-importSample`.
+    /// Argumentos de lanzamiento de los tests de UI: `-skipOnboarding`, `-resetOnboarding`, `-importSample`.
     private let arguments = Set(ProcessInfo.processInfo.arguments)
 
     init() {
@@ -38,6 +38,7 @@ final class AppStore: ObservableObject {
             shared.watchVocabulary { [weak self] v in self?.vocabulary = v },
         ]
         Task {
+            if arguments.contains("-resetOnboarding") { try? await shared.resetOnboarding() }
             if arguments.contains("-skipOnboarding") { try? await shared.skipOnboarding() }
             if arguments.contains("-importSample") { await importSampleIfEmpty() }
         }
