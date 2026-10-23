@@ -160,8 +160,16 @@ en un iPhone real antes de prometerlo.
     TextKit 2 por líneas enteras, resaltado de frase y palabra, toque en palabra con ficha (glosario), ficha de frase,
     índice (capítulos, marcadores, vocabulario), búsqueda, ajustes de lectura (tema, tamaño, interlineado, alineación,
     modo de traducción, resaltado, pasar páginas, pantalla, pausas, voz), marcadores, reproductor y progreso.
-    CI verde. Pendiente: comprobar en Device Farm que las voces de un iPhone real entregan marcas de palabra al
-    escribir a fichero (el simulador no las da: resalta por frase); ilustraciones, dedo indicador y doble página.
+    CI verde. Probado en iPhone 15 y 17 (Device Farm): la lectura en directo (`willSpeakRangeOfSpeechString`) marca
+    bien y es el modo predeterminado; las marcas de `write(_:toMarkerCallback:)` no son fiables, así que el flujo
+    con caché queda como modo alternativo («Cached audio») hasta aclararlo con la pantalla Ajustes › Acerca de ›
+    Diagnostics. Pendiente: ilustraciones, dedo indicador y doble página.
+  - 🟡 **Hito 3 (traducción, ajustes, i18n), parte 1 (23-10-2026):** traducción automática con ML Kit por el puente
+    `IosTranslator` (Swift, CocoaPods) → `IosTranslationEngine` (caché Room, misma lógica que Android) e
+    `IosTranslationModels`; Ajustes › Translation (idioma, Wi-Fi, modelos), descarga desde la ficha de palabra y el
+    onboarding. CI verde; ML Kit solo va en la app de iPhone (sin rebanada arm64 de simulador), así que se verifica
+    en Device Farm. Pendiente: pretraducción de libros en la UI, resto de páginas de ajustes, String Catalog (en/es),
+    y Apple `Translation` (iOS 18) como segundo adaptador.
   - ⬜ Binding de `onnxruntime-c`, medir Supertonic y wav2vec2 en iPhone; descargas con `URLSession` en segundo plano;
     `AVAudioEngine` y Now Playing.
 - ⬜ **Fase 2:** app SwiftUI (lector con TextKit 2, catálogo, ajustes, onboarding, visor PDF con PDFKit, String Catalog).
