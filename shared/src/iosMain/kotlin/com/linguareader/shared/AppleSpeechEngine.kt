@@ -52,6 +52,7 @@ import platform.AVFAudio.AVSpeechUtteranceDefaultSpeechRate
 import platform.AVFAudio.AVSpeechUtteranceMaximumSpeechRate
 import platform.AVFAudio.AVSpeechUtteranceMinimumSpeechRate
 import platform.AVFAudio.setActive
+import platform.Foundation.NSLog
 import platform.Foundation.NSProcessInfo
 import platform.Foundation.NSRange
 import platform.darwin.NSObject
@@ -259,7 +260,9 @@ class AppleSpeechEngine : StreamingSpeechEngine, FileSpeechSynthesizer {
         }
 
         fun onMarkers(markers: List<*>?) {
-            markers?.filterIsInstance<AVSpeechSynthesisMarker>()?.forEach { m ->
+            val all = markers?.filterIsInstance<AVSpeechSynthesisMarker>().orEmpty()
+            if (rawMarks.isEmpty()) NSLog("AppleSpeechEngine: %d markers (%d items), first mark=%@", all.size, markers?.size ?: 0, all.firstOrNull()?.mark?.toString() ?: "-")
+            all.forEach { m ->
                 if (m.mark != AVSpeechSynthesisMarkerMark.AVSpeechSynthesisMarkerMarkWord) return@forEach
                 val (start, end) = m.textRange.useContents { location.toInt() to (location + length).toInt() }
                 rawMarks.add(Triple(start, end, m.byteSampleOffset.toLong()))

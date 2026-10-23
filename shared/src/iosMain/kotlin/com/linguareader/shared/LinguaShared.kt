@@ -12,7 +12,21 @@ import com.linguareader.core.engine.TranslationEngine
 import com.linguareader.core.model.BookSummary
 import com.linguareader.core.model.CatalogFilter
 import com.linguareader.core.content.MediaResult
+import com.linguareader.core.engine.TranslationResult
+import com.linguareader.core.engine.VoiceInfo
 import com.linguareader.core.model.AppPurpose
+import com.linguareader.core.model.Book
+import com.linguareader.core.model.DisplayMode
+import com.linguareader.core.model.HighlightStyle
+import com.linguareader.core.model.LanguageTags
+import com.linguareader.core.model.Passage
+import com.linguareader.core.model.Sentence
+import com.linguareader.core.model.TextJustification
+import com.linguareader.core.model.ThemeMode
+import com.linguareader.core.model.Token
+import com.linguareader.core.platform.epochMillis
+import com.linguareader.core.translation.WordLookup
+import com.linguareader.data.db.BookmarkEntity
 import com.linguareader.core.model.CefrLevel
 import com.linguareader.core.model.MediaRef
 import com.linguareader.core.model.UserPreferences
@@ -329,6 +343,74 @@ object LinguaShared {
                 chapter.passages.forEach { appendLine(); appendLine(it.text) }
             }
         }
+    }
+
+    // ---- Lector: progreso, marcadores, vocabulario, traducción al toque y preferencias de lectura
+
+    fun watchBookmarks(bookId: String, block: (List<BookmarkEntity>) -> Unit): FlowWatcher =
+        watch(database.bookmarkDao().observeForBook(bookId), block)
+
+    @Throws(Throwable::class)
+    suspend fun addBookmark(bookId: String, passageId: String, passageIndex: Int, charOffset: Int, excerpt: String): Long =
+        database.bookmarkDao().insert(
+            BookmarkEntity(bookId = bookId, passageId = passageId, passageIndex = passageIndex, charOffset = charOffset, excerpt = excerpt, createdAt = epochMillis()),
+        )
+
+    @Throws(Throwable::class)
+    suspend fun deleteBookmark(id: Long) = database.bookmarkDao().delete(id)
+
+    @Throws(Throwable::class)
+    suspend fun saveProgress(bookId: String, passageId: String, passageIndex: Int, totalPassages: Int, charOffset: Int) =
+        database.progressDao().upsert(
+            ReadingProgressEntity(bookId = bookId, passageId = passageId, passageIndex = passageIndex, totalPassages = totalPassages, charOffset = charOffset, updatedAt = epochMillis()),
+        )
+
+    @Throws(Throwable::class)
+    suspend fun loadProgress(bookId: String): ReadingProgressEntity? = database.progressDao().get(bookId)
+
+    @Throws(Throwable::class)
+    suspend fun lookupWord(book: Book, passage: Passage, token: Token, targetLanguage: String): WordLookup =
+        lookup.lookup(book, passage, token, targetLanguage)
+
+    @Throws(Throwable::class)
+    suspend fun translateSentence(book: Book, passage: Passage, sentence: Sentence, targetLanguage: String): TranslationResult =
+        lookup.translateSentence(book, passage, sentence, targetLanguage)
+
+    @Throws(Throwable::class)
+    suspend fun isSavedWord(bookId: String, term: String, targetLanguage: String): Boolean =
+        database.vocabularyDao().exists(bookId, term.lowercase(), targetLanguage)
+
+    @Throws(Throwable::class)
+    suspend fun saveWord(bookId: String, bookTitle: String, term: String, lemma: String?, translation: String?, sourceLanguage: String, targetLanguage: String, context: String): Long =
+        database.vocabularyDao().upsert(
+            VocabularyEntity(
+                bookId = bookId, bookTitle = bookTitle, term = term.lowercase(), lemma = lemma, translation = translation,
+                sourceLanguage = sourceLanguage, targetLanguage = targetLanguage, context = context, createdAt = epochMillis(),
+            ),
+        )
+
+    @Throws(Throwable::class)
+    suspend fun listVoices(languageTag: String): List<VoiceInfo> = speech.listVoices(languageTag)
+
+    @Throws(Throwable::class) suspend fun setDisplayMode(mode: DisplayMode) = preferences.update { it.copy(displayMode = mode) }
+    @Throws(Throwable::class) suspend fun setHighlightStyle(style: HighlightStyle) = preferences.update { it.copy(highlightStyle = style) }
+    @Throws(Throwable::class) suspend fun setFontScale(scale: Float) = preferences.update { it.copy(fontScale = scale) }
+    @Throws(Throwable::class) suspend fun setLineHeight(lineHeight: Float) = preferences.update { it.copy(lineHeight = lineHeight) }
+    @Throws(Throwable::class) suspend fun setTheme(theme: ThemeMode) = preferences.update { it.copy(theme = theme) }
+    @Throws(Throwable::class) suspend fun setTextJustification(justification: TextJustification) = preferences.update { it.copy(textJustification = justification) }
+    @Throws(Throwable::class) suspend fun setAutoScroll(enabled: Boolean) = preferences.update { it.copy(autoScroll = enabled) }
+    @Throws(Throwable::class) suspend fun setKeepScreenOn(enabled: Boolean) = preferences.update { it.copy(keepScreenOn = enabled) }
+    @Throws(Throwable::class) suspend fun setPauseOnWordTap(enabled: Boolean) = preferences.update { it.copy(pauseOnWordTap = enabled) }
+    @Throws(Throwable::class) suspend fun setAutoContinue(enabled: Boolean) = preferences.update { it.copy(autoContinue = enabled) }
+    @Throws(Throwable::class) suspend fun setSpeechRate(rate: Float) = preferences.update { it.copy(speechRate = rate) }
+    @Throws(Throwable::class) suspend fun setSentencePause(ms: Int) = preferences.update { it.copy(sentencePauseMs = ms) }
+    @Throws(Throwable::class) suspend fun setParagraphPause(ms: Int) = preferences.update { it.copy(paragraphPauseMs = ms) }
+
+    /** Voz del sistema elegida para un idioma (null = automática). */
+    @Throws(Throwable::class)
+    suspend fun setVoice(languageTag: String, voiceId: String?) = preferences.update { p ->
+        val key = LanguageTags.primary(languageTag)
+        p.copy(voiceByLanguage = if (voiceId == null) p.voiceByLanguage - key else p.voiceByLanguage + (key to voiceId))
     }
 
     /** Síntesis a fichero con la voz del sistema (tests y muestras): WAV en [targetPath] y marcas de palabra. */
