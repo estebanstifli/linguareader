@@ -123,25 +123,7 @@ jobs:
           for f in ios/build/diagnostics/*.ips; do
             [ -f "$f" ] || continue
             echo "=== $f"
-            python3 - "$f" <<'PY'
-          import json, sys
-          lines = open(sys.argv[1], encoding="utf-8", errors="ignore").read().split("
-", 1)
-          try:
-              body = json.loads(lines[1])
-          except Exception:
-              print(lines[1][:3000]); sys.exit()
-          print("exception:", body.get("exception"))
-          print("termination:", body.get("termination"))
-          print("asi:", body.get("asi"))
-          faulting = body.get("faultingThread", 0)
-          threads = body.get("threads", [])
-          if faulting < len(threads):
-              images = body.get("usedImages", [])
-              for frame in threads[faulting].get("frames", [])[:40]:
-                  img = images[frame.get("imageIndex", 0)].get("name") if frame.get("imageIndex", 0) < len(images) else "?"
-                  print(f"  {img}: {frame.get('symbol', '?')} +{frame.get('symbolLocation', 0)}")
-          PY
+            python3 ios/scripts/crash-summary.py "$f"
           done
           grep -E "Uncaught Kotlin|kotlin\.|Fatal error|Swift runtime failure" ios/build/diagnostics/app.log | head -40 || true
       - name: Build for a real device (unsigned; Device Farm re-signs)
