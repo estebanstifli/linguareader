@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import com.linguareader.R
 import com.linguareader.core.model.Book
 import com.linguareader.core.model.DisplayMode
+import com.linguareader.core.model.Token
 import com.linguareader.core.model.UserPreferences
 import com.linguareader.core.reader.HighlightGranularity
 import com.linguareader.core.reader.PlaybackState
@@ -244,6 +245,9 @@ fun PagedReaderContent(
 
         val hits = remember { TokenHitRegistry() }
         val anchorBox = remember { ActiveTokenAnchor() }
+        val pointerTargets = remember { PointerTargets() }
+        val lastSpoken = remember { arrayOfNulls<Token>(1) }
+        val pointer = if (prefs.fingerPointerEnabled) pointerPlan(book, playback, lastSpoken) else null
         var origin by remember { mutableStateOf(Offset.Zero) }
         var container by remember { mutableStateOf<Rect?>(null) }
         val scope = rememberCoroutineScope()
@@ -273,20 +277,57 @@ fun PagedReaderContent(
         ) {
             HorizontalPager(state = pager, modifier = Modifier.fillMaxSize(), key = { it }) { index ->
                 val page = paged.pages.getOrNull(index) ?: return@HorizontalPager
-                PageView(page, book, styles, geometry, prefs, playback, images, hits, anchorBox, onSentenceAction)
+                PageView(page, book, styles, geometry, prefs, playback, images, hits, anchorBox, pointer, pointerTargets, onSentenceAction)
             }
             if (prefs.fingerPointerEnabled) {
                 FingerPointerOverlay(
-                    target = anchorBox.tokenBounds,
+                    target = pointerTargets.current,
+                    lead = pointerTargets.lead,
+                    step = pointer?.step,
+                    playing = playback.isPlaying,
                     container = container,
                     reduceMotion = prefs.reduceMotion,
-                    fill = colors.pointer,
-                    outline = colors.pointerOutline,
                 )
             }
         }
     }
 }
+
+/** Hacia dónde apunta la mano: [word] (y la palabra siguiente, [lead]) del pasaje [passage]. */
+private data class PointerPlan(val passage: Int, val word: IntRange, val lead: IntRange?, val step: PointerStep)
+
+/**
+ * Palabra que señala la mano: la que suena; en el silencio tras una frase, la primera de la frase siguiente (o del
+ * pasaje siguiente); antes de la primera palabra de una frase, su comienzo. Solo con tiempos por palabra.
+ */
+private fun pointerPlan(book: Book, playback: PlaybackState, lastSpoken: Array<Token?>): PointerPlan? {
+    val playing = playback.status == PlaybackStatus.PLAYING || playback.status == PlaybackStatus.PAUSED
+    if (!playing || playback.granularity != HighlightGranularity.WORD) return null
+    val passage = book.passages.firstOrNull { it.id == playback.passageId } ?: return null
+    val active = playback.activeTokenId?.let(passage::tokenById)
+    if (active != null) {
+        lastSpoken[0] = active
+        val next = passage.tokens.getOrNull(passage.tokens.indexOf(active) + 1)
+        return PointerPlan(passage.index, active.range(), next?.range(), PointerStep(active.id, gap = false))
+    }
+    val sentence = passage.sentences.getOrNull(playback.sentenceIndex) ?: return null
+    val finished = lastSpoken[0]?.sentenceId == sentence.id
+    val (index, target) = if (finished) {
+        val nextSentence = passage.sentences.getOrNull(sentence.index + 1)
+        if (nextSentence != null) {
+            passage.index to passage.tokens.firstOrNull { it.sentenceId == nextSentence.id }
+        } else {
+            val nextPassage = book.passages.getOrNull(passage.index + 1)
+            (passage.index + 1) to nextPassage?.tokens?.firstOrNull()
+        }
+    } else {
+        passage.index to passage.tokens.firstOrNull { it.sentenceId == sentence.id }
+    }
+    target ?: return null
+    return PointerPlan(index, target.range(), null, PointerStep(target.id, gap = true))
+}
+
+private fun Token.range(): IntRange = rangeStart until rangeEnd
 
 private fun CoroutineScope.launchPage(navigator: PageNavigator, page: Int) {
     launch { navigator.goTo(page, user = true) }
@@ -303,17 +344,19 @@ private fun PageView(
     images: Map<Int, ImageBitmap>,
     hits: TokenHitRegistry,
     anchor: ActiveTokenAnchor,
+    pointer: PointerPlan?,
+    pointerTargets: PointerTargets,
     onSentenceAction: (Int, String) -> Unit,
 ) {
     if (!geometry.spread) {
-        PageColumn(page.items, book, styles, geometry, prefs, playback, images, hits, anchor, onSentenceAction, Modifier.fillMaxSize())
+        PageColumn(page.items, book, styles, geometry, prefs, playback, images, hits, anchor, pointer, pointerTargets, onSentenceAction, Modifier.fillMaxSize())
         return
     }
     // Libro abierto: cada cara con el ancho exacto con el que se paginó.
     val width = with(LocalDensity.current) { geometry.widthPx.toDp() }
     Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.SpaceBetween) {
-        PageColumn(page.items, book, styles, geometry, prefs, playback, images, hits, anchor, onSentenceAction, Modifier.width(width).fillMaxHeight())
-        PageColumn(page.facing, book, styles, geometry, prefs, playback, images, hits, anchor, onSentenceAction, Modifier.width(width).fillMaxHeight())
+        PageColumn(page.items, book, styles, geometry, prefs, playback, images, hits, anchor, pointer, pointerTargets, onSentenceAction, Modifier.width(width).fillMaxHeight())
+        PageColumn(page.facing, book, styles, geometry, prefs, playback, images, hits, anchor, pointer, pointerTargets, onSentenceAction, Modifier.width(width).fillMaxHeight())
     }
 }
 
@@ -328,6 +371,8 @@ private fun PageColumn(
     images: Map<Int, ImageBitmap>,
     hits: TokenHitRegistry,
     anchor: ActiveTokenAnchor,
+    pointer: PointerPlan?,
+    pointerTargets: PointerTargets,
     onSentenceAction: (Int, String) -> Unit,
     modifier: Modifier,
 ) {
@@ -380,6 +425,9 @@ private fun PageColumn(
                         modifier = Modifier.fillMaxWidth(),
                         hitRegistry = hits,
                         visibleLines = item.firstLine..item.lastLine,
+                        pointerWord = pointer?.takeIf { it.passage == item.passage }?.word,
+                        leadWord = pointer?.takeIf { it.passage == item.passage }?.lead,
+                        pointer = pointerTargets,
                     )
                 }
                 is PageItem.Translation -> {

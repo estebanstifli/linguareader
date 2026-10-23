@@ -70,6 +70,27 @@ class ActiveTokenAnchor {
     }
 }
 
+/**
+ * Cajas en pantalla (coordenadas raíz) a las que apunta la mano: la palabra a señalar y la que le sigue (para
+ * adelantarse). Cada caja la publica el [TokenText] que la tiene visible; cada hueco recuerda quién lo rellenó.
+ */
+@Stable
+class PointerTargets {
+    var current by mutableStateOf<Rect?>(null)
+        private set
+    var lead by mutableStateOf<Rect?>(null)
+        private set
+    private var currentOwner: Any? = null
+    private var leadOwner: Any? = null
+
+    fun report(owner: Any, current: Rect?, lead: Rect?) {
+        if (current != null) { this.current = current; currentOwner = owner } else if (currentOwner === owner) { this.current = null; currentOwner = null }
+        if (lead != null) { this.lead = lead; leadOwner = owner } else if (leadOwner === owner) { this.lead = null; leadOwner = null }
+    }
+
+    fun release(owner: Any) = report(owner, null, null)
+}
+
 /** Token tocado y su caja en pantalla (coordenadas raíz), para colocar la minitarjeta junto a él. */
 data class TokenHit(val token: Token, val bounds: Rect)
 
@@ -111,10 +132,16 @@ fun TokenText(
     hitRegistry: TokenHitRegistry? = null,
     /** Solo se ven estas líneas del texto (paginación); el resto se maqueta igual pero queda recortado. */
     visibleLines: IntRange? = null,
+    /** Palabra a la que apunta la mano y la siguiente (rangos absolutos), y dónde publicar sus cajas. */
+    pointerWord: IntRange? = null,
+    leadWord: IntRange? = null,
+    pointer: PointerTargets? = null,
 ) {
     val segment = remember(passageText, segmentStart, segmentEnd) { passageText.substring(segmentStart, segmentEnd) }
     val localWord = activeWord?.toLocal(segmentStart, segmentEnd)
     val localSentence = activeSentence?.toLocal(segmentStart, segmentEnd)
+    val localPointer = pointerWord?.toLocal(segmentStart, segmentEnd)
+    val localLead = leadWord?.toLocal(segmentStart, segmentEnd)
 
     val annotated = remember(segment, localWord, localSentence, highlightStyle, colors) {
         buildAnnotatedString {
@@ -151,11 +178,16 @@ fun TokenText(
         val l = layout
         val c = coordinates[0]
         if (l == null || c == null || !c.isAttached || l.layoutInput.text.length != segment.length) return
+        val origin = c.positionInRoot()
+        pointer?.report(
+            owner,
+            localPointer?.takeIf { visible(it.first, l) }?.let { boundsOf(it, l).translate(origin) },
+            localLead?.takeIf { visible(it.first, l) }?.let { boundsOf(it, l).translate(origin) },
+        )
         if (localWord == null && localSentence == null) {
             anchor.release(owner)
             return
         }
-        val origin = c.positionInRoot()
         val token = localWord?.takeIf { visible(it.first, l) }?.let { boundsOf(it, l).translate(origin) }
         val focus = token ?: localSentence?.takeIf { visible(it.first, l) }?.let { boundsOf(it, l).translate(origin) }
         anchor.report(owner, token, focus)
@@ -176,8 +208,8 @@ fun TokenText(
         }
     }
 
-    LaunchedEffect(localWord, localSentence, layout) { report() }
-    DisposableEffect(Unit) { onDispose { anchor.release(owner) } }
+    LaunchedEffect(localWord, localSentence, localPointer, localLead, layout) { report() }
+    DisposableEffect(Unit) { onDispose { anchor.release(owner); pointer?.release(owner) } }
     DisposableEffect(hitRegistry) {
         hitRegistry?.register(owner) { root ->
             val c = coordinates[0]
