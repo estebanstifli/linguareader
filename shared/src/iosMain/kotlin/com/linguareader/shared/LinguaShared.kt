@@ -4,7 +4,9 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.linguareader.core.engine.BookRepository
+import com.linguareader.core.audio.SynthesisOutcome
 import com.linguareader.core.engine.SpeechEvent
+import com.linguareader.core.engine.SpeechRequest
 import com.linguareader.core.engine.StreamingSpeechEngine
 import com.linguareader.core.engine.TranslationEngine
 import com.linguareader.core.model.BookSummary
@@ -24,7 +26,18 @@ import platform.Foundation.create
 import com.linguareader.core.reader.AudioFocusGate
 import com.linguareader.core.reader.PlaybackState
 import com.linguareader.core.reader.ReaderAudioController
-import com.linguareader.core.reader.StreamingReaderAudioController
+import com.linguareader.core.audio.CachingSpeechSynthesizer
+import com.linguareader.core.audio.FileAudioCache
+import com.linguareader.core.audio.FileSpeechSynthesizer
+import com.linguareader.core.narration.NarrationSelector
+import com.linguareader.core.reader.LazyClipPlayer
+import com.linguareader.core.reader.NarratedReaderAudioController
+import com.linguareader.core.reader.RenderedReaderAudioController
+import com.linguareader.core.reader.SpeechPauses
+import com.linguareader.core.reader.SwitchingReaderAudioController
+import com.linguareader.core.reader.TtsEngineRegistry
+import com.linguareader.core.reader.TtsEngineSelector
+import kotlinx.coroutines.launch
 import com.linguareader.core.translation.BundledTranslationEngine
 import com.linguareader.core.translation.FallbackTranslationEngine
 import com.linguareader.core.translation.WordLookupService
@@ -141,16 +154,60 @@ object LinguaShared {
                     single<TranslationModels> { NoTranslationModels }
                     single { BookTranslationService(get(), get(), get(), get(), log = { NSLog("BookTranslation: %s", it) }) }
 
-                    // Audio: voz del sistema en streaming (síntesis a fichero con caché en el hito 2).
-                    single<StreamingSpeechEngine> { AppleSpeechEngine() }
-                    single<ReaderAudioController> { StreamingReaderAudioController(get(), AudioFocusGate.AlwaysGranted, Dispatchers.Main) }
+                    // Audio: el mismo flujo que Android. La voz del sistema sintetiza frase a frase a la caché de disco
+                    // (con marcas de palabra) y suena por AVAudioEngine; la narración pregrabada, por AVAudioPlayer.
+                    single { AppleSpeechEngine() } binds arrayOf(StreamingSpeechEngine::class, FileSpeechSynthesizer::class)
+                    single { EngineSettings() }
+                    single<AudioFocusGate> { AppleAudioFocusGate() }
+                    single { FileAudioCache(root / "audio-cache", maxBytesProvider = { get<EngineSettings>().audioCacheBytes }, fileSystem = fs) }
+                    single { CachingSpeechSynthesizer(get<FileSpeechSynthesizer>(), get(), log = { NSLog("AudioCache: %s", it) }) }
+                    single { TtsEngineRegistry(listOf(get<StreamingSpeechEngine>())) }
+                    single {
+                        val settings = get<EngineSettings>()
+                        val main = Dispatchers.Main
+                        val rendered = RenderedReaderAudioController(
+                            synthesizer = get<CachingSpeechSynthesizer>(),
+                            player = LazyClipPlayer { AudioEngineClipPlayer() },
+                            snippetPlayer = LazyClipPlayer { AudioEngineClipPlayer() },
+                            dispatcher = main,
+                            parameters = { AppleSpeechEngine.pitchParameters(settings.ttsPitch) },
+                            pauses = { settings.pauses },
+                            fileSystem = fs,
+                        )
+                        val engine = get<StreamingSpeechEngine>()
+                        SwitchingReaderAudioController(
+                            controllers = mapOf(engine.id to rendered),
+                            engines = get(),
+                            defaultEngineId = engine.id,
+                            dispatcher = main,
+                            narrated = NarratedReaderAudioController(
+                                player = LazyClipPlayer { TrackClipPlayer() },
+                                dispatcher = main,
+                                continuous = { settings.autoContinue },
+                            ),
+                        )
+                    } binds arrayOf(ReaderAudioController::class, TtsEngineSelector::class, NarrationSelector::class)
                 },
             )
         }.koin
+        // Preferencias de motor que leen los hilos de audio (pausas, tono, caché, continuación), como TtsEngineCoordinator en Android.
+        val settings = koin.get<EngineSettings>()
+        koin.get<CoroutineScope>().launch {
+            koin.get<UserPreferencesRepository>().preferences.collect { p ->
+                settings.pauses = SpeechPauses(p.sentencePauseMs.toLong(), p.paragraphPauseMs.toLong())
+                settings.autoContinue = p.autoContinue
+                settings.audioCacheBytes = p.audioCacheMb * 1024L * 1024
+                settings.ttsPitch = p.ttsPitch
+            }
+        }
     }
 
     val books: BookRepository get() = koin.get()
     val audio: ReaderAudioController get() = koin.get()
+    val engineSelector: TtsEngineSelector get() = koin.get()
+    val narrationSelector: NarrationSelector get() = koin.get()
+    val narrations: NarrationLibrary get() = koin.get()
+    val audioCache: FileAudioCache get() = koin.get()
     val preferences: UserPreferencesRepository get() = koin.get()
     val speech: StreamingSpeechEngine get() = koin.get()
     val importer: LocalBookImporter get() = koin.get()
@@ -273,6 +330,11 @@ object LinguaShared {
             }
         }
     }
+
+    /** Síntesis a fichero con la voz del sistema (tests y muestras): WAV en [targetPath] y marcas de palabra. */
+    @Throws(Throwable::class)
+    suspend fun synthesizeToFile(text: String, languageTag: String, targetPath: String, speed: Float = 1.0f): SynthesisOutcome =
+        koin.get<FileSpeechSynthesizer>().synthesizeTo(SpeechRequest(text, languageTag, null, speed), targetPath.toPath())
 
     /** Versión del código compartido que ve la app (para la pantalla «Acerca de» y los logs de Device Farm). */
     const val VERSION = "0.3.0-ios"

@@ -12,6 +12,22 @@ final class AppleSpeechTests: XCTestCase {
         XCTAssertFalse(voices.isEmpty, "iOS always ships at least one compact English voice")
     }
 
+    /// Flujo del lector: la frase se sintetiza a un WAV (caché) y las marcas de palabra llegan en ms.
+    func testSynthesizesToFileWithWordMarks() async throws {
+        let path = FileManager.default.temporaryDirectory.appendingPathComponent("tts-\(UUID().uuidString).wav").path
+        let outcome = try await LinguaShared.shared.synthesizeToFile(text: "The little fox runs through the quiet forest every morning.", languageTag: "en-US", targetPath: path, speed: 1.0)
+        guard let written = outcome as? SynthesisOutcomeWritten else {
+            throw XCTSkip("Synthesis to file not available on this host: \(outcome)")
+        }
+        let marks = written.marks ?? []
+        NSLog("Apple TTS file: %lld ms, %d marks, first: %@", written.durationMs, marks.count,
+              marks.prefix(4).map { "[\($0.start),\($0.end))@\($0.ms)ms" }.joined(separator: " "))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: path))
+        XCTAssertGreaterThan(written.durationMs, 1000)
+        XCTAssertGreaterThan(marks.count, 5, "iOS voices should report one mark per word")
+        XCTAssertTrue(marks.allSatisfy { $0.ms >= 0 && $0.ms <= written.durationMs + 200 }, "marks must fall inside the clip")
+    }
+
     func testWordRangesArriveWhileSpeaking() async throws {
         let engine = AppleSpeechEngine()
         let readiness = try await engine.prepare(languageTag: "en-US", voiceId: nil)
