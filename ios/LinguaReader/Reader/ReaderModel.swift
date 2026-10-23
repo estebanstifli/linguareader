@@ -155,7 +155,7 @@ final class ReaderModel: ObservableObject {
         if let playback, let passage, playback.passageId == passage.id {
             return (passageIndex, Int(playback.resumeOffset))
         }
-        guard let layout, pageIndex < pageOffsets.count else { return passage.map { (passageIndex, 0) } }
+        guard let layout, pageIndex < pageOffsets.count else { return passage.map { _ in (passageIndex, 0) } }
         return layout.location(chapterOffset: pageOffsets[pageIndex])
     }
 
