@@ -130,7 +130,7 @@ final class ReaderModel: ObservableObject {
     func rebuildLayoutIfNeeded() {
         guard let book, chapterIndex < book.chapters.count else { return }
         let style = self.style
-        if layout?.chapterIndex == chapterIndex, lastStyle == style { return }
+        if layout != nil, layout?.chapterIndex == chapterIndex, lastStyle == style { return }
         lastStyle = style
         let anchor = currentReadingOffset()
         layout = ChapterLayout.build(book: book, chapterIndex: chapterIndex, style: style, theme: theme(systemDark: systemDark))
@@ -209,11 +209,13 @@ final class ReaderModel: ObservableObject {
         completionHandledFor = nil
         wordCard = nil
         sentenceCard = nil
-        if let chapter = book.chapterOf(passage: passage), let ci = book.chapters.firstIndex(where: { $0.id == chapter.id }), ci != chapterIndex {
+        if let chapter = book.chapterOf(passage: passage), let ci = book.chapters.firstIndex(where: { $0.id == chapter.id }) {
             chapterIndex = ci
+        }
+        if layout == nil || layout?.chapterIndex != chapterIndex {
             lastStyle = nil
-            layout = ChapterLayout.build(book: book, chapterIndex: ci, style: style, theme: theme(systemDark: systemDark))
             pageOffsets = []
+            rebuildLayoutIfNeeded()
         }
         if scroll, let target = layout?.chapterOffset(passageIndex: index, offset: offset) { showOffset = target }
         do {

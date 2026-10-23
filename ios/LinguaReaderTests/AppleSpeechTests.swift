@@ -14,6 +14,9 @@ final class AppleSpeechTests: XCTestCase {
 
     /// Flujo del lector: la frase se sintetiza a un WAV (caché) y las marcas de palabra llegan en ms.
     func testSynthesizesToFileWithWordMarks() async throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("write(_:toBufferCallback:toMarkerCallback:) is unreliable on the simulator (no markers, sometimes no audio); checked on real devices in Device Farm")
+        #endif
         let path = FileManager.default.temporaryDirectory.appendingPathComponent("tts-\(UUID().uuidString).wav").path
         let outcome = try await LinguaShared.shared.synthesizeToFile(text: "The little fox runs through the quiet forest every morning.", languageTag: "en-US", targetPath: path, speed: 1.0)
         guard let written = outcome as? SynthesisOutcomeWritten else {
