@@ -76,7 +76,7 @@
     <string name="catalog_import_from_telegram">Recibido por Telegram…</string>
     <string name="catalog_import_from_web">Desde una página web…</string>
     <string name="catalog_import_paste">Pegar texto copiado</string>
-    <string name="catalog_import_also_hint">También: abre el archivo en WhatsApp, Telegram o el correo y elige «Abrir con» o «Compartir» › LinguaReader.</string>
+    <string name="catalog_import_also_hint">También: abre el archivo en WhatsApp, Telegram o el correo y elige «Abrir con» o «Compartir» › LingoAudioBook.</string>
     <string name="catalog_share_book">Compartir libro</string>
     <string name="catalog_empty_filtered">Ningún libro coincide con la búsqueda o los filtros. Prueba a cambiarlos o quítalos con la ✕.</string>
     <string name="catalog_empty_books">Aún no tienes libros. Abre uno de los documentos de tu móvil (menú › En el dispositivo), descarga lecturas graduadas en Ajustes › Bibliotecas o usa + para importar un EPUB, PDF, TXT, FB2, Word, HTML o subtítulos.</string>
@@ -109,7 +109,7 @@
     <string name="catalog_create_collection">Crear colección…</string>
     <string name="whatsapp_help_title">Libro recibido por WhatsApp</string>
     <string name="whatsapp_help_easiest">La forma más sencilla:</string>
-    <string name="whatsapp_help_steps">1. En WhatsApp, abre el chat y toca el archivo.\n2. Elige «Abrir con» › LinguaReader.\nSi se abre con otra app, mantén pulsado el mensaje y usa «Compartir» › LinguaReader.</string>
+    <string name="whatsapp_help_steps">1. En WhatsApp, abre el chat y toca el archivo.\n2. Elige «Abrir con» › LingoAudioBook.\nSi se abre con otra app, mantén pulsado el mensaje y usa «Compartir» › LingoAudioBook.</string>
     <string name="whatsapp_help_from_here">O desde aquí:</string>
     <string name="whatsapp_help_picker">«Buscar el archivo» abre el selector; si la carpeta de WhatsApp sale vacía, mira en «Recientes» o en «Documentos», o busca el nombre del libro con la lupa.</string>
     <string name="whatsapp_help_find_file">Buscar el archivo</string>
@@ -125,6 +125,7 @@
     <string name="translation_cancel">Cancelar traducción</string>
     <plurals name="found_documents_title">
         <item quantity="one">Hemos encontrado %1$d documento en tu móvil</item>
+        <item quantity="many">Hemos encontrado %1$d documentos en tu móvil</item>
         <item quantity="other">Hemos encontrado %1$d documentos en tu móvil</item>
     </plurals>
     <string name="found_documents_hint">Tócalo para verlos y abrir el que quieras</string>
@@ -153,10 +154,11 @@
     <string name="search_no_results">Sin resultados</string>
     <plurals name="search_see_books">
         <item quantity="one">Ver %1$d libro</item>
+        <item quantity="many">Ver %1$d libros</item>
         <item quantity="other">Ver %1$d libros</item>
     </plurals>
     <string name="search_remove">Quitar búsqueda</string>
-    <string name="search_sorted_by">por %1$s</string>
+    <string name="search_sorted_by">Orden: %1$s</string>
 
     <!-- Editar libro (ui/catalog/BookEditScreen.kt) -->
     <string name="book_edit_title">Editar libro</string>
@@ -192,10 +194,12 @@
     <string name="import_view_pdf">Ver PDF</string>
     <plurals name="import_chapters">
         <item quantity="one">%1$d capítulo</item>
+        <item quantity="many">%1$d capítulos</item>
         <item quantity="other">%1$d capítulos</item>
     </plurals>
     <plurals name="import_paragraphs">
         <item quantity="one">%1$d párrafo</item>
+        <item quantity="many">%1$d párrafos</item>
         <item quantity="other">%1$d párrafos</item>
     </plurals>
     <string name="import_already_imported">Este fichero ya está en tu biblioteca: se reemplazará.</string>
@@ -207,6 +211,7 @@
     <string name="import_translate_now">Traducir el libro entero ahora</string>
     <plurals name="import_translate_now_detail">
         <item quantity="one">En segundo plano y en el dispositivo; tarda según el tamaño (%1$d párrafo). Después se lee sin esperas ni conexión.</item>
+        <item quantity="many">En segundo plano y en el dispositivo; tarda según el tamaño (%1$d párrafos). Después se lee sin esperas ni conexión.</item>
         <item quantity="other">En segundo plano y en el dispositivo; tarda según el tamaño (%1$d párrafos). Después se lee sin esperas ni conexión.</item>
     </plurals>
     <string name="import_level_cefr">Nivel (MCER)</string>
@@ -239,12 +244,13 @@
     <string name="common_install">Instalar</string>
     <plurals name="common_books">
         <item quantity="one">%1$d libro</item>
+        <item quantity="many">%1$d libros</item>
         <item quantity="other">%1$d libros</item>
     </plurals>
 
     <!-- Primera apertura (ui/onboarding/Onboarding.kt) -->
     <string name="onboarding_step">Paso %1$d de %2$d</string>
-    <string name="onboarding_purpose_title">¿Para qué vas a usar LinguaReader?</string>
+    <string name="onboarding_purpose_title">¿Para qué vas a usar LingoAudioBook?</string>
     <string name="onboarding_purpose_body">Preparamos la app según lo que elijas. Puedes cambiarlo en Ajustes cuando quieras.</string>
     <string name="onboarding_purpose_read">Leer mis libros y documentos</string>
     <string name="onboarding_purpose_read_detail">Busca los EPUB, PDF, FB2, Word, TXT… que ya tienes en el móvil y ábrelos en un lector cómodo, sin voz.</string>
@@ -286,10 +292,12 @@
     <string name="onboarding_your_documents">Tus documentos</string>
     <plurals name="onboarding_searching_found">
         <item quantity="one">Buscando… %1$d encontrado</item>
+        <item quantity="many">Buscando… %1$d encontrados</item>
         <item quantity="other">Buscando… %1$d encontrados</item>
     </plurals>
     <plurals name="onboarding_found_on_phone">
         <item quantity="one">%1$d encontrado en el móvil</item>
+        <item quantity="many">%1$d encontrados en el móvil</item>
         <item quantity="other">%1$d encontrados en el móvil</item>
     </plurals>
     <string name="onboarding_scan_not_done">Sin buscar: puedes hacerlo cuando quieras en Ajustes › Examinar archivos</string>
@@ -343,6 +351,7 @@
     <string name="reader_search_too_many">Más de %1$d resultados (se muestran los primeros)</string>
     <plurals name="reader_search_results">
         <item quantity="one">%1$d resultado</item>
+        <item quantity="many">%1$d resultados</item>
         <item quantity="other">%1$d resultados</item>
     </plurals>
     <string name="about_authors">Autoría</string>
@@ -450,8 +459,8 @@
     <string name="settings_summary_language">Tu idioma: %1$s · traducción sin conexión</string>
     <string name="settings_summary_libraries">Lecturas graduadas A1–B2 para descargar</string>
     <string name="settings_summary_files">Buscar libros y documentos en el móvil</string>
-    <string name="settings_summary_reading">%1$s · resaltado %2$s</string>
-    <string name="settings_summary_appearance">Tema %1$s · texto al %2$d %%</string>
+    <string name="settings_summary_reading">%1$s · Resaltado: %2$s</string>
+    <string name="settings_summary_appearance">Tema: %1$s · texto al %2$d %%</string>
     <string name="settings_summary_voice_off">Lectura en voz alta desactivada</string>
     <string name="settings_summary_voice_system">Voz del sistema (Android)</string>
     <string name="settings_summary_about">Versión %1$s y licencias</string>
@@ -460,7 +469,6 @@
     <string name="settings_group_app">Aplicación</string>
     <string name="settings_system_voices_hint">Voces del sistema: se instalan desde los ajustes de Android; se prefieren voces sin conexión.</string>
     <string name="settings_open_tts_settings">Abrir ajustes de texto a voz</string>
-    <string name="settings_about_text">LinguaReader %1$s · Biblioteca local sin conexión. Iconos: Material Icons (Apache 2.0). Ver docs/ARCHITECTURE.md para licencias.</string>
     <string name="settings_voice_automatic">Automática (sin conexión si existe)</string>
     <string name="settings_voice_needs_network">%1$s · requiere red</string>
     <string name="settings_display_mode">Modo de visualización</string>
@@ -521,14 +529,11 @@
     <string name="scan_now">Buscar ahora</string>
     <string name="scan_view_documents">Ver documentos</string>
     <string name="scan_permission_missing">Falta permiso para leer tus archivos</string>
-    <string name="scan_permission_all_files">Android pide activar «Permitir acceso para gestionar todos los archivos» para buscar libros en todo el dispositivo o en Descargas. LinguaReader solo los lee para mostrártelos; no los cambia ni los envía. Si prefieres no darlo, añade carpetas concretas más abajo.</string>
-    <string name="scan_permission_storage">Para buscar libros en el dispositivo hace falta permiso de lectura del almacenamiento. LinguaReader solo los lee para mostrártelos; no los cambia ni los envía.</string>
-    <string name="scan_open_permission_settings">Abrir ajustes de permisos</string>
+    <string name="scan_permission_storage">Para buscar libros en el dispositivo hace falta permiso de lectura del almacenamiento. LingoAudioBook solo los lee para mostrártelos; no los cambia ni los envía.</string>
     <string name="scan_allow">Permitir</string>
     <string name="scan_remove_item">Quitar «%1$s»</string>
     <string name="scan_offer_title">¿Buscamos libros en tu móvil?</string>
-    <string name="scan_offer_body">LinguaReader puede encontrar los libros y documentos que ya tienes (EPUB, PDF, FB2, Kindle, Word, TXT…) y ordenarlos por formato, autor y carpeta para que los abras desde la biblioteca.</string>
-    <string name="scan_offer_all_files">Android te pedirá activar «Permitir acceso para gestionar todos los archivos». Solo se leen para mostrártelos: no se cambian ni se envían a ningún sitio.</string>
+    <string name="scan_offer_body">LingoAudioBook puede encontrar los libros y documentos que ya tienes (EPUB, PDF, FB2, Kindle, Word, TXT…) y ordenarlos por formato, autor y carpeta para que los abras desde la biblioteca.</string>
     <string name="scan_offer_storage">Se pedirá permiso para leer el almacenamiento. Solo se leen para mostrártelos: no se cambian ni se envían.</string>
     <string name="scan_offer_search">Buscar libros</string>
     <string name="scan_offer_footer">Puedes cambiarlo cuando quieras en Ajustes › Examinar archivos.</string>
@@ -645,4 +650,23 @@
     <!-- Compartir libro como TXT (data/content/BookExporter.kt) -->
     <string name="export_default_name">libro</string>
     <string name="export_license">Licencia: %1$s</string>
+
+    <!-- Examinar archivos sin «Acceso a todos los archivos» (Android 11+) -->
+    <string name="scan_folders_only_hint">En Android 11 y posteriores, los libros se buscan solo en las carpetas que elijas (por ejemplo Documentos, Libros o una carpeta dentro de Download). No hace falta ningún permiso de almacenamiento.</string>
+    <string name="scan_offer_folders">Elige la carpeta donde guardas tus libros (por ejemplo Documentos o Libros). La app solo la lee para mostrarte sus documentos: no se cambia ni se envía nada. Puedes añadir más carpetas después.</string>
+    <string name="scan_offer_choose_folder">Elegir una carpeta</string>
+    <string name="onboarding_scan_no_folders">Sin carpetas elegidas: puedes añadirlas en Ajustes › Examinar archivos</string>
+
+    <!-- Acerca de (ui/settings/AboutSection.kt) -->
+    <string name="about_version">Versión %1$s (%2$d)</string>
+    <string name="about_tagline">Aprende idiomas leyendo y escuchando: lecturas graduadas, una voz que ilumina cada palabra y traducción al tocar, todo sin conexión.</string>
+    <string name="about_privacy_policy">Política de privacidad</string>
+    <string name="about_website">Web y ayuda</string>
+    <string name="about_contact">Contacto y sugerencias</string>
+    <string name="about_email_subject">%1$s %2$s: comentarios</string>
+    <string name="about_privacy_summary">Sin cuenta, sin anuncios y sin seguimiento por parte de la app. Tus libros, tu progreso y tu vocabulario se quedan en el móvil. La app solo se conecta a internet para descargar lo que pides (bibliotecas, traductores, voces) y para importar páginas web.</string>
+    <string name="about_licenses_title">Licencias de código abierto</string>
+    <string name="about_licenses_intro">Esta app usa los siguientes componentes. Toca uno para leer su licencia.</string>
+    <string name="about_licenses_downloadable">Descargas opcionales</string>
+    <string name="about_content_licenses">Lecturas graduadas: adaptaciones propias de obras de dominio público. Los libros que importas se quedan solo en tu dispositivo.</string>
 </resources>

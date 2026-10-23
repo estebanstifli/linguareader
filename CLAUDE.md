@@ -1,4 +1,4 @@
-# CLAUDE.md — LinguaReader (nombre provisional)
+# CLAUDE.md — LingoAudioBook (proyecto LinguaReader)
 
 ## Misión
 Crear una app Android **nativa, offline-first y vertical (portrait)** para aprender idiomas leyendo y escuchando libros graduados (MCER: A1, A2, B1, B2, C1, C2). La voz lee el texto y la interfaz ilumina la palabra exacta en sincronía. Al pulsar una palabra, aparece su traducción contextual al idioma elegido. Arquitectura modular: sustituir motores TTS, alineación y traducción sin cambiar el lector.
@@ -111,10 +111,15 @@ No crear módulos Gradle vacíos por anticipado: empezar con un número sensato,
 - El panel de traducción debe reconocer combinaciones como phrasal verbs y contracciones: token y expresión pueden diferir.
 
 ## Idioma de la interfaz (i18n)
-- El idioma base de la app es el **inglés** (`app/src/main/res/values/strings.xml`). Las cadenas se guardan como recursos de Android para la globalización de la app; el primer idioma adicional es el español (`values-es/strings.xml`). La app sigue el idioma del dispositivo.
-- Nunca escribir textos visibles (incluidos `contentDescription`) directamente en Kotlin. Cada cadena nueva va a `values/` (inglés) y a `values-es/` (español) con la misma clave; plurales con `<plurals>`, argumentos `%1$s`.
+- El idioma base de la app es el **inglés** (`app/src/main/res/values/strings.xml`). Las cadenas se guardan como recursos de Android para la globalización de la app; idiomas adicionales: español, francés, alemán, italiano y portugués (`values-es/`, `-fr/`, `-de/`, `-it/`, `-pt/`). La app sigue el idioma del dispositivo.
+- Nunca escribir textos visibles (incluidos `contentDescription`) directamente en Kotlin. Cada cadena nueva va a `values/` (inglés) y a **todos** los `values-xx/` con la misma clave; plurales con `<plurals>` (en es/fr/it/pt también `many`), argumentos `%1$s`.
 - Los textos que generan ViewModels, servicios o motores viajan como `UiText` (`ui/common/UiText.kt`) y se resuelven al mostrarlos.
 - Antes de terminar un cambio de UI: `python -I tools/check_hardcoded_strings.py`. Detalles en `docs/I18N.md`.
+
+## Publicación en Google Play
+- Nombre: **LingoAudioBook**; `applicationId` `com.lingoaudiobook.app` (no se puede cambiar). Pasos, formularios de Play Console y estado en `docs/PLAY_STORE.md`.
+- No añadir permisos sensibles sin revisar la política de Play (p. ej. no `MANAGE_EXTERNAL_STORAGE`: solo carpetas elegidas con el selector del sistema). Cualquier conexión o dato nuevo exige actualizar la política de privacidad (repositorio `estebanstifli/lingoaudiobook`) y la sección «Seguridad de los datos».
+- Firma de release con `keystore.properties` (fuera de git). Subir `versionCode` en cada subida.
 
 ## Roadmap incremental y criterios de aceptación
 **Fase 1 — MVP demostrable:** Android que compila, catálogo local con al menos dos libros originales de prueba en idiomas distintos y distintos niveles, pantalla reader portrait, texto con tokens pulsables, traducciones simuladas o incluidas, marcadores, modos de visualización y controles accesibles. Usar TTS Android donde esté instalado; fallback claro si falta voz/idioma.

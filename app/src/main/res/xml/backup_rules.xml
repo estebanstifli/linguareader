@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 8–11: mismas reglas que data_extraction_rules.xml (solo base de datos y preferencias). -->
+<full-backup-content>
+    <include domain="database" path="." />
+    <include domain="file" path="datastore/user_preferences.preferences_pb" />
+</full-backup-content>

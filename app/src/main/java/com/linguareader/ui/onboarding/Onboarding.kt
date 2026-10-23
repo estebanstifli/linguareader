@@ -403,6 +403,7 @@ private fun SummaryScreen(p: UserPreferences, vm: OnboardingViewModel) {
     val downloads by vm.modelDownloads.collectAsStateWithLifecycle()
     val scanState by vm.scanState.collectAsStateWithLifecycle()
     val documents by vm.documentCount.collectAsStateWithLifecycle()
+    val scanFolders = vm.scan.collectAsStateWithLifecycle().value?.folders?.size ?: 0
     val voice by vm.voice.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val learns = p.purpose != AppPurpose.READ
@@ -495,8 +496,9 @@ private fun SummaryScreen(p: UserPreferences, vm: OnboardingViewModel) {
                     R.drawable.ic_find_in_page, documentsTitle,
                     when {
                         documents > 0 -> pluralStringResource(R.plurals.onboarding_found_on_phone, documents, documents)
-                        StorageAccess.granted(context) -> stringResource(R.string.onboarding_scan_not_done)
-                        else -> stringResource(R.string.onboarding_scan_no_permission)
+                        StorageAccess.granted(context) || scanFolders > 0 -> stringResource(R.string.onboarding_scan_not_done)
+                        StorageAccess.broadAccessSupported -> stringResource(R.string.onboarding_scan_no_permission)
+                        else -> stringResource(R.string.onboarding_scan_no_folders)
                     },
                     if (documents > 0) Status.DONE else Status.PENDING,
                 )

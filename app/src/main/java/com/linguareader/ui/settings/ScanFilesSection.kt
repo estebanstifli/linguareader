@@ -158,26 +158,32 @@ fun ScanFilesSection(onOpenDocuments: () -> Unit, vm: ScanViewModel = koinViewMo
     val pickExclusion = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         uri?.let(::pathOfTree)?.let(vm::addExclusion)
     }
-    val requestAccess = {
-        if (StorageAccess.needsSettingsScreen) context.startActivity(StorageAccess.settingsIntent(context))
-        else askPermission.launch(StorageAccess.RUNTIME_PERMISSION)
-    }
+    val requestAccess = { askPermission.launch(StorageAccess.RUNTIME_PERMISSION) }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         StatusPanel(documents, state, s.lastScanAt, onStart = vm::start, onCancel = vm::cancel, onOpenDocuments = onOpenDocuments)
 
-        if (!access && (s.wholeDevice || s.downloads)) PermissionCard(onGrant = requestAccess)
+        val broad = StorageAccess.broadAccessSupported
+        if (broad && !access && (s.wholeDevice || s.downloads)) PermissionCard(onGrant = requestAccess)
 
         ToggleRow(R.drawable.ic_schedule, stringResource(R.string.scan_on_open), stringResource(R.string.scan_on_open_detail), s.autoStart) { v ->
             vm.update { it.copy(autoStart = v) }
         }
 
         GroupTitle(stringResource(R.string.scan_where))
-        ToggleRow(R.drawable.ic_smartphone, stringResource(R.string.scan_whole_device), stringResource(R.string.scan_whole_device_detail), s.wholeDevice) { v ->
-            vm.update { it.copy(wholeDevice = v) }
-        }
-        ToggleRow(R.drawable.ic_download, stringResource(R.string.scan_downloads), stringResource(R.string.scan_downloads_detail), s.downloads) { v ->
-            vm.update { it.copy(downloads = v) }
+        if (broad) {
+            ToggleRow(R.drawable.ic_smartphone, stringResource(R.string.scan_whole_device), stringResource(R.string.scan_whole_device_detail), s.wholeDevice) { v ->
+                vm.update { it.copy(wholeDevice = v) }
+            }
+            ToggleRow(R.drawable.ic_download, stringResource(R.string.scan_downloads), stringResource(R.string.scan_downloads_detail), s.downloads) { v ->
+                vm.update { it.copy(downloads = v) }
+            }
+        } else {
+            Text(
+                stringResource(R.string.scan_folders_only_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         val internalStorage = stringResource(R.string.scan_internal_storage)
         val chosenFolder = stringResource(R.string.scan_chosen_folder)
@@ -332,13 +338,11 @@ private fun PermissionCard(onGrant: () -> Unit) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(stringResource(R.string.scan_permission_missing), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onTertiaryContainer)
             Text(
-                stringResource(if (StorageAccess.needsSettingsScreen) R.string.scan_permission_all_files else R.string.scan_permission_storage),
+                stringResource(R.string.scan_permission_storage),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onTertiaryContainer,
             )
-            Button(onClick = onGrant) {
-                Text(stringResource(if (StorageAccess.needsSettingsScreen) R.string.scan_open_permission_settings else R.string.scan_allow))
-            }
+            Button(onClick = onGrant) { Text(stringResource(R.string.scan_allow)) }
         }
     }
 }
@@ -386,30 +390,22 @@ private fun ItemRow(icon: Int, title: String, subtitle: String, onRemove: () -> 
 }
 
 /**
- * Primera apertura: ofrecer buscar libros en el móvil. Pide el permiso necesario (o lleva a la pantalla de Android
- * donde se concede) y empieza a buscar en segundo plano. Se puede omitir; queda en Ajustes › Examinar archivos.
+ * Primera apertura: ofrecer buscar libros en el móvil. Hasta Android 10 pide el permiso de lectura y busca en todo el
+ * dispositivo; desde Android 11 abre el selector de carpetas del sistema (sin permisos) y busca en la elegida. Se puede
+ * omitir; queda en Ajustes › Examinar archivos.
  */
 @Composable
 fun ScanOfferScreen(step: Int = 0, steps: Int = 0, vm: ScanViewModel = koinViewModel()) {
     val context = LocalContext.current
-    var waitingForSettings by remember { mutableStateOf(false) }
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-    // Al VOLVER de la pantalla de permisos del sistema (ON_RESUME tras salir) se busca si se concedió; la oferta se
-    // cierra en todo caso.
-    DisposableEffect(lifecycle, waitingForSettings) {
-        // Al registrarse, el observador recibe ON_RESUME en el acto (la pantalla ya está visible): solo cuenta el
-        // ON_RESUME que llega después de haber salido a los ajustes del sistema.
-        var left = false
-        val observer = LifecycleEventObserver { _, event ->
-            if (!waitingForSettings) return@LifecycleEventObserver
-            if (event == Lifecycle.Event.ON_PAUSE) left = true
-            if (event == Lifecycle.Event.ON_RESUME && left) vm.finishOffer(scan = StorageAccess.granted(context))
-        }
-        lifecycle.addObserver(observer)
-        onDispose { lifecycle.removeObserver(observer) }
-    }
     val askPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         vm.finishOffer(scan = granted)
+    }
+    val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) {
+            runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            vm.addFolder(uri)
+            vm.finishOffer(scan = true)
+        }
     }
     androidx.activity.compose.BackHandler { vm.finishOffer(scan = false) }
     Column(
@@ -429,23 +425,22 @@ fun ScanOfferScreen(step: Int = 0, steps: Int = 0, vm: ScanViewModel = koinViewM
         Text(stringResource(R.string.scan_offer_title), style = MaterialTheme.typography.headlineSmall)
         Text(stringResource(R.string.scan_offer_body), style = MaterialTheme.typography.bodyMedium)
         Text(
-            stringResource(if (StorageAccess.needsSettingsScreen) R.string.scan_offer_all_files else R.string.scan_offer_storage),
+            stringResource(if (StorageAccess.broadAccessSupported) R.string.scan_offer_storage else R.string.scan_offer_folders),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Button(
             onClick = {
                 when {
+                    !StorageAccess.broadAccessSupported -> pickFolder.launch(null)
                     StorageAccess.granted(context) -> vm.finishOffer(scan = true)
-                    StorageAccess.needsSettingsScreen -> {
-                        waitingForSettings = true
-                        context.startActivity(StorageAccess.settingsIntent(context))
-                    }
                     else -> askPermission.launch(StorageAccess.RUNTIME_PERMISSION)
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-        ) { Text(stringResource(R.string.scan_offer_search)) }
+        ) {
+            Text(stringResource(if (StorageAccess.broadAccessSupported) R.string.scan_offer_search else R.string.scan_offer_choose_folder))
+        }
         TextButton(onClick = { vm.finishOffer(scan = false) }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.common_not_now)) }
         Text(
             stringResource(R.string.scan_offer_footer),

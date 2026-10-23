@@ -1,6 +1,7 @@
 package com.linguareader.ui.common
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import com.linguareader.R
 import com.linguareader.core.engine.VoiceGender
@@ -19,7 +20,8 @@ fun voiceTitle(v: VoiceInfo): String = when {
 /** Detalle: variante del idioma, calidad y si necesita conexión: «English (United States) · High quality · Offline». */
 @Composable
 fun voiceDetail(v: VoiceInfo): String {
-    val locale = Locale.forLanguageTag(v.languageTag).getDisplayName(Locale.getDefault())
+    // Idioma de la interfaz observable: si cambia (Ajustes de Android 13+), la etiqueta se recompone.
+    val locale = Locale.forLanguageTag(v.languageTag).getDisplayName(LocalConfiguration.current.locales[0])
     val quality = when {
         v.quality == null -> null
         v.quality!! >= 400 -> stringResource(R.string.voice_quality_high)

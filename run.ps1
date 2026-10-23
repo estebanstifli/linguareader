@@ -39,7 +39,7 @@ param(
 # Los fallos se comprueban explícitamente con $LASTEXITCODE.
 $ErrorActionPreference = "Continue"
 $ProjectDir = $PSScriptRoot
-$AppId = "com.linguareader.app"
+$AppId = "com.lingoaudiobook.app"
 $Activity = "com.linguareader.MainActivity"
 $DefaultAvdName = "LinguaReader_API_36"
 $SystemImage = "system-images;android-36.1;google_apis_playstore;x86_64"

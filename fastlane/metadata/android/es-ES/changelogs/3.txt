@@ -1,0 +1,1 @@
+Primera beta: lecturas graduadas, lectura en voz alta con resaltado por palabra, traducción al tocar e interfaz en seis idiomas.

@@ -10,7 +10,6 @@ import android.os.Build
 import android.os.Environment
 import android.os.storage.StorageManager
 import android.provider.DocumentsContract
-import android.provider.Settings
 import android.util.Log
 import androidx.core.content.ContextCompat
 import com.linguareader.R
@@ -40,16 +39,16 @@ sealed interface ScanState {
 }
 
 /** Acceso a los ficheros del dispositivo: «todos los archivos» en Android 11+, lectura del almacenamiento antes. */
+/**
+ * Acceso amplio al almacenamiento («Todo el dispositivo», «Descargas»): solo hasta Android 10, con el permiso de lectura.
+ * Desde Android 11 la app no pide «Acceso a todos los archivos» (política de Google Play para lectores): se buscan
+ * solo las carpetas que el usuario elige con el selector del sistema, que no necesitan permiso.
+ */
 object StorageAccess {
-    fun granted(context: Context): Boolean =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Environment.isExternalStorageManager()
-        else ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+    val broadAccessSupported: Boolean get() = Build.VERSION.SDK_INT < Build.VERSION_CODES.R
 
-    /** En Android 11+ el permiso se concede en una pantalla de Ajustes del sistema, no con un diálogo. */
-    val needsSettingsScreen: Boolean get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
-
-    fun settingsIntent(context: Context): Intent =
-        Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:${context.packageName}"))
+    fun granted(context: Context): Boolean = broadAccessSupported &&
+        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
 
     const val RUNTIME_PERMISSION = Manifest.permission.READ_EXTERNAL_STORAGE
 }

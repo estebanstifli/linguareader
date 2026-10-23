@@ -110,7 +110,8 @@ Leyenda: ✅ hecho y verificado · 🟡 parcial · ⬜ pendiente
 - ✅ Interfaz localizable ([I18N.md](I18N.md)): todos los textos en `strings.xml`, inglés como idioma base y español
   como primer idioma adicional; la app sale en el idioma del dispositivo y admite el «Idioma de la app» de Android 13+.
   Mensajes de los ViewModels y motores como `UiText`; comprobación con `tools/check_hardcoded_strings.py`.
-- ⬜ Más idiomas de interfaz (francés, alemán…) y ficha de Play Store traducida, antes de publicar.
+- ✅ Interfaz y ficha de Play Store en inglés, español, francés, alemán, italiano y portugués.
+- 🟡 Publicación en Google Play como **LingoAudioBook** (beta cerrada): ver [PLAY_STORE.md](PLAY_STORE.md).
 - ⬜ Mensajes técnicos de `core`/`importer`/descargas en español (se ven como «Detalle técnico»): pasarlos a inglés o
   a motivos tipados si molestan.
 

@@ -46,3 +46,6 @@ ios/Pods/
 ios/*.xcworkspace
 ios/*.xcodeproj
 ios/Podfile.lock
+
+# Firma de release: datos de la clave de subida (docs/PLAY_STORE.md)
+keystore.properties

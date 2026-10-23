@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Idioma base de la interfaz: inglés. Cada cadena nueva va también a values-es/strings.xml (docs/I18N.md). -->
 <resources>
-    <string name="app_name" translatable="false">LinguaReader</string>
+    <string name="app_name" translatable="false">LingoAudioBook</string>
 
     <!-- Etiquetas comunes (ui/common/Common.kt) -->
     <string name="label_display_mode_on_tap">Translation on tap</string>
@@ -77,7 +77,7 @@
     <string name="catalog_import_from_telegram">Received via Telegram…</string>
     <string name="catalog_import_from_web">From a web page…</string>
     <string name="catalog_import_paste">Paste copied text</string>
-    <string name="catalog_import_also_hint">Also: open the file in WhatsApp, Telegram or your email and choose “Open with” or “Share” › LinguaReader.</string>
+    <string name="catalog_import_also_hint">Also: open the file in WhatsApp, Telegram or your email and choose “Open with” or “Share” › LingoAudioBook.</string>
     <string name="catalog_share_book">Share book</string>
     <string name="catalog_empty_filtered">No books match the search or filters. Try changing them or clear them with ✕.</string>
     <string name="catalog_empty_books">You don\'t have any books yet. Open one of the documents on your phone (menu › On this device), download graded readers in Settings › Libraries or use + to import an EPUB, PDF, TXT, FB2, Word, HTML or subtitle file.</string>
@@ -110,7 +110,7 @@
     <string name="catalog_create_collection">Create collection…</string>
     <string name="whatsapp_help_title">Book received via WhatsApp</string>
     <string name="whatsapp_help_easiest">The easiest way:</string>
-    <string name="whatsapp_help_steps">1. In WhatsApp, open the chat and tap the file.\n2. Choose “Open with” › LinguaReader.\nIf it opens with another app, long-press the message and use “Share” › LinguaReader.</string>
+    <string name="whatsapp_help_steps">1. In WhatsApp, open the chat and tap the file.\n2. Choose “Open with” › LingoAudioBook.\nIf it opens with another app, long-press the message and use “Share” › LingoAudioBook.</string>
     <string name="whatsapp_help_from_here">Or from here:</string>
     <string name="whatsapp_help_picker">“Find the file” opens the file picker; if the WhatsApp folder is empty, look in “Recent” or “Documents”, or search for the book\'s name with the magnifier.</string>
     <string name="whatsapp_help_find_file">Find the file</string>
@@ -157,7 +157,7 @@
         <item quantity="other">See %1$d books</item>
     </plurals>
     <string name="search_remove">Remove search</string>
-    <string name="search_sorted_by">by %1$s</string>
+    <string name="search_sorted_by">Sort: %1$s</string>
 
     <!-- Editar libro (ui/catalog/BookEditScreen.kt) -->
     <string name="book_edit_title">Edit book</string>
@@ -245,7 +245,7 @@
 
     <!-- Primera apertura (ui/onboarding/Onboarding.kt) -->
     <string name="onboarding_step">Step %1$d of %2$d</string>
-    <string name="onboarding_purpose_title">What will you use LinguaReader for?</string>
+    <string name="onboarding_purpose_title">What will you use LingoAudioBook for?</string>
     <string name="onboarding_purpose_body">We\'ll set up the app based on your choice. You can change it in Settings at any time.</string>
     <string name="onboarding_purpose_read">Read my books and documents</string>
     <string name="onboarding_purpose_read_detail">Finds the EPUB, PDF, FB2, Word, TXT… files you already have on your phone and opens them in a comfortable reader, without voice.</string>
@@ -452,8 +452,8 @@
     <string name="settings_summary_language">Your language: %1$s · offline translation</string>
     <string name="settings_summary_libraries">Graded readers A1–B2 to download</string>
     <string name="settings_summary_files">Find books and documents on your phone</string>
-    <string name="settings_summary_reading">%1$s · %2$s highlighting</string>
-    <string name="settings_summary_appearance">%1$s theme · text at %2$d%%</string>
+    <string name="settings_summary_reading">%1$s · Highlighting: %2$s</string>
+    <string name="settings_summary_appearance">Theme: %1$s · text at %2$d%%</string>
     <string name="settings_summary_voice_off">Reading aloud turned off</string>
     <string name="settings_summary_voice_system">System voice (Android)</string>
     <string name="settings_summary_about">Version %1$s and licenses</string>
@@ -462,7 +462,6 @@
     <string name="settings_group_app">App</string>
     <string name="settings_system_voices_hint">System voices are installed from Android settings; offline voices are preferred.</string>
     <string name="settings_open_tts_settings">Open text-to-speech settings</string>
-    <string name="settings_about_text">LinguaReader %1$s · Offline local library. Icons: Material Icons (Apache 2.0). See docs/ARCHITECTURE.md for licenses.</string>
     <string name="settings_voice_automatic">Automatic (offline if available)</string>
     <string name="settings_voice_needs_network">%1$s · needs a network</string>
     <string name="settings_display_mode">Display mode</string>
@@ -523,14 +522,11 @@
     <string name="scan_now">Search now</string>
     <string name="scan_view_documents">View documents</string>
     <string name="scan_permission_missing">Permission to read your files is missing</string>
-    <string name="scan_permission_all_files">Android asks you to turn on “Allow access to manage all files” to search for books on the whole device or in Downloads. LinguaReader only reads them to show them to you; it doesn\'t change or send them. If you\'d rather not grant it, add specific folders below.</string>
-    <string name="scan_permission_storage">Searching for books on the device needs permission to read storage. LinguaReader only reads them to show them to you; it doesn\'t change or send them.</string>
-    <string name="scan_open_permission_settings">Open permission settings</string>
+    <string name="scan_permission_storage">Searching for books on the device needs permission to read storage. LingoAudioBook only reads them to show them to you; it doesn\'t change or send them.</string>
     <string name="scan_allow">Allow</string>
     <string name="scan_remove_item">Remove “%1$s”</string>
     <string name="scan_offer_title">Shall we look for books on your phone?</string>
-    <string name="scan_offer_body">LinguaReader can find the books and documents you already have (EPUB, PDF, FB2, Kindle, Word, TXT…) and sort them by format, author and folder so you can open them from the library.</string>
-    <string name="scan_offer_all_files">Android will ask you to turn on “Allow access to manage all files”. They\'re only read to show them to you: they aren\'t changed or sent anywhere.</string>
+    <string name="scan_offer_body">LingoAudioBook can find the books and documents you already have (EPUB, PDF, FB2, Kindle, Word, TXT…) and sort them by format, author and folder so you can open them from the library.</string>
     <string name="scan_offer_storage">You\'ll be asked for permission to read storage. They\'re only read to show them to you: they aren\'t changed or sent anywhere.</string>
     <string name="scan_offer_search">Find books</string>
     <string name="scan_offer_footer">You can change this at any time in Settings › Browse files.</string>
@@ -647,4 +643,23 @@
     <!-- Compartir libro como TXT (data/content/BookExporter.kt) -->
     <string name="export_default_name">book</string>
     <string name="export_license">License: %1$s</string>
+
+    <!-- Examinar archivos sin «Acceso a todos los archivos» (Android 11+) -->
+    <string name="scan_folders_only_hint">On Android 11 and later, books are searched for only in the folders you choose (for example Documents, Books or a folder inside Download). No storage permission is needed.</string>
+    <string name="scan_offer_folders">Choose the folder where you keep your books (for example Documents or Books). The app only reads it to show you its documents: nothing is changed or sent anywhere. You can add more folders later.</string>
+    <string name="scan_offer_choose_folder">Choose a folder</string>
+    <string name="onboarding_scan_no_folders">No folders chosen: you can add them in Settings › Browse files</string>
+
+    <!-- Acerca de (ui/settings/AboutSection.kt) -->
+    <string name="about_version">Version %1$s (%2$d)</string>
+    <string name="about_tagline">Learn languages by reading and listening: graded readers, a voice that highlights each word, and translation on tap, all offline.</string>
+    <string name="about_privacy_policy">Privacy policy</string>
+    <string name="about_website">Website and help</string>
+    <string name="about_contact">Contact and suggestions</string>
+    <string name="about_email_subject">%1$s %2$s: feedback</string>
+    <string name="about_privacy_summary">No account, no ads and no tracking by the app. Your books, progress and vocabulary stay on your phone. The app only connects to the internet to download what you ask for (libraries, translators, voices) and to import web pages.</string>
+    <string name="about_licenses_title">Open source licenses</string>
+    <string name="about_licenses_intro">This app uses the following components. Tap one to read its license.</string>
+    <string name="about_licenses_downloadable">Optional downloads</string>
+    <string name="about_content_licenses">Graded readers: our own adaptations of public-domain works. Your imported books stay only on your device.</string>
 </resources>

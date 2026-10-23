@@ -154,11 +154,11 @@ private fun SettingsIndex(prefs: UserPreferences, documentCount: Int, modifier: 
         SettingsPage.READING -> stringResource(
             R.string.settings_summary_reading,
             Labels.displayMode(prefs.displayMode),
-            Labels.highlight(prefs.highlightStyle).lowercase(),
+            Labels.highlight(prefs.highlightStyle),
         )
         SettingsPage.APPEARANCE -> stringResource(
             R.string.settings_summary_appearance,
-            Labels.theme(prefs.theme).lowercase(),
+            Labels.theme(prefs.theme),
             (prefs.fontScale * 100).toInt(),
         )
         SettingsPage.VOICE -> when {
@@ -224,10 +224,7 @@ private fun SettingsPageContent(
             WordAlignmentSection()
             PacksSection()
         }
-        SettingsPage.ABOUT -> Text(
-            stringResource(R.string.settings_about_text, BuildConfig.VERSION_NAME),
-            style = MaterialTheme.typography.bodyMedium,
-        )
+        SettingsPage.ABOUT -> AboutSection()
     }
 }
 

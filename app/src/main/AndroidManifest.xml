@@ -13,13 +13,10 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Ajustes › Examinar archivos: buscar libros y documentos en el almacenamiento (solo si el usuario lo pide).
-         Android 11+ exige «Acceso a todos los archivos»; antes basta con leer el almacenamiento. Las carpetas elegidas
-         con el selector del sistema no necesitan ninguno de los dos. -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-    <uses-permission
-        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
-        tools:ignore="ScopedStorage" />
+    <!-- Ajustes › Examinar archivos: hasta Android 10 se busca en todo el almacenamiento con el permiso de lectura.
+         Desde Android 11 solo en las carpetas que el usuario elige con el selector del sistema (no necesitan permiso):
+         no se pide «Acceso a todos los archivos» (MANAGE_EXTERNAL_STORAGE), restringido por Google Play. -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
 
     <!-- Visibilidad de paquetes (Android 11+) para encontrar motores TTS instalados. -->
     <queries>
@@ -33,6 +30,8 @@
     <application
         android:name=".LinguaReaderApp"
         android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"

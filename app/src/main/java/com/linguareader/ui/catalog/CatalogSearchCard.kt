@@ -162,5 +162,5 @@ fun searchSummary(search: CatalogSearch, language: String?, resultCount: Int): S
     search.text.trim().takeIf { it.isNotEmpty() }?.let { stringResource(R.string.common_quoted, it) },
     search.status.takeIf { it != ReadStatus.ALL }?.let { stringResource(it.label) },
     language?.let(Languages::name),
-    search.sort.takeIf { it != SortOrder.DEFAULT }?.let { stringResource(R.string.search_sorted_by, stringResource(it.label).lowercase()) },
+    search.sort.takeIf { it != SortOrder.DEFAULT }?.let { stringResource(R.string.search_sorted_by, stringResource(it.label)) },
 ).joinToString(" · ") + " — $resultCount"

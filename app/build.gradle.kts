@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     // AGP 9 incluye Kotlin integrado: no se aplica org.jetbrains.kotlin.android.
@@ -10,7 +12,8 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.linguareader.app"
+        // Identificador en Google Play: no se puede cambiar una vez publicada la app.
+        applicationId = "com.lingoaudiobook.app"
         minSdk = 26 // UtteranceProgressListener.onRangeStart (eventos por palabra)
         targetSdk = 36
         // Paquetes descargables: adjuntos de una release de GitHub (docs/ARCHITECTURE.md → Paquetes).
@@ -21,8 +24,9 @@ android {
         // Bibliotecas EPUB por idioma (tools/build_library.py): otra release del mismo repositorio.
         val libraryTag = providers.gradleProperty("libraryTag").getOrElse("library-v1")
         buildConfigField("String", "LIBRARY_TAG", "\"$libraryTag\"")
-        versionCode = 2
-        versionName = "0.2.0"
+        // Cada subida a Play necesita un versionCode mayor que el anterior.
+        versionCode = 3
+        versionName = "0.3.0"
         testInstrumentationRunner = "com.linguareader.KoinTestRunner"
 
         // Arquitecturas: solo móviles de 64 bits y el emulador (ver `splits` más abajo). ONNX Runtime
@@ -35,12 +39,29 @@ android {
         generateLocaleConfig = true
     }
 
+    // Firma de release (clave de subida de Play App Signing). Los datos están en keystore.properties, fuera de git;
+    // sin ese fichero, la release se genera sin firmar (docs/PLAY_STORE.md › Firma).
+    val keystoreProps = rootProject.file("keystore.properties").takeIf { it.isFile }?.let { file ->
+        Properties().apply { file.inputStream().use(::load) }
+    }
+    signingConfigs {
+        if (keystoreProps != null) {
+            create("release") {
+                storeFile = file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             // Pseudoidiomas en-XA / ar-XB para ver textos fijos en el código y textos que se cortan.
             isPseudoLocalesEnabled = true
         }
         release {
+            signingConfigs.findByName("release")?.let { signingConfig = it }
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }

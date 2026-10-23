@@ -1,9 +1,14 @@
-# LinguaReader (nombre provisional)
+# LingoAudioBook
 
 App Android nativa, vertical y offline-first para aprender idiomas leyendo y escuchando libros
 graduados (MCER A1–C2). La voz lee el texto, la palabra pronunciada se ilumina cuando el motor
 proporciona tiempos fiables (si no, se ilumina la frase) y al tocar una palabra aparece su
 traducción en contexto.
+
+Nombre en Google Play: **LingoAudioBook** (`com.lingoaudiobook.app`). En el código se mantiene el paquete
+`com.linguareader` (nombre del proyecto antes de publicar). Web, ayuda y política de privacidad:
+<https://estebanstifli.github.io/lingoaudiobook/> (repositorio `estebanstifli/lingoaudiobook`). Publicación:
+[docs/PLAY_STORE.md](docs/PLAY_STORE.md).
 
 > ⚠️ **ALPHA en desarrollo.** Proyecto experimental: funciones incompletas, cambios frecuentes y sin garantías.
 > Las voces pregeneradas y los modelos de alineación por palabra se descargan de la release
@@ -24,9 +29,9 @@ traducción en contexto.
 - **Examinar archivos** (Ajustes y primera apertura): busca en el móvil los documentos que la app sabe abrir
   (EPUB, PDF, FB2, Kindle, Word/ODT/RTF, HTML, Markdown, TXT, subtítulos), lee título/autor/idioma de EPUB y FB2 sin
   abrirlos enteros y los muestra en «En el dispositivo», agrupados por formato, autor o carpeta. Tocar uno lo importa.
-  En Android 11+ necesita «Acceso a todos los archivos» (`MANAGE_EXTERNAL_STORAGE`); sin él se pueden añadir carpetas
-  concretas con el selector del sistema. Ojo: Google Play solo admite ese permiso en apps cuya función principal lo
-  requiera y pide justificarlo en la ficha.
+  Desde Android 11 busca solo en las carpetas que el usuario elige con el selector del sistema (sin permisos); hasta
+  Android 10, también en todo el dispositivo con el permiso de lectura. No se pide «Acceso a todos los archivos»
+  (`MANAGE_EXTERNAL_STORAGE`), que Google Play no permite a un lector.
 - **Primera apertura según el uso**: «Leer mis libros», «Aprender un idioma» o «Las dos cosas». Leer busca los
   documentos del móvil; aprender pregunta idioma, idioma propio y nivel, y descarga en segundo plano la biblioteca y
   los dos traductores y comprueba la voz del sistema. Termina con un resumen de lo preparado y abre la app en
@@ -126,8 +131,9 @@ traducir sin audio.
 ## Idiomas de la interfaz
 
 La app sale en el idioma del dispositivo. El **idioma base es el inglés** (`app/src/main/res/values/strings.xml`): es
-el que se ve si el idioma del dispositivo no tiene traducción. De momento hay **español**
-(`values-es/strings.xml`). En Android 13+ también se puede elegir en Ajustes › Apps › LinguaReader › Idioma.
+el que se ve si el idioma del dispositivo no tiene traducción. Además hay **español, francés, alemán, italiano y
+portugués** (`values-es/`, `values-fr/`, `values-de/`, `values-it/`, `values-pt/`). En Android 13+ también se puede
+elegir en Ajustes › Apps › LingoAudioBook › Idioma.
 
 Todas las cadenas de la interfaz están guardadas como recursos de Android para poder traducir la app a otros idiomas.
 Para añadir uno basta con crear `values-xx/strings.xml` con las mismas claves. Reglas, comprobación
