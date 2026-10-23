@@ -5,10 +5,13 @@ final class SmokeUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
+        // Si la app del test anterior sigue abierta, se cierra antes (launch() falla si no logra terminarla).
+        let app = XCUIApplication()
+        if app.state != .notRunning { app.terminate() }
     }
 
     /// Libro de muestra importado con el importador compartido, lectura con la voz del sistema, cambio de página.
-    func testOpensTheSampleBookAndStartsReading() throws {
+    func test1OpensTheSampleBookAndStartsReading() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-skipOnboarding", "-importSample"]
         app.launch()
@@ -36,7 +39,7 @@ final class SmokeUITests: XCTestCase {
 
     /// Primera apertura completa: aprender inglés, nivel A1, descarga e instalación de la biblioteca (38 libros) y
     /// catálogo «Learn English» con libros. Necesita red (GitHub releases).
-    func testOnboardingDownloadsTheEnglishLibrary() throws {
+    func test2OnboardingDownloadsTheEnglishLibrary() throws {
         let app = XCUIApplication()
         app.launch()
 

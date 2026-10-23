@@ -5,7 +5,6 @@ import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.runBlocking
 import okio.IOException
 import platform.Foundation.NSData
 import platform.Foundation.NSError
@@ -28,7 +27,7 @@ import platform.posix.memcpy
 
 /**
  * `NSURLSession` en streaming: los bloques llegan por el delegado y se entregan a [HttpResponse.read] a través
- * de un canal con contrapresión (la cola del delegado se bloquea mientras el consumidor escribe en disco).
+ * de un canal (el consumidor los escribe en disco a medida que llegan).
  * No sigue redirecciones (el descargador las gestiona). Pendiente: sesión en segundo plano para que una
  * descarga de cientos de MB sobreviva a la suspensión de la app.
  */
@@ -65,7 +64,8 @@ private class NsUrlSessionTransport(private val readTimeoutMs: Int) : HttpTransp
 /** Recibe cabeceras y bloques del cuerpo; el cuerpo se encola para [StreamingResponse.read]. */
 @OptIn(ExperimentalForeignApi::class)
 private class SessionDelegate : NSObject(), NSURLSessionDataDelegateProtocol {
-    val chunks = Channel<ByteArray>(capacity = 4)
+    // Sin límite: un bloqueo del hilo del delegado (contrapresión) puede retener la salida del proceso.
+    val chunks = Channel<ByteArray>(capacity = Channel.UNLIMITED)
     val headersReady = CompletableDeferred<Unit>()
     var code: Int = 0
     var headers: Map<String, String> = emptyMap()
@@ -86,7 +86,7 @@ private class SessionDelegate : NSObject(), NSURLSessionDataDelegateProtocol {
 
     override fun URLSession(session: NSURLSession, dataTask: NSURLSessionDataTask, didReceiveData: NSData) {
         val bytes = didReceiveData.toByteArray()
-        if (bytes.isNotEmpty()) runBlocking { runCatching { chunks.send(bytes) } }
+        if (bytes.isNotEmpty()) chunks.trySend(bytes)
     }
 
     override fun URLSession(session: NSURLSession, task: NSURLSessionTask, didCompleteWithError: NSError?) {
