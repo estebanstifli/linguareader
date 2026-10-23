@@ -138,9 +138,9 @@ jobs:
           xcodebuild -create-xcframework -framework shared/build/bin/iosSimulatorArm64/debugFramework/LinguaShared.framework -output "$XCFRAMEWORK"
       - name: Install XcodeGen
         run: brew install xcodegen
-      - name: Generate the Xcode project and install the pods (ML Kit)
+      - name: Generate the Xcode project (without pods: ML Kit has no arm64 simulator slice)
         working-directory: ios
-        run: xcodegen generate && pod install
+        run: xcodegen generate
       - name: Boot an iPhone simulator
         run: |
           mkdir -p ios/build
@@ -151,7 +151,7 @@ jobs:
         run: >
           set -o pipefail;
           xcodebuild test
-          -workspace LinguaReader.xcworkspace
+          -project LinguaReader.xcodeproj
           -scheme LinguaReader
           -destination "platform=iOS Simulator,id=$SIM_UDID"
           -derivedDataPath build/simulator

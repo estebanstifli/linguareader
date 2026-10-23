@@ -16,8 +16,15 @@ final class AppStore: ObservableObject {
     @Published var translationModels: TranslationModelsState?
     @Published var status: String = ""
 
-    /// Traductor ML Kit; vive lo que la app porque ML Kit avisa de las descargas por notificaciones.
-    private let translator = MlKitTranslator()
+    /// Traductor ML Kit (solo en la app de iPhone: los pods no tienen rebanada arm64 de simulador, ver ios/Podfile);
+    /// vive lo que la app porque ML Kit avisa de las descargas por notificaciones.
+    private let translator: IosTranslator? = {
+        #if canImport(MLKitTranslate)
+        return MlKitTranslator()
+        #else
+        return nil
+        #endif
+    }()
 
     private var watchers: [FlowWatcher] = []
     private var covers: [String: UIImage] = [:]

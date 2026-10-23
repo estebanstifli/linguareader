@@ -1,3 +1,4 @@
+#if canImport(MLKitTranslate)
 import Foundation
 import LinguaShared
 import MLKitTranslate
@@ -84,3 +85,4 @@ final class MlKitTranslator: NSObject, IosTranslator {
         return created
     }
 }
+#endif

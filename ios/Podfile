@@ -1,5 +1,8 @@
 # Dependencias de la app iOS que no llegan por el framework compartido. ML Kit solo se distribuye por CocoaPods.
-# CI: `xcodegen generate` y después `pod install` (genera LinguaReader.xcworkspace, que es lo que compila xcodebuild).
+# Solo para la app de iPhone: en CI, el job de dispositivo hace `xcodegen generate` y `pod install` y compila el
+# .xcworkspace. El job del simulador compila el .xcodeproj sin pods, porque los binarios de ML Kit no traen rebanada
+# arm64 de simulador (CocoaPods excluye arm64 y obligaría a un simulador x86_64 bajo Rosetta); `MlKitTranslator.swift`
+# se compila solo si el módulo existe (`#if canImport(MLKitTranslate)`) y el test de traducción se omite.
 platform :ios, '17.0'
 use_frameworks!
 
@@ -13,7 +16,6 @@ post_install do |installer|
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '17.0'
       config.build_settings['COMPILER_INDEX_STORE_ENABLE'] = 'NO'
-      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'x86_64'
     end
   end
 end

@@ -13,10 +13,6 @@ settings:
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_IDENTITY: ""
     ENABLE_USER_SCRIPT_SANDBOXING: NO
-    # Solo arm64: el framework Kotlin y los pods (ML Kit) se enlazan para la rebanada activa; sin esto Xcode
-    # intenta también x86_64 en el simulador y el enlace falla.
-    ONLY_ACTIVE_ARCH: YES
-    "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
 targets:
   LinguaReader:
     type: application
