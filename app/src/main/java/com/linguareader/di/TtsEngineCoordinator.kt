@@ -6,6 +6,7 @@ import com.linguareader.core.reader.TtsEngineRegistry
 import com.linguareader.core.reader.TtsEngineSelector
 import com.linguareader.data.prefs.UserPreferencesRepository
 import com.linguareader.engine.supertonic.SupertonicEngine
+import com.linguareader.engine.tts.SystemTtsAutoSelect
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -23,9 +24,12 @@ class TtsEngineCoordinator(
     private val registry: TtsEngineRegistry,
     private val settings: EngineSettingsHolder,
     private val supertonic: SupertonicEngine,
+    private val autoSelect: SystemTtsAutoSelect,
     private val scope: CoroutineScope,
 ) {
     fun start() {
+        // Instalaciones que ya pasaron la primera apertura sin motor elegido (p. ej. con RHVoice por defecto).
+        scope.launch { autoSelect.ensureChosen() }
         scope.launch {
             preferences.preferences.map { it.supertonicSteps }.distinctUntilChanged().collect { settings.supertonicSteps = it }
         }

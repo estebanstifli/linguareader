@@ -1,0 +1,1 @@
+A hand points to the word being read. Add single files (for example from Download) in Browse files. The app picks Google's voice automatically when the default engine has no voice.

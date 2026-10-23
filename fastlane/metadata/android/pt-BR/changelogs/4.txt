@@ -1,0 +1,1 @@
+Uma mão aponta a palavra lida. Adicione arquivos avulsos (por exemplo do Download) em Procurar arquivos. O app escolhe a voz do Google se o mecanismo padrão não tiver voz.

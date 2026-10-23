@@ -24,6 +24,11 @@ data class ScanSettings(
     val downloads: Boolean = true,
     /** Carpetas elegidas con el selector del sistema (URIs de árbol con permiso persistente). */
     val folders: Set<String> = emptySet(),
+    /**
+     * Documentos sueltos elegidos con el selector del sistema (URIs con permiso persistente). Android no deja elegir
+     * como carpeta la raíz del almacenamiento ni Download, pero sí los ficheros que contienen.
+     */
+    val files: Set<String> = emptySet(),
     /** Rutas de carpetas que no se examinan (ni sus subcarpetas). */
     val exclusions: Set<String> = emptySet(),
     /** Formatos que se buscan (extensiones en minúscula). Vacío = todos los que la app sabe abrir. */
@@ -46,6 +51,7 @@ class ScanSettingsRepository(private val context: Context) {
         val wholeDevice = booleanPreferencesKey("whole_device")
         val downloads = booleanPreferencesKey("downloads")
         val folders = stringSetPreferencesKey("folders")
+        val files = stringSetPreferencesKey("files")
         val exclusions = stringSetPreferencesKey("exclusions")
         val formats = stringSetPreferencesKey("formats")
         val includeTxt = booleanPreferencesKey("include_txt")
@@ -66,6 +72,7 @@ class ScanSettingsRepository(private val context: Context) {
             stored[Keys.wholeDevice] = next.wholeDevice
             stored[Keys.downloads] = next.downloads
             stored[Keys.folders] = next.folders
+            stored[Keys.files] = next.files
             stored[Keys.exclusions] = next.exclusions
             stored[Keys.formats] = next.formats
             stored[Keys.includeTxt] = next.includeTxt
@@ -83,6 +90,7 @@ class ScanSettingsRepository(private val context: Context) {
             wholeDevice = p[Keys.wholeDevice] ?: d.wholeDevice,
             downloads = p[Keys.downloads] ?: d.downloads,
             folders = p[Keys.folders] ?: d.folders,
+            files = p[Keys.files] ?: d.files,
             exclusions = p[Keys.exclusions] ?: d.exclusions,
             formats = p[Keys.formats] ?: d.formats,
             includeTxt = p[Keys.includeTxt] ?: d.includeTxt,

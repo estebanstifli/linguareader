@@ -20,7 +20,7 @@ Contacto público: estebandezafra@gmail.com. La app enlaza las tres cosas en Aju
 | `targetSdk` 36 (exigido a apps nuevas desde agosto de 2026) | ✅ |
 | Librerías nativas alineadas a 16 KB (exigido desde noviembre de 2025) | ✅ comprobado en el APK arm64 |
 | Solo 64 bits (arm64-v8a, x86_64) | ✅ Play filtra los móviles de 32 bits |
-| Sin `MANAGE_EXTERNAL_STORAGE` («Acceso a todos los archivos») | ✅ Android 11+: carpetas elegidas por el usuario |
+| Sin `MANAGE_EXTERNAL_STORAGE` («Acceso a todos los archivos») | ✅ Android 11+: carpetas (`OpenDocumentTree`) y archivos sueltos (`OpenMultipleDocuments`) elegidos por el usuario. Android no deja elegir como carpeta Download ni la raíz: para ellos, «Añadir archivos» |
 | Telemetría de ONNX Runtime desactivada | ✅ (`AndroidManifest.xml`) |
 | Copia de seguridad solo de base de datos y preferencias (< 25 MB) | ✅ `xml/data_extraction_rules.xml`, `xml/backup_rules.xml` |
 | Política de privacidad pública y enlazada en la app | ✅ |

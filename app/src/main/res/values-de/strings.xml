@@ -465,6 +465,9 @@
     <string name="scan_internal_storage">Interner Speicher</string>
     <string name="scan_chosen_folder">Gewählter Ordner</string>
     <string name="scan_add_folder">Ordner hinzufügen</string>
+    <string name="scan_add_files">Dateien hinzufügen</string>
+    <string name="scan_chosen_file">Gewählte Datei</string>
+    <string name="scan_folder_restricted_hint">Android erlaubt Apps nicht, Download oder das Hauptverzeichnis des internen Speichers als ganzen Ordner zu verwenden. Wähle einen Ordner darin oder füge die Dateien mit „Dateien hinzufügen“ hinzu.</string>
     <string name="scan_what">Was suchen</string>
     <string name="scan_small_txt_hint">.txt-Dateien unter 1 KB (Notizen, Protokolle anderer Apps) zählen nicht als Dokumente.</string>
     <string name="scan_other_options">Weitere Optionen</string>
@@ -591,6 +594,7 @@
     <string name="scan_folders_only_hint">Ab Android 11 wird nur in den Ordnern nach Büchern gesucht, die du auswählst (zum Beispiel Documents, Books oder ein Ordner in Download). Es ist keine Speicherberechtigung nötig.</string>
     <string name="scan_offer_folders">Wähle den Ordner, in dem du deine Bücher aufbewahrst (zum Beispiel Documents oder Books). Die App liest ihn nur, um dir seine Dokumente anzuzeigen: Nichts wird verändert oder gesendet. Du kannst später weitere Ordner hinzufügen.</string>
     <string name="scan_offer_choose_folder">Ordner wählen</string>
+    <string name="scan_offer_choose_files">Dateien wählen (zum Beispiel aus Download)</string>
     <string name="onboarding_scan_no_folders">Keine Ordner gewählt: Du kannst sie unter Einstellungen › Dateien durchsuchen hinzufügen</string>
     <string name="about_version">Version %1$s (%2$d)</string>
     <string name="about_tagline">Sprachen lernen durch Lesen und Hören: Stufenlektüren, eine Stimme, die jedes Wort hervorhebt, und Übersetzung beim Antippen, alles offline.</string>

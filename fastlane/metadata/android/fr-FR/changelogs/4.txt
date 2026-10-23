@@ -1,0 +1,1 @@
+Une main montre le mot lu. Ajoutez des fichiers isolés (par exemple depuis Download) dans Parcourir les fichiers. L'app choisit la voix de Google si le moteur par défaut n'a pas de voix.

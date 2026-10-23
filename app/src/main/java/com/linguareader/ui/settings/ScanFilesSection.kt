@@ -97,6 +97,15 @@ class ScanViewModel(
     fun cancel() = scanner.cancel()
 
     fun addFolder(uri: Uri) = update { it.copy(folders = it.folders + uri.toString()) }
+    /** Documentos sueltos (p. ej. de Download, que Android no deja elegir como carpeta): se buscan enseguida. */
+    fun addFiles(uris: List<Uri>) = viewModelScope.launch {
+        repo.update { it.copy(files = it.files + uris.map(Uri::toString)) }
+        scanner.start()
+    }
+    fun removeFile(uri: String) = viewModelScope.launch {
+        repo.update { it.copy(files = it.files - uri) }
+        scanner.start()
+    }
     fun removeFolder(uri: String) = update { it.copy(folders = it.folders - uri) }
     fun addExclusion(path: String) = update { it.copy(exclusions = it.exclusions + path) }
     fun removeExclusion(path: String) = update { it.copy(exclusions = it.exclusions - path) }
@@ -123,6 +132,27 @@ internal val FORMAT_GROUPS: List<Pair<String, Set<String>>> = listOf(
     "TXT" to setOf("txt", "text"),
     "SRT/VTT" to setOf("srt", "vtt"),
 )
+
+/**
+ * Selector de documentos del sistema para elegir varios a la vez, abierto en Download y con el almacenamiento interno
+ * visible. A diferencia del de carpetas, deja entrar en Download y en la raíz y no necesita ningún permiso.
+ */
+internal class PickDocumentsContract : ActivityResultContracts.OpenMultipleDocuments() {
+    override fun createIntent(context: android.content.Context, input: Array<String>): Intent =
+        super.createIntent(context, input).apply {
+            putExtra("android.provider.extra.SHOW_ADVANCED", true)
+            putExtra("android.content.extra.SHOW_ADVANCED", true)
+            putExtra(DocumentsContract.EXTRA_INITIAL_URI, DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", "primary:Download"))
+        }
+}
+
+/** Todos los tipos: el selector no sabe de FB2 o MOBI; el escáner se queda con los que la app sabe abrir. */
+internal val ANY_DOCUMENT = arrayOf("*/*")
+
+/** Guarda el permiso de lectura de los documentos elegidos para poder abrirlos tras reiniciar el móvil. */
+internal fun persistRead(context: android.content.Context, uris: List<Uri>) = uris.forEach { uri ->
+    runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+}
 
 internal fun formatLabel(format: String): String = FORMAT_GROUPS.firstOrNull { format in it.second }?.first ?: format.uppercase()
 
@@ -153,6 +183,12 @@ fun ScanFilesSection(onOpenDocuments: () -> Unit, vm: ScanViewModel = koinViewMo
         if (uri != null) {
             runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
             vm.addFolder(uri)
+        }
+    }
+    val pickFiles = rememberLauncherForActivityResult(PickDocumentsContract()) { uris ->
+        if (uris.isNotEmpty()) {
+            persistRead(context, uris)
+            vm.addFiles(uris)
         }
     }
     val pickExclusion = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
@@ -190,9 +226,30 @@ fun ScanFilesSection(onOpenDocuments: () -> Unit, vm: ScanViewModel = koinViewMo
         s.folders.sorted().forEach { uri ->
             ItemRow(R.drawable.ic_folder, treeLabel(uri, internalStorage), chosenFolder) { vm.removeFolder(uri) }
         }
-        TextButton(onClick = { pickFolder.launch(null) }) {
-            Icon(painterResource(R.drawable.ic_add), contentDescription = null, modifier = Modifier.size(18.dp))
-            Text(" " + stringResource(R.string.scan_add_folder))
+        val chosenFile = stringResource(R.string.scan_chosen_file)
+        s.files.sorted().forEach { uri ->
+            val name = documents.firstOrNull { it.location == uri }?.fileName ?: Uri.parse(uri).lastPathSegment?.substringAfterLast('/') ?: uri
+            ItemRow(R.drawable.ic_menu_book, name, chosenFile) {
+                runCatching { context.contentResolver.releasePersistableUriPermission(Uri.parse(uri), Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+                vm.removeFile(uri)
+            }
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            TextButton(onClick = { pickFolder.launch(null) }) {
+                Icon(painterResource(R.drawable.ic_add), contentDescription = null, modifier = Modifier.size(18.dp))
+                Text(" " + stringResource(R.string.scan_add_folder))
+            }
+            TextButton(onClick = { pickFiles.launch(ANY_DOCUMENT) }) {
+                Icon(painterResource(R.drawable.ic_add), contentDescription = null, modifier = Modifier.size(18.dp))
+                Text(" " + stringResource(R.string.scan_add_files))
+            }
+        }
+        if (!broad) {
+            Text(
+                stringResource(R.string.scan_folder_restricted_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
         GroupTitle(stringResource(R.string.scan_what))
@@ -407,6 +464,13 @@ fun ScanOfferScreen(step: Int = 0, steps: Int = 0, vm: ScanViewModel = koinViewM
             vm.finishOffer(scan = true)
         }
     }
+    val pickFiles = rememberLauncherForActivityResult(PickDocumentsContract()) { uris ->
+        if (uris.isNotEmpty()) {
+            persistRead(context, uris)
+            vm.addFiles(uris)
+            vm.finishOffer(scan = true)
+        }
+    }
     androidx.activity.compose.BackHandler { vm.finishOffer(scan = false) }
     Column(
         Modifier
@@ -440,6 +504,16 @@ fun ScanOfferScreen(step: Int = 0, steps: Int = 0, vm: ScanViewModel = koinViewM
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(if (StorageAccess.broadAccessSupported) R.string.scan_offer_search else R.string.scan_offer_choose_folder))
+        }
+        if (!StorageAccess.broadAccessSupported) {
+            OutlinedButton(onClick = { pickFiles.launch(ANY_DOCUMENT) }, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.scan_offer_choose_files))
+            }
+            Text(
+                stringResource(R.string.scan_folder_restricted_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         TextButton(onClick = { vm.finishOffer(scan = false) }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.common_not_now)) }
         Text(

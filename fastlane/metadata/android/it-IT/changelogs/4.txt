@@ -1,0 +1,1 @@
+Una mano indica la parola letta. Aggiungi singoli file (ad esempio da Download) in Sfoglia file. L'app sceglie la voce di Google se il motore predefinito non ha voci.

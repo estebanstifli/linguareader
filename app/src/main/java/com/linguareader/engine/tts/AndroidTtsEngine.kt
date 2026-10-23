@@ -166,6 +166,18 @@ class AndroidTtsEngine(
         }
     }
 
+    /** Si el motor [enginePackage] tiene voz para [languageTag], con una instancia propia que no toca la que lee. */
+    suspend fun hasLanguage(enginePackage: String, languageTag: String): Boolean {
+        val t = withContext(Dispatchers.Main) { create(enginePackage) } ?: return false
+        return withContext(Dispatchers.Main) {
+            try {
+                t.isLanguageAvailable(Locale.forLanguageTag(languageTag)) >= TextToSpeech.LANG_AVAILABLE
+            } finally {
+                runCatching { t.shutdown() }
+            }
+        }
+    }
+
     /** Reproduce [text] con la voz [voiceId] (o la mejor del idioma) para probarla; corta lo que estuviera sonando. */
     suspend fun preview(languageTag: String, voiceId: String?, text: String, speed: Float, pitch: Float): Boolean {
         if (prepare(languageTag, voiceId) !is EngineReadiness.Ready) return false
@@ -340,6 +352,8 @@ class AndroidTtsEngine(
 
     companion object {
         const val TAG = "AndroidTtsEngine"
+        /** Speech Services by Google: el que viene en casi todos los Android y da marcas por palabra. */
+        const val GOOGLE_TTS_PACKAGE = "com.google.android.tts"
         private const val SYNTH_TIMEOUT_MS = 60_000L
         private const val WAV_HEADER_BYTES = 44L
         private const val PITCH_PARAM = "pitch"

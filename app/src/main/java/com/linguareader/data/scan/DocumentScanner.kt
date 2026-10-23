@@ -94,7 +94,7 @@ class DocumentScanner(
         val s = settings.settings.first()
         if (!s.autoStart || !s.offered) return@launch
         if (System.currentTimeMillis() - s.lastScanAt < AUTO_INTERVAL_MS) return@launch
-        if (!StorageAccess.granted(context) && s.folders.isEmpty()) return@launch
+        if (!StorageAccess.granted(context) && s.folders.isEmpty() && s.files.isEmpty()) return@launch
         delay(AUTO_DELAY_MS) // que no compita con el arranque
         start()
     }
@@ -147,6 +147,17 @@ class DocumentScanner(
             }
             flush()
         }
+        for (file in s.files) {
+            if (active()) break
+            val uri = Uri.parse(file)
+            val info = documentInfo(uri) ?: continue // borrado o sin permiso: deja de aparecer
+            val format = DocumentWalker.formatOf(info.name)?.takeIf { it in supportedFormats } ?: continue
+            val folder = folderOf(uri)
+            record(file, {
+                DeviceDocumentEntity(file, info.name, format, info.size, info.modified, folder, QuickMetadata.titleFromName(info.name), null, null, now)
+            }, info.size, info.modified)
+        }
+        flush()
         if (active()) return ScanState.Idle
 
         val removed = known.keys - seen
@@ -191,6 +202,38 @@ class DocumentScanner(
                     dir.absolutePath.substringBefore("/Android/data/", "").takeIf { it.isNotEmpty() }?.let(::File)
                 }
         }.distinctBy { it.absolutePath }
+
+    private class DocumentInfo(val name: String, val size: Long, val modified: Long)
+
+    /** Nombre, tamaño y fecha de un documento suelto elegido con el selector; null si ya no existe o no hay permiso. */
+    private fun documentInfo(uri: Uri): DocumentInfo? = runCatching {
+        val columns = arrayOf(
+            DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+            DocumentsContract.Document.COLUMN_SIZE,
+            DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+        )
+        context.contentResolver.query(uri, columns, null, null, null)?.use { c ->
+            if (!c.moveToFirst()) return@use null
+            val name = c.getString(0) ?: return@use null
+            DocumentInfo(name, if (c.isNull(1)) 0L else c.getLong(1), if (c.isNull(2)) 0L else c.getLong(2))
+        }
+    }.onFailure { Log.w(TAG, "No se pudo leer el documento $uri: ${it.message}") }.getOrNull()
+
+    /**
+     * Carpeta de un documento suelto para agruparlo: la ruta del almacenamiento externo («primary:Download/x.epub») o,
+     * si el proveedor no la da (Descargas usa identificadores opacos), la carpeta de descargas.
+     */
+    private fun folderOf(uri: Uri): String {
+        val id = runCatching { DocumentsContract.getDocumentId(uri) }.getOrNull().orEmpty()
+        val path = when {
+            id.startsWith("raw:") -> id.removePrefix("raw:")
+            uri.authority == EXTERNAL_STORAGE_AUTHORITY -> id.substringAfter(':', "")
+            else -> ""
+        }
+        return path.substringBeforeLast('/', "").ifEmpty {
+            if (uri.authority == DOWNLOADS_AUTHORITY) Environment.DIRECTORY_DOWNLOADS else ""
+        }
+    }
 
     /** Recorre una carpeta elegida con el selector del sistema (sin permiso de almacenamiento). */
     private fun walkTree(
@@ -237,5 +280,7 @@ class DocumentScanner(
         const val TAG = "DocumentScanner"
         const val AUTO_INTERVAL_MS = 6 * 60 * 60 * 1000L
         const val AUTO_DELAY_MS = 5_000L
+        const val EXTERNAL_STORAGE_AUTHORITY = "com.android.externalstorage.documents"
+        const val DOWNLOADS_AUTHORITY = "com.android.providers.downloads.documents"
     }
 }

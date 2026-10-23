@@ -53,8 +53,11 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.koin.compose.viewmodel.koinViewModel
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewModelScope
 import com.linguareader.R
 import com.linguareader.core.engine.EngineReadiness
@@ -74,6 +77,7 @@ import com.linguareader.data.scan.StorageAccess
 import com.linguareader.engine.packs.LibraryInfo
 import com.linguareader.engine.packs.LibraryPackManager
 import com.linguareader.engine.packs.LibraryPackState
+import com.linguareader.engine.tts.SystemTtsAutoSelect
 import com.linguareader.engine.translation.ModelDownload
 import com.linguareader.engine.translation.TranslationModelManager
 import com.linguareader.ui.common.Languages
@@ -92,7 +96,7 @@ sealed interface VoiceCheck {
     data object Checking : VoiceCheck
     data object Ready : VoiceCheck
     /** Falta descargar la voz de ese idioma en el motor del sistema: se ofrece instalarla. */
-    data object Missing : VoiceCheck
+    data class Missing(val enginePackage: String?) : VoiceCheck
     data object NoEngine : VoiceCheck
 }
 
@@ -103,6 +107,7 @@ class OnboardingViewModel(
     private val models: TranslationModelManager,
     private val scanner: DocumentScanner,
     private val tts: StreamingSpeechEngine,
+    private val ttsAutoSelect: SystemTtsAutoSelect,
     documents: DeviceDocumentDao,
 ) : ViewModel() {
     val preferences: StateFlow<UserPreferences?> = repo.preferences.map<UserPreferences, UserPreferences?> { it }
@@ -168,12 +173,15 @@ class OnboardingViewModel(
     fun retryLibrary(lang: String) = libraries.download(lang)
     fun retryModel(code: String) = models.download(code)
 
+    /** Primera detección: antes de comprobar la voz se elige motor (Google si está) por si el predeterminado no sirve. */
     fun checkVoice(lang: String) = viewModelScope.launch {
-        voice.value = VoiceCheck.Checking
+        if (voice.value !is VoiceCheck.Missing) voice.value = VoiceCheck.Checking
+        runCatching { ttsAutoSelect.ensureChosen(lang) }
         voice.value = when (val r = runCatching { tts.prepare(lang, null) }.getOrNull()) {
             EngineReadiness.Ready -> VoiceCheck.Ready
             is EngineReadiness.Unavailable -> when (r.reason) {
-                EngineUnavailableReason.LANGUAGE_DATA_MISSING, EngineUnavailableReason.LANGUAGE_NOT_SUPPORTED -> VoiceCheck.Missing
+                EngineUnavailableReason.LANGUAGE_DATA_MISSING, EngineUnavailableReason.LANGUAGE_NOT_SUPPORTED ->
+                    VoiceCheck.Missing(repo.preferences.first().systemTtsEngine)
                 else -> VoiceCheck.NoEngine
             }
             null -> VoiceCheck.NoEngine
@@ -410,6 +418,11 @@ private fun SummaryScreen(p: UserPreferences, vm: OnboardingViewModel) {
     val reads = p.purpose != AppPurpose.LEARN
     val lang = p.readingLanguage.takeIf { learns }
     LaunchedEffect(lang) { lang?.let { vm.startDownloads(); vm.checkVoice(it) } }
+    // Al volver de instalar la voz en el motor, se comprueba otra vez.
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(lifecycle, lang) {
+        if (lang != null) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) { if (vm.voice.value is VoiceCheck.Missing) vm.checkVoice(lang) }
+    }
     BackHandler { vm.finish() }
 
     Page(stepsFor(p), stepsFor(p), stringResource(R.string.onboarding_summary_title), stringResource(R.string.onboarding_summary_body)) {
@@ -460,14 +473,17 @@ private fun SummaryScreen(p: UserPreferences, vm: OnboardingViewModel) {
                 }
             }
             val voiceTitle = stringResource(R.string.onboarding_voice_in, Languages.nameInSentence(lang))
-            when (voice) {
+            when (val v = voice) {
                 VoiceCheck.Checking -> Item(R.drawable.ic_record_voice_over, voiceTitle, stringResource(R.string.common_checking), Status.RUNNING)
                 VoiceCheck.Ready -> Item(R.drawable.ic_record_voice_over, voiceTitle, stringResource(R.string.onboarding_voice_ready), Status.DONE)
-                VoiceCheck.Missing -> Item(
+                is VoiceCheck.Missing -> Item(
                     R.drawable.ic_record_voice_over, voiceTitle,
                     stringResource(R.string.onboarding_voice_missing), Status.FAILED, stringResource(R.string.common_install),
                 ) {
-                    runCatching { context.startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                    // Al motor que usará la app, no al predeterminado de Android (que puede ser otro).
+                    val install = Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    runCatching { context.startActivity(Intent(install).apply { v.enginePackage?.let(::setPackage) }) }
+                        .recoverCatching { context.startActivity(install) }
                 }
                 VoiceCheck.NoEngine -> Item(
                     R.drawable.ic_record_voice_over, voiceTitle,

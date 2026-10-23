@@ -27,7 +27,7 @@ data class UserPreferences(
     val translationLanguage: String = "es",
     val displayMode: DisplayMode = DisplayMode.TRANSLATION_ON_TAP,
     val highlightStyle: HighlightStyle = HighlightStyle.BACKGROUND,
-    val fingerPointerEnabled: Boolean = false,
+    val fingerPointerEnabled: Boolean = true,
     val autoScroll: Boolean = true,
     val showIllustrations: Boolean = true,
     val pauseOnWordTap: Boolean = true,

@@ -509,6 +509,9 @@
     <string name="scan_internal_storage">Memoria interna</string>
     <string name="scan_chosen_folder">Carpeta elegida</string>
     <string name="scan_add_folder">Añadir una carpeta</string>
+    <string name="scan_add_files">Añadir archivos</string>
+    <string name="scan_chosen_file">Archivo elegido</string>
+    <string name="scan_folder_restricted_hint">Android no deja que las apps usen Download ni la raíz de la memoria interna como carpeta completa. Elige una carpeta dentro de ellas o añade los archivos con «Añadir archivos».</string>
     <string name="scan_what">Qué buscar</string>
     <string name="scan_small_txt_hint">Los .txt de menos de 1 KB (notas, registros de otras apps) no se cuentan como documentos.</string>
     <string name="scan_other_options">Otras opciones</string>
@@ -655,6 +658,7 @@
     <string name="scan_folders_only_hint">En Android 11 y posteriores, los libros se buscan solo en las carpetas que elijas (por ejemplo Documentos, Libros o una carpeta dentro de Download). No hace falta ningún permiso de almacenamiento.</string>
     <string name="scan_offer_folders">Elige la carpeta donde guardas tus libros (por ejemplo Documentos o Libros). La app solo la lee para mostrarte sus documentos: no se cambia ni se envía nada. Puedes añadir más carpetas después.</string>
     <string name="scan_offer_choose_folder">Elegir una carpeta</string>
+    <string name="scan_offer_choose_files">Elegir archivos (por ejemplo, de Download)</string>
     <string name="onboarding_scan_no_folders">Sin carpetas elegidas: puedes añadirlas en Ajustes › Examinar archivos</string>
 
     <!-- Acerca de (ui/settings/AboutSection.kt) -->

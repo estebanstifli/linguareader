@@ -502,6 +502,9 @@
     <string name="scan_internal_storage">Internal storage</string>
     <string name="scan_chosen_folder">Chosen folder</string>
     <string name="scan_add_folder">Add a folder</string>
+    <string name="scan_add_files">Add files</string>
+    <string name="scan_chosen_file">Chosen file</string>
+    <string name="scan_folder_restricted_hint">Android does not let apps use Download or the root of the internal storage as a whole folder. Choose a folder inside it, or add the files themselves with “Add files”.</string>
     <string name="scan_what">What to search for</string>
     <string name="scan_small_txt_hint">.txt files under 1 KB (notes, logs from other apps) aren\'t counted as documents.</string>
     <string name="scan_other_options">Other options</string>
@@ -648,6 +651,7 @@
     <string name="scan_folders_only_hint">On Android 11 and later, books are searched for only in the folders you choose (for example Documents, Books or a folder inside Download). No storage permission is needed.</string>
     <string name="scan_offer_folders">Choose the folder where you keep your books (for example Documents or Books). The app only reads it to show you its documents: nothing is changed or sent anywhere. You can add more folders later.</string>
     <string name="scan_offer_choose_folder">Choose a folder</string>
+    <string name="scan_offer_choose_files">Choose files (for example from Download)</string>
     <string name="onboarding_scan_no_folders">No folders chosen: you can add them in Settings › Browse files</string>
 
     <!-- Acerca de (ui/settings/AboutSection.kt) -->

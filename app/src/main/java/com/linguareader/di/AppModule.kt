@@ -62,6 +62,7 @@ import com.linguareader.engine.translation.BookTranslationService
 import com.linguareader.engine.translation.MlKitTranslationEngine
 import com.linguareader.engine.translation.TranslationModelManager
 import com.linguareader.engine.tts.AndroidTtsEngine
+import com.linguareader.engine.tts.SystemTtsAutoSelect
 import com.linguareader.importer.ExtractorRegistry
 import com.linguareader.ui.catalog.BookEditViewModel
 import com.linguareader.ui.catalog.CatalogViewModel
@@ -193,6 +194,7 @@ val ttsEngineModule = module {
     singleOf(::AndroidAudioFocusGate)
     singleOf(::CuePlayer)
     singleOf(::TtsEngineCoordinator)
+    singleOf(::SystemTtsAutoSelect)
 
     single {
         val manager = get<SupertonicModelManager>()

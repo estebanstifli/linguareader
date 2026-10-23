@@ -25,8 +25,8 @@ android {
         val libraryTag = providers.gradleProperty("libraryTag").getOrElse("library-v1")
         buildConfigField("String", "LIBRARY_TAG", "\"$libraryTag\"")
         // Cada subida a Play necesita un versionCode mayor que el anterior.
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
         testInstrumentationRunner = "com.linguareader.KoinTestRunner"
 
         // Arquitecturas: solo móviles de 64 bits y el emulador (ver `splits` más abajo). ONNX Runtime

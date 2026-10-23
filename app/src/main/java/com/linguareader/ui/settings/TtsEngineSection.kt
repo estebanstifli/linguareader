@@ -349,7 +349,7 @@ private fun SystemVoiceCard(vm: TtsSettingsViewModel, prefs: UserPreferences) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
-                        .selectable(selected = selected, onClick = { vm.setSystemEngine(if (e.isDefault) null else e.packageName) }, role = Role.RadioButton),
+                        .selectable(selected = selected, onClick = { vm.setSystemEngine(e.packageName) }, role = Role.RadioButton),
                 ) {
                     RadioButton(selected = selected, onClick = null)
                     Column(Modifier.padding(start = 8.dp, top = 4.dp, bottom = 4.dp)) {

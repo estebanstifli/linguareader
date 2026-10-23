@@ -1,0 +1,1 @@
+Eine Hand zeigt auf das gelesene Wort. Einzelne Dateien (z. B. aus Download) unter Dateien durchsuchen hinzufügen. Die App wählt die Google-Stimme, wenn die Standard-Engine keine Stimme hat.

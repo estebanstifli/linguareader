@@ -1,0 +1,1 @@
+Una mano señala la palabra que se lee. Añade archivos sueltos (por ejemplo de Download) en Examinar archivos. La app elige sola la voz de Google si el motor predeterminado no tiene voz.

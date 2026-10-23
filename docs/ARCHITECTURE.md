@@ -100,6 +100,10 @@ silencios entre frases. Ahora usa el mismo flujo que Supertonic:
 4. `MarkTimings` sitúa cada token en el texto hablado (por su forma hablada si se normalizó) y convierte las
    marcas en tiempos; `GapFiller` completa lo que falte. Verificado en el emulador: «Sincronía por palabra».
 5. La clave de caché incluye el paquete y la versión del motor del sistema (`modelVersion`).
+6. Primera detección (`SystemTtsAutoSelect`, al arrancar y en el resumen de la primera apertura): si el usuario no
+   eligió motor, se guarda Speech Services by Google (`com.google.android.tts`) si está instalado; si no, el primer
+   motor con voz para el idioma de lectura. Evita quedarse con un predeterminado sin voces (p. ej. RHVoice). En
+   Ajustes › Voz la elección se guarda siempre con su paquete, también la del predeterminado.
 
 Antes del TTS, `SpeechTextNormalizer` convierte cada frase en su forma hablada (números, abreviaturas,
 símbolos) con un mapa token → habla, sin tocar el texto ni los tokens: ver [SPEECH_NORMALIZATION.md](SPEECH_NORMALIZATION.md).
