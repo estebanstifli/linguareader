@@ -153,7 +153,15 @@ en un iPhone real antes de prometerlo.
     catálogo por apartados, estanterías, colecciones y papelera, Ajustes › Bibliotecas, primera apertura,
     vocabulario y edición de libro. CI verde: la primera apertura descarga e instala la biblioteca inglesa en el
     simulador (38 libros) y Android la descarga con el mismo código. Pendiente: probarlo en Device Farm.
-  - ⬜ Síntesis a fichero con marcas (`write(_:toBufferCallback:toMarkerCallback:)`) para el flujo renderizado con caché.
+  - 🟡 **Hito 2 (lector completo, 23-10-2026):** audio como en Android (`AppleSpeechEngine` como
+    `FileSpeechSynthesizer` con `write(_:toBufferCallback:toMarkerCallback:)`, caché de clips, `AudioEngineClipPlayer`
+    sobre `AVAudioEngine`, `TrackClipPlayer` para narraciones, `AppleAudioFocusGate`, `RenderedReaderAudioController`
+    + `SwitchingReaderAudioController`, Now Playing y mandos de la pantalla de bloqueo); lector con paginación
+    TextKit 2 por líneas enteras, resaltado de frase y palabra, toque en palabra con ficha (glosario), ficha de frase,
+    índice (capítulos, marcadores, vocabulario), búsqueda, ajustes de lectura (tema, tamaño, interlineado, alineación,
+    modo de traducción, resaltado, pasar páginas, pantalla, pausas, voz), marcadores, reproductor y progreso.
+    CI verde. Pendiente: comprobar en Device Farm que las voces de un iPhone real entregan marcas de palabra al
+    escribir a fichero (el simulador no las da: resalta por frase); ilustraciones, dedo indicador y doble página.
   - ⬜ Binding de `onnxruntime-c`, medir Supertonic y wav2vec2 en iPhone; descargas con `URLSession` en segundo plano;
     `AVAudioEngine` y Now Playing.
 - ⬜ **Fase 2:** app SwiftUI (lector con TextKit 2, catálogo, ajustes, onboarding, visor PDF con PDFKit, String Catalog).
