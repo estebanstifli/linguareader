@@ -37,6 +37,8 @@ import okio.Path
 import platform.AVFAudio.AVAudioBuffer
 import platform.AVFAudio.AVAudioPCMBuffer
 import platform.AVFAudio.AVAudioSession
+import platform.AVFAudio.AVSpeechSynthesisVoiceTraitIsNoveltyVoice
+import platform.AVFAudio.AVSpeechSynthesisVoiceTraitIsPersonalVoice
 import platform.AVFAudio.AVAudioSessionCategoryPlayback
 import platform.AVFAudio.AVSpeechBoundary
 import platform.AVFAudio.AVSpeechSynthesisMarker
@@ -150,6 +152,9 @@ class AppleSpeechEngine : StreamingSpeechEngine, FileSpeechSynthesizer {
         activateSession()
         val chosen = resolveVoice(languageTag, voiceId)
             ?: return EngineReadiness.Unavailable(EngineUnavailableReason.LANGUAGE_NOT_SUPPORTED, languageTag)
+        if (chosen.identifier != voice?.identifier) {
+            Diagnostics.log(TAG, "voice ${chosen.name} (${chosen.language}, quality ${qualityOf(chosen)}) for $languageTag, requested ${voiceId ?: "automatic"}")
+        }
         voice = chosen
         return EngineReadiness.Ready
     }
@@ -317,16 +322,25 @@ class AppleSpeechEngine : StreamingSpeechEngine, FileSpeechSynthesizer {
         }
     }
 
+    /**
+     * Voces del idioma del libro, sin las de broma (Eddy, Flo, Grandma, Shelley…, que iOS registra en cada región) ni
+     * las personales. Si un nombre se repite en varias regiones (es-ES y es-MX), se añade la región. Primero las de
+     * la etiqueta exacta del libro, luego por calidad.
+     */
     override suspend fun listVoices(languageTag: String): List<VoiceInfo> {
         val primary = languageTag.substringBefore('-').lowercase()
-        return AVSpeechSynthesisVoice.speechVoices()
+        val skip = AVSpeechSynthesisVoiceTraitIsNoveltyVoice or AVSpeechSynthesisVoiceTraitIsPersonalVoice
+        val voices = AVSpeechSynthesisVoice.speechVoices()
             .filterIsInstance<AVSpeechSynthesisVoice>()
             .filter { it.language.lowercase().substringBefore('-') == primary }
+            .filter { (it.voiceTraits and skip) == 0uL }
+        val regionsByName = voices.groupBy { it.name }.mapValues { (_, same) -> same.map { it.language }.distinct().size }
+        return voices
             .map { v ->
                 VoiceInfo(
                     id = v.identifier,
                     languageTag = v.language,
-                    displayName = v.name,
+                    displayName = if ((regionsByName[v.name] ?: 1) > 1) "${v.name} (${v.language})" else v.name,
                     requiresNetwork = false,
                     quality = qualityOf(v),
                     gender = when (v.gender) {
@@ -337,7 +351,11 @@ class AppleSpeechEngine : StreamingSpeechEngine, FileSpeechSynthesizer {
                     named = true,
                 )
             }
-            .sortedWith(compareByDescending<VoiceInfo> { it.quality }.thenBy { it.displayName })
+            .sortedWith(
+                compareByDescending<VoiceInfo> { it.languageTag.equals(languageTag, ignoreCase = true) }
+                    .thenByDescending { it.quality }
+                    .thenBy { it.displayName },
+            )
     }
 
     private fun qualityOf(v: AVSpeechSynthesisVoice): Int = when (v.quality) {

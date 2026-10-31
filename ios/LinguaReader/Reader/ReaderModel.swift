@@ -371,10 +371,16 @@ final class ReaderModel: ObservableObject {
         try? await audio.setSpeed(speed: speed)
     }
 
+    /// Cambia la voz y sigue leyendo donde estaba: recargar el pasaje deja el audio en «ready», así que si sonaba se
+    /// vuelve a dar al play (como al cambiar de modo de audio).
     func setVoice(_ id: String?) async {
         guard let book else { return }
+        let wasPlaying = isPlaying
+        if wasPlaying { try? await audio.pause() }
         try? await LinguaShared.shared.setVoice(languageTag: book.learningLanguage, voiceId: id)
-        if let passage { try? await audio.load(passage: passage, languageTag: book.learningLanguage, voiceId: id, startOffset: playback?.resumeOffset ?? 0) }
+        guard let passage else { return }
+        try? await audio.load(passage: passage, languageTag: book.learningLanguage, voiceId: id, startOffset: playback?.resumeOffset ?? 0)
+        if wasPlaying { try? await audio.play() }
     }
 
     /// «Leer desde aquí»: desde un offset del capítulo.
