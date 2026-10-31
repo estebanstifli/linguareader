@@ -37,6 +37,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.linguareader.ios
         TARGETED_DEVICE_FAMILY: "1"
+        # El compilador emite .stringsdata con las claves de las vistas SwiftUI; CI los vuelca al catálogo.
+        SWIFT_EMIT_LOC_STRINGS: YES
   LinguaReaderTests:
     type: bundle.unit-test
     platform: iOS

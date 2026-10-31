@@ -85,6 +85,15 @@ jobs:
         with:
           name: ios-device-farm
           path: ios/build/device-farm/*
+      - name: Extract the string keys into the catalog (xcstringstool, what the IDE does on build)
+        working-directory: ios
+        run: |
+          files=$(find build/device -name '*.stringsdata' -path '*LinguaReader.build*' | grep -v Pods || true)
+          echo "$files"
+          if [ -n "$files" ]; then
+            xcrun xcstringstool sync LinguaReader/Localizable.xcstrings --stringsdata $files || xcrun xcstringstool sync --help || true
+          fi
+          python3 -c "import json; print('keys:', len(json.load(open('LinguaReader/Localizable.xcstrings'))['strings']))"
       - name: Upload the string catalog as Xcode extracted it (keys for the translations)
         uses: actions/upload-artifact@v4
         with:
