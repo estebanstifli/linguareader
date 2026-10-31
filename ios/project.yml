@@ -25,6 +25,8 @@ targets:
         CFBundleDisplayName: LingoAudioBook
         CFBundleShortVersionString: "0.4.1"
         CFBundleVersion: "5"
+        CFBundleDevelopmentRegion: en
+        CFBundleLocalizations: [en, es, fr, de, it, pt]
         UILaunchScreen: {}
         UIBackgroundModes: [audio]
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]

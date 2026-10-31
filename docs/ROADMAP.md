@@ -172,9 +172,10 @@ en un iPhone real antes de prometerlo.
     onboarding. CI verde; ML Kit solo va en la app de iPhone (sin rebanada arm64 de simulador), así que se verifica
     en Device Farm. Paridad con Android 0.4.1 (31-10-2026): nombre LingoAudioBook y versión 0.4.1 (5), Ajustes ›
     About con privacidad, web, contacto y licencias (`AppLinks.swift`), ajustes de mano y reducir movimiento.
-    Pendiente: pretraducción de libros en la UI, resto de páginas de ajustes, String Catalog (en/es/fr/de/it/pt:
-    catálogo vacío ya en el proyecto; CI sube las claves extraídas), y Apple `Translation` (iOS 18) como segundo
-    adaptador. No aplican a iOS: elección automática del motor de voz (motores TTS de Android), «Añadir archivos»
+    String Catalog en/es/fr/de/it/pt (31-10-2026): 140 claves de las vistas SwiftUI traducidas; CI extrae las
+    claves con `xcstringstool` (artefacto `ios-string-catalog`). Pendiente: pretraducción de libros en la UI, resto
+    de páginas de ajustes, textos que aún viajan como `String` (errores, estado del reproductor), y Apple
+    `Translation` (iOS 18) como segundo adaptador. No aplican a iOS: elección automática del motor de voz (motores TTS de Android), «Añadir archivos»
     del escaneo de almacenamiento (iOS aún no importa archivos del usuario) y reglas de copia de seguridad.
   - ⬜ Binding de `onnxruntime-c`, medir Supertonic y wav2vec2 en iPhone; descargas con `URLSession` en segundo plano;
     `AVAudioEngine` y Now Playing.
