@@ -164,13 +164,18 @@ en un iPhone real antes de prometerlo.
     CI verde. Probado en iPhone 15 y 17 (Device Farm): la lectura en directo (`willSpeakRangeOfSpeechString`) marca
     bien y es el modo predeterminado; las marcas de `write(_:toMarkerCallback:)` no son fiables, así que el flujo
     con caché queda como modo alternativo («Cached audio») hasta aclararlo con la pantalla Ajustes › Acerca de ›
-    Diagnostics. Pendiente: ilustraciones, dedo indicador y doble página.
+    Diagnostics. Mano ilustrada que señala la palabra (31-10-2026, `HandPointer.swift`, mismo algoritmo y dibujo
+    que Android, activada por defecto). Pendiente: ilustraciones y doble página.
   - 🟡 **Hito 3 (traducción, ajustes, i18n), parte 1 (23-10-2026):** traducción automática con ML Kit por el puente
     `IosTranslator` (Swift, CocoaPods) → `IosTranslationEngine` (caché Room, misma lógica que Android) e
     `IosTranslationModels`; Ajustes › Translation (idioma, Wi-Fi, modelos), descarga desde la ficha de palabra y el
     onboarding. CI verde; ML Kit solo va en la app de iPhone (sin rebanada arm64 de simulador), así que se verifica
-    en Device Farm. Pendiente: pretraducción de libros en la UI, resto de páginas de ajustes, String Catalog (en/es),
-    y Apple `Translation` (iOS 18) como segundo adaptador.
+    en Device Farm. Paridad con Android 0.4.1 (31-10-2026): nombre LingoAudioBook y versión 0.4.1 (5), Ajustes ›
+    About con privacidad, web, contacto y licencias (`AppLinks.swift`), ajustes de mano y reducir movimiento.
+    Pendiente: pretraducción de libros en la UI, resto de páginas de ajustes, String Catalog (en/es/fr/de/it/pt:
+    catálogo vacío ya en el proyecto; CI sube las claves extraídas), y Apple `Translation` (iOS 18) como segundo
+    adaptador. No aplican a iOS: elección automática del motor de voz (motores TTS de Android), «Añadir archivos»
+    del escaneo de almacenamiento (iOS aún no importa archivos del usuario) y reglas de copia de seguridad.
   - ⬜ Binding de `onnxruntime-c`, medir Supertonic y wav2vec2 en iPhone; descargas con `URLSession` en segundo plano;
     `AVAudioEngine` y Now Playing.
 - ⬜ **Fase 2:** app SwiftUI (lector con TextKit 2, catálogo, ajustes, onboarding, visor PDF con PDFKit, String Catalog).

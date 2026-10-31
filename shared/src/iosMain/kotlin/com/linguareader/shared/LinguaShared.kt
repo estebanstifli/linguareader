@@ -437,6 +437,8 @@ object LinguaShared {
     @Throws(Throwable::class) suspend fun setKeepScreenOn(enabled: Boolean) = preferences.update { it.copy(keepScreenOn = enabled) }
     @Throws(Throwable::class) suspend fun setPauseOnWordTap(enabled: Boolean) = preferences.update { it.copy(pauseOnWordTap = enabled) }
     @Throws(Throwable::class) suspend fun setAutoContinue(enabled: Boolean) = preferences.update { it.copy(autoContinue = enabled) }
+    @Throws(Throwable::class) suspend fun setFingerPointer(enabled: Boolean) = preferences.update { it.copy(fingerPointerEnabled = enabled) }
+    @Throws(Throwable::class) suspend fun setReduceMotion(enabled: Boolean) = preferences.update { it.copy(reduceMotion = enabled) }
     @Throws(Throwable::class) suspend fun setSpeechRate(rate: Float) = preferences.update { it.copy(speechRate = rate) }
     @Throws(Throwable::class) suspend fun setSentencePause(ms: Int) = preferences.update { it.copy(sentencePauseMs = ms) }
     @Throws(Throwable::class) suspend fun setParagraphPause(ms: Int) = preferences.update { it.copy(paragraphPauseMs = ms) }
@@ -506,7 +508,7 @@ object LinguaShared {
         )
 
     /** Versión del código compartido que ve la app (para la pantalla «Acerca de» y los logs de Device Farm). */
-    const val VERSION = "0.3.0-ios"
+    const val VERSION = "0.4.1-ios"
 }
 
 @OptIn(ExperimentalForeignApi::class)

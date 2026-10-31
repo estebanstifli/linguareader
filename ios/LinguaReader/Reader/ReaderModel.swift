@@ -57,6 +57,8 @@ final class ReaderModel: ObservableObject {
     private var remoteTargets: [Any] = []
     private var lastStyle: ChapterLayout.Style?
     private var systemDark = false
+    /// Última palabra que sonó (para saber si la pausa es el final de su frase).
+    private var lastSpoken: Token?
 
     private var audio: ReaderAudioController { LinguaShared.shared.audio }
 
@@ -210,6 +212,7 @@ final class ReaderModel: ObservableObject {
         let passage = book.passages[index]
         passageIndex = index
         completionHandledFor = nil
+        lastSpoken = nil
         wordCard = nil
         sentenceCard = nil
         if let chapter = book.chapterOf(passage: passage), let ci = book.chapters.firstIndex(where: { $0.id == chapter.id }) {
@@ -246,6 +249,7 @@ final class ReaderModel: ObservableObject {
     private func onPlayback(_ state: PlaybackState) {
         playback = state
         guard let passage, state.passageId == passage.id else { return }
+        if let id = state.activeTokenId, let token = passage.tokenById(id: id) { lastSpoken = token }
         if state.status == .completed {
             if completionHandledFor == passage.id { return }
             completionHandledFor = passage.id
@@ -279,6 +283,44 @@ final class ReaderModel: ObservableObject {
     var highlight: PageHighlight {
         guard let playback, playback.status == .playing || playback.status == .paused || playback.status == .ready else { return PageHighlight() }
         return PageHighlight(sentence: sentenceRange(playback), word: highlightRange(playback), style: prefs?.highlightStyle ?? .background)
+    }
+
+    /// Palabra que señala la mano (`HandPointerView`): la que suena; en el silencio tras una frase, la primera de la
+    /// frase siguiente (o del pasaje siguiente); antes de la primera palabra de una frase, su comienzo. Solo con
+    /// tiempos por palabra. Misma lógica que `pointerPlan` en el lector Android.
+    var pointerPlan: PointerPlan? {
+        guard prefs?.fingerPointerEnabled ?? true, let playback, let passage, let layout, let book,
+              playback.passageId == passage.id, playback.granularity == .word,
+              playback.status == .playing || playback.status == .paused else { return nil }
+        func range(_ index: Int, _ token: Token) -> NSRange? {
+            layout.chapterRange(passageIndex: index, start: Int(token.rangeStart), end: Int(token.rangeEnd))
+        }
+        if let id = playback.activeTokenId, let active = passage.tokenById(id: id) {
+            guard let word = range(passageIndex, active) else { return nil }
+            let position = passage.tokens.firstIndex { $0.id == active.id } ?? -1
+            let next = position >= 0 && position + 1 < passage.tokens.count ? passage.tokens[position + 1] : nil
+            return PointerPlan(word: word, lead: next.flatMap { range(passageIndex, $0) }, step: PointerStep(tokenId: active.id, gap: false))
+        }
+        guard Int(playback.sentenceIndex) < passage.sentences.count else { return nil }
+        let sentence = passage.sentences[Int(playback.sentenceIndex)]
+        let finished = lastSpoken?.sentenceId == sentence.id
+        let index: Int
+        let target: Token?
+        if finished {
+            if Int(sentence.index) + 1 < passage.sentences.count {
+                let nextSentence = passage.sentences[Int(sentence.index) + 1]
+                index = passageIndex
+                target = passage.tokens.first { $0.sentenceId == nextSentence.id }
+            } else {
+                index = passageIndex + 1
+                target = index < book.passages.count ? book.passages[index].tokens.first : nil
+            }
+        } else {
+            index = passageIndex
+            target = passage.tokens.first { $0.sentenceId == sentence.id }
+        }
+        guard let target, let word = range(index, target) else { return nil }
+        return PointerPlan(word: word, lead: nil, step: PointerStep(tokenId: target.id, gap: true))
     }
 
     func togglePlay() async {

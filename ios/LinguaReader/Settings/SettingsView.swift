@@ -84,23 +84,81 @@ struct LibraryRow: View {
     }
 }
 
+/// Ajustes › Acerca de: versión, privacidad, contacto, web y avisos de terceros (licencias), como en Android.
 struct AboutView: View {
+    private var shortVersion: String { Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "" }
+    private var build: String { Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "" }
+
     var body: some View {
         List {
             Section {
-                Text("LinguaReader for iOS").font(.headline)
-                Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "") · shared code \(LinguaShared.shared.VERSION)")
+                Text("LingoAudioBook").font(.headline)
+                Text("Version \(shortVersion) (\(build)) · shared code \(LinguaShared.shared.VERSION)")
                     .font(.footnote).foregroundStyle(.secondary)
-            }
-            Section("Licenses") {
-                Text("Graded readers: adapted public-domain texts, see each book's information. Shared engine: Kotlin Multiplatform, Okio, Room, Koin (Apache-2.0).")
+                Text("Learn languages by reading and listening: graded readers, a voice that highlights each word, and translation on tap, all offline.")
                     .font(.footnote)
+            }
+            Section {
+                Link(destination: AppLinks.privacyPolicy) { LinkRow("Privacy policy", AppLinks.privacyPolicy.absoluteString, icon: "hand.raised") }
+                Link(destination: AppLinks.website) { LinkRow("Website and help", AppLinks.website.absoluteString, icon: "globe") }
+                Link(destination: AppLinks.contact(subject: "LingoAudioBook \(shortVersion): feedback")) {
+                    LinkRow("Contact and suggestions", AppLinks.contactEmail, icon: "envelope")
+                }
+            } footer: {
+                Text("No account, no ads and no tracking by the app. Your books, progress and vocabulary stay on your phone. The app only connects to the internet to download what you ask for (libraries, translators).")
+            }
+            Section("Open source licenses") {
+                Text("This app uses the following components. Tap one to read its license.").font(.footnote).foregroundStyle(.secondary)
+                ForEach(ThirdPartyNotices.included) { NoticeRow(notice: $0) }
+            }
+            if !ThirdPartyNotices.downloadable.isEmpty {
+                Section("Optional downloads") {
+                    ForEach(ThirdPartyNotices.downloadable) { NoticeRow(notice: $0) }
+                }
+            }
+            Section {
+                Text("Graded readers: our own adaptations of public-domain works. Your imported books stay only on your device.")
+                    .font(.footnote).foregroundStyle(.secondary)
             }
             Section("Troubleshooting") {
                 NavigationLink { DiagnosticsView() } label: { Label("Diagnostics", systemImage: "stethoscope") }
             }
         }
         .navigationTitle("About")
+    }
+}
+
+private struct LinkRow: View {
+    let title: LocalizedStringKey
+    let detail: String
+    let icon: String
+
+    init(_ title: LocalizedStringKey, _ detail: String, icon: String) {
+        self.title = title
+        self.detail = detail
+        self.icon = icon
+    }
+
+    var body: some View {
+        Label {
+            VStack(alignment: .leading) {
+                Text(title).foregroundStyle(.primary)
+                Text(detail).font(.footnote).foregroundStyle(.secondary)
+            }
+        } icon: { Image(systemName: icon) }
+    }
+}
+
+private struct NoticeRow: View {
+    let notice: ThirdPartyNotice
+
+    var body: some View {
+        Link(destination: notice.url) {
+            VStack(alignment: .leading) {
+                Text(notice.name).foregroundStyle(.primary)
+                Text("\(notice.author) · \(notice.license)").font(.footnote).foregroundStyle(.secondary)
+            }
+        }
     }
 }
 

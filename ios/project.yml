@@ -22,9 +22,9 @@ targets:
     info:
       path: LinguaReader/Info.plist
       properties:
-        CFBundleDisplayName: LinguaReader
-        CFBundleShortVersionString: "0.2.0"
-        CFBundleVersion: "1"
+        CFBundleDisplayName: LingoAudioBook
+        CFBundleShortVersionString: "0.4.1"
+        CFBundleVersion: "5"
         UILaunchScreen: {}
         UIBackgroundModes: [audio]
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]

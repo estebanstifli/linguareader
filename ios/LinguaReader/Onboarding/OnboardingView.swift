@@ -53,7 +53,7 @@ struct OnboardingView: View {
 
     private var purpose: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("What will you use LinguaReader for?").font(.largeTitle.bold())
+            Text("What will you use LingoAudioBook for?").font(.largeTitle.bold())
             Text("We'll set up the app based on your choice. You can change it in Settings at any time.").foregroundStyle(.secondary)
             choiceCard("Read my books and documents", "Opens EPUB, FB2, Word, TXT… files in a comfortable reader, without voice.", "book") { set(.read) }
                 .accessibilityIdentifier("onboarding.read")

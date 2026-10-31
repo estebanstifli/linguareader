@@ -17,6 +17,10 @@ struct ChapterPageView: UIViewRepresentable {
     let theme: ReaderTheme
     @Binding var pageIndex: Int
     let highlight: PageHighlight
+    /// Palabra que señala la mano (nil = mano desactivada o sin reproducción), y lo que necesita para moverse.
+    let pointer: PointerPlan?
+    let playing: Bool
+    let reduceMotion: Bool
     /// Offset del capítulo que debe quedar visible (tras un salto o al seguir a la voz); nil = ninguno.
     let showOffset: Int?
     let onShowOffsetApplied: () -> Void
@@ -44,6 +48,7 @@ struct ChapterPageView: UIViewRepresentable {
         if view.pageIndex != pageIndex {
             view.pageIndex = pageIndex
         }
+        view.apply(pointer: pointer, playing: playing, reduceMotion: reduceMotion)
     }
 }
 
@@ -62,6 +67,8 @@ final class PageTextView: UIView {
     var onTap: ((Int?) -> Void)?
     var onPages: (([Int]) -> Void)?
     private var pending: (NSAttributedString, String)?
+    private let hand = HandPointerView()
+    private var pointerInputs: (plan: PointerPlan?, playing: Bool, reduceMotion: Bool) = (nil, false, false)
 
     /** Compone el texto en cuanto la vista tiene tamaño; hasta entonces lo deja pendiente. */
     func present(_ text: NSAttributedString, key: String) {
@@ -76,7 +83,7 @@ final class PageTextView: UIView {
     }
 
     var pageIndex = 0 {
-        didSet { if oldValue != pageIndex { setNeedsDisplay() } }
+        didSet { if oldValue != pageIndex { setNeedsDisplay(); refreshPointer() } }
     }
 
     override init(frame: CGRect) {
@@ -87,12 +94,14 @@ final class PageTextView: UIView {
         isOpaque = true
         contentMode = .redraw
         addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(tapped(_:))))
+        addSubview(hand)
     }
 
     required init?(coder: NSCoder) { fatalError() }
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        hand.frame = bounds
         guard bounds.width > 10, bounds.height > 10 else { return }
         if let (text, key) = pending {
             pending = nil
@@ -115,6 +124,37 @@ final class PageTextView: UIView {
         container.size = CGSize(width: pageSize.width, height: CGFloat.greatestFiniteMagnitude)
         paginate()
         setNeedsDisplay()
+        refreshPointer()
+    }
+
+    /// Señala con la mano la palabra del plan si está en la página visible; si no, la mano espera y se esconde.
+    func apply(pointer: PointerPlan?, playing: Bool, reduceMotion: Bool) {
+        pointerInputs = (pointer, playing, reduceMotion)
+        refreshPointer()
+    }
+
+    private func refreshPointer() {
+        guard let plan = pointerInputs.plan else { hand.clear(); return }
+        hand.update(
+            target: pageRect(for: plan.word), lead: plan.lead.flatMap { pageRect(for: $0) }, step: plan.step,
+            playing: pointerInputs.playing, reduceMotion: pointerInputs.reduceMotion
+        )
+    }
+
+    /// Caja de un rango del capítulo en coordenadas de la página visible, o nil si no está en ella.
+    func pageRect(for range: NSRange) -> CGRect? {
+        guard !pageTops.isEmpty, let textRange = textRange(range) else { return nil }
+        var union: CGRect?
+        layoutManager.enumerateTextSegments(in: textRange, type: .standard, options: [.rangeNotRequired]) { _, frame, _, _ in
+            union = union.map { $0.union(frame) } ?? frame
+            return true
+        }
+        guard let frame = union else { return nil }
+        let page = min(pageIndex, pageTops.count - 1)
+        let top = pageTops[page]
+        let bottom = page + 1 < pageTops.count ? pageTops[page + 1] : CGFloat.greatestFiniteMagnitude
+        guard frame.midY >= top, frame.midY < bottom else { return nil }
+        return frame.offsetBy(dx: 0, dy: -top)
     }
 
     /// Corta en páginas por líneas enteras y anota el primer carácter de cada página.

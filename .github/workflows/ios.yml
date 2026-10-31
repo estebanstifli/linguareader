@@ -85,6 +85,11 @@ jobs:
         with:
           name: ios-device-farm
           path: ios/build/device-farm/*
+      - name: Upload the string catalog as Xcode extracted it (keys for the translations)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-string-catalog
+          path: ios/LinguaReader/Localizable.xcstrings
       - name: Upload the device build log
         if: failure()
         uses: actions/upload-artifact@v4

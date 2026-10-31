@@ -87,7 +87,7 @@ private struct SectionsList: View {
                     .accessibilityIdentifier("nav.settings")
             }
         }
-        .navigationTitle("LinguaReader")
+        .navigationTitle("LingoAudioBook")
         .navigationDestination(for: CatalogDestination.self) { destination in
             switch destination {
             case .vocabulary: VocabularyView()

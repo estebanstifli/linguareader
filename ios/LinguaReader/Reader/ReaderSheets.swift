@@ -231,6 +231,9 @@ struct ReaderSettingsSheet: View {
                         Toggle("Keep screen on", isOn: Binding(get: { p.keepScreenOn }, set: { v in Task { try? await LinguaShared.shared.setKeepScreenOn(enabled: v) } }))
                         Toggle("Pause when looking up a word", isOn: Binding(get: { p.pauseOnWordTap }, set: { v in Task { try? await LinguaShared.shared.setPauseOnWordTap(enabled: v) } }))
                         Toggle("Continue with the next passage", isOn: Binding(get: { p.autoContinue }, set: { v in Task { try? await LinguaShared.shared.setAutoContinue(enabled: v) } }))
+                        Toggle("Pointing finger over the word", isOn: Binding(get: { p.fingerPointerEnabled }, set: { v in Task { try? await LinguaShared.shared.setFingerPointer(enabled: v) } }))
+                            .accessibilityIdentifier("settings.fingerPointer")
+                        Toggle("Reduce motion", isOn: Binding(get: { p.reduceMotion }, set: { v in Task { try? await LinguaShared.shared.setReduceMotion(enabled: v) } }))
                     }
                     Section("Voice") {
                         Toggle("Learning mode with voice", isOn: Binding(get: { p.ttsMode }, set: { v in Task { try? await LinguaShared.shared.setTtsMode(enabled: v) } }))
