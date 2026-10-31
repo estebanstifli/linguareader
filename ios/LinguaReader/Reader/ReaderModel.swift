@@ -104,7 +104,8 @@ final class ReaderModel: ObservableObject {
 
     func stop() async {
         await persist()
-        try? await audio.stop()
+        // Solo si el audio sigue siendo el de este libro: al cambiar de libro, el lector nuevo ya cargó su pasaje.
+        if let passage, playback == nil || playback?.passageId == passage.id { try? await audio.stop() }
         watchers.forEach { $0.close() }
         watchers = []
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil

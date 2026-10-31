@@ -56,7 +56,11 @@ import platform.AVFAudio.AVSpeechUtteranceMinimumSpeechRate
 import platform.AVFAudio.setActive
 import platform.Foundation.NSProcessInfo
 import platform.Foundation.NSRange
+import platform.darwin.DISPATCH_TIME_NOW
 import platform.darwin.NSObject
+import platform.darwin.dispatch_after
+import platform.darwin.dispatch_get_main_queue
+import platform.darwin.dispatch_time
 
 /**
  * Voz del sistema en iOS (`AVSpeechSynthesizer`).
@@ -91,13 +95,28 @@ class AppleSpeechEngine : StreamingSpeechEngine, FileSpeechSynthesizer {
     private var voice: AVSpeechSynthesisVoice? = null
     private var lastUtterance: AVSpeechUtterance? = null
 
-    private val synthesizer = AVSpeechSynthesizer()
+    /** Enunciado encolado, para repetirlo en un sintetizador nuevo si el actual se atasca. */
+    private class Queued(val id: String, val text: String, val speed: Float, var delaySec: Double)
+    private val queued = ArrayList<Queued>()
+    private val started = HashSet<String>()
+    private var watchdogToken = 0
+    private var restarts = 0
+
+    /**
+     * Un sintetizador por lectura: tras `stopSpeaking(at: .immediate)` el mismo `AVSpeechSynthesizer` a veces se
+     * traga el siguiente enunciado (nunca llega `didStart`) y se queda así hasta reiniciar la app. Por eso [stop]
+     * lo sustituye, y un vigilante repite la cola en uno nuevo si nada ha empezado a sonar en [WATCHDOG_MS].
+     */
+    private var synthesizer = AVSpeechSynthesizer()
     private val fileMutex = Mutex()
 
     private val delegate = object : NSObject(), AVSpeechSynthesizerDelegateProtocol {
         @ObjCSignatureOverride
         override fun speechSynthesizer(synthesizer: AVSpeechSynthesizer, didStartSpeechUtterance: AVSpeechUtterance) {
-            idOf(didStartSpeechUtterance)?.let { _events.tryEmit(SpeechEvent.Started(it)) }
+            idOf(didStartSpeechUtterance)?.let { id ->
+                synchronized(lock) { started += id; restarts = 0 }
+                _events.tryEmit(SpeechEvent.Started(id))
+            }
         }
 
         @ObjCSignatureOverride
@@ -126,7 +145,12 @@ class AppleSpeechEngine : StreamingSpeechEngine, FileSpeechSynthesizer {
     }
 
     private fun idOf(utterance: AVSpeechUtterance): String? = synchronized(lock) { ids[utterance] }
-    private fun removeId(utterance: AVSpeechUtterance): String? = synchronized(lock) { ids.remove(utterance) }
+    private fun removeId(utterance: AVSpeechUtterance): String? = synchronized(lock) {
+        ids.remove(utterance)?.also { id ->
+            queued.removeAll { it.id == id }
+            started -= id
+        }
+    }
 
     private fun activateSession() {
         runCatching {
@@ -172,9 +196,16 @@ class AppleSpeechEngine : StreamingSpeechEngine, FileSpeechSynthesizer {
 
     override fun enqueue(utteranceId: String, text: String, speed: Float, flush: Boolean) {
         if (flush) stop()
-        val u = utterance(text, voice, speed, 1.0f)
+        val q = Queued(utteranceId, text, speed, 0.0)
+        val first = synchronized(lock) { queued.isEmpty().also { queued += q } }
+        speak(q)
+        if (first) armWatchdog()
+    }
+
+    private fun speak(q: Queued) {
+        val u = utterance(q.text, voice, q.speed, 1.0f).apply { postUtteranceDelay = q.delaySec }
         synchronized(lock) {
-            ids[u] = utteranceId
+            ids[u] = q.id
             lastUtterance = u
         }
         synthesizer.speakUtterance(u)
@@ -182,15 +213,51 @@ class AppleSpeechEngine : StreamingSpeechEngine, FileSpeechSynthesizer {
 
     /** La pausa entre frases se añade como silencio tras el último enunciado encolado. */
     override fun enqueueSilence(utteranceId: String, durationMs: Long) {
-        synchronized(lock) { lastUtterance }?.let { it.postUtteranceDelay = durationMs / 1000.0 }
+        val seconds = durationMs / 1000.0
+        synchronized(lock) {
+            queued.lastOrNull()?.delaySec = seconds
+            lastUtterance
+        }?.let { it.postUtteranceDelay = seconds }
     }
 
     override fun stop() {
-        synthesizer.stopSpeakingAtBoundary(AVSpeechBoundary.AVSpeechBoundaryImmediate)
         synchronized(lock) {
             ids.clear()
+            queued.clear()
+            started.clear()
             lastUtterance = null
+            watchdogToken++
         }
+        synthesizer.stopSpeakingAtBoundary(AVSpeechBoundary.AVSpeechBoundaryImmediate)
+        synthesizer = AVSpeechSynthesizer().apply { delegate = this@AppleSpeechEngine.delegate }
+    }
+
+    private fun armWatchdog() {
+        val token = synchronized(lock) { ++watchdogToken }
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, WATCHDOG_MS * 1_000_000L), dispatch_get_main_queue()) { checkWatchdog(token) }
+    }
+
+    /** Si [WATCHDOG_MS] después de encolar nada ha empezado a sonar, se repite la cola en un sintetizador nuevo. */
+    private fun checkWatchdog(token: Int) {
+        val pending = synchronized(lock) {
+            if (token != watchdogToken) return
+            val head = queued.firstOrNull() ?: return
+            if (head.id in started) return
+            ArrayList(queued)
+        }
+        val head = pending.first()
+        if (restarts >= MAX_RESTARTS) {
+            Diagnostics.log(TAG, "no speech after ${restarts} restarts (speaking=${synthesizer.speaking}); giving up on ${head.id}")
+            _events.tryEmit(SpeechEvent.Error(head.id, ERROR_STUCK))
+            return
+        }
+        restarts++
+        Diagnostics.log(TAG, "no speech $WATCHDOG_MS ms after enqueue (speaking=${synthesizer.speaking}); restarting the synthesizer, re-queuing ${pending.size} utterances")
+        synchronized(lock) { ids.clear() }
+        synthesizer.stopSpeakingAtBoundary(AVSpeechBoundary.AVSpeechBoundaryImmediate)
+        synthesizer = AVSpeechSynthesizer().apply { delegate = this@AppleSpeechEngine.delegate }
+        pending.forEach { speak(it) }
+        armWatchdog()
     }
 
     override fun release() = Unit
@@ -367,6 +434,11 @@ class AppleSpeechEngine : StreamingSpeechEngine, FileSpeechSynthesizer {
     companion object {
         private const val TAG = "AppleSpeechEngine"
         private const val SYNTH_TIMEOUT_MS = 60_000L
+        /** Tiempo sin `didStart` tras encolar que se considera un sintetizador atascado. */
+        private const val WATCHDOG_MS = 3_000L
+        private const val MAX_RESTARTS = 2
+        /** Código de [SpeechEvent.Error] cuando ni el sintetizador nuevo habla. */
+        private const val ERROR_STUCK = -100
         private const val PITCH_PARAM = "pitch"
 
         /** Parámetros de petición (y de clave de caché) para un tono; vacío si es el normal. */
