@@ -173,6 +173,22 @@ jobs:
           $XCODEBUILD_FLAGS
           | tee build/xcodebuild-simulator.log | grep -E "Test Case|error:|warning: unre|\*\* TEST|Executed" || true;
           grep -q "\*\* TEST SUCCEEDED \*\*" build/xcodebuild-simulator.log
+      - name: Package the simulator app for Appetize.io (.app zipped; no ML Kit, and Appetize has no iOS audio)
+        if: always()
+        working-directory: ios
+        run: |
+          app=build/simulator/Build/Products/Debug-iphonesimulator/LinguaReader.app
+          [ -d "$app" ] || { echo "no simulator app built"; exit 0; }
+          mkdir -p build/appetize
+          (cd "$(dirname "$app")" && zip -qr "$OLDPWD/build/appetize/LinguaReader-simulator.zip" LinguaReader.app)
+          ls -la build/appetize
+      - name: Upload the simulator app for Appetize.io
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-appetize
+          path: ios/build/appetize/*
+          if-no-files-found: ignore
       - name: Collect crash reports and the app log
         if: always()
         run: |
