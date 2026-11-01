@@ -302,6 +302,8 @@ object LinguaShared {
         val read = purpose == AppPurpose.READ
         it.copy(
             purpose = purpose,
+            // Primera apertura en iOS: tema sepia (el lector de Android mantiene el del sistema).
+            theme = if (it.purpose == null && it.theme == ThemeMode.SYSTEM) ThemeMode.SEPIA else it.theme,
             ttsMode = !read,
             ttsModeChosen = true,
             learnLanguageChosen = read || it.learnLanguageChosen,

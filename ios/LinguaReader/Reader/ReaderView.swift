@@ -103,7 +103,8 @@ struct ReaderView: View {
             Text("\(model.chapter?.title ?? "") · page \(model.pageIndex + 1) of \(model.pageCount)").font(.caption).foregroundStyle(.secondary).lineLimit(1)
         }
         .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 8)
-        .background(.bar)
+        .background(Color(theme.background).opacity(0.96))
+        .foregroundStyle(Color(theme.text))
     }
 
     private var bottomBar: some View {
@@ -125,7 +126,8 @@ struct ReaderView: View {
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 10)
-        .background(.bar)
+        .background(Color(theme.background).opacity(0.96))
+        .foregroundStyle(Color(theme.text))
     }
 }
 

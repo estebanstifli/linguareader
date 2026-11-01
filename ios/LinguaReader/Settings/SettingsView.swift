@@ -14,6 +14,8 @@ struct SettingsView: View {
                     .accessibilityIdentifier("settings.translation")
             }
             Section("App") {
+                NavigationLink { ReadingSettingsView() } label: { Label("Reading and appearance", systemImage: "textformat.size") }
+                    .accessibilityIdentifier("settings.reading")
                 NavigationLink { AboutView() } label: { Label("About", systemImage: "info.circle") }
             }
         }

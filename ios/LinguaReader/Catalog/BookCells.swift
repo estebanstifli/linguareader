@@ -72,8 +72,9 @@ struct BookGridCell: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             BookCoverView(book: book)
-            if let fraction = store.progressFraction(book.id) { ProgressView(value: fraction) }
-            Text(book.title).font(.caption).lineLimit(2)
+            ProgressView(value: store.progressFraction(book.id) ?? 0).opacity(store.progressFraction(book.id) == nil ? 0 : 1)
+            Text(book.title).font(.caption).lineLimit(2, reservesSpace: true)
         }
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 }
