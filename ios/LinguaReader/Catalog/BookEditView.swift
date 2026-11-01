@@ -44,6 +44,7 @@ struct BookEditView: View {
                 }
             }
         }
+        .themedScreen()
         .navigationTitle("Edit book")
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {

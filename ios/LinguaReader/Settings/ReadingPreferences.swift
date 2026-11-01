@@ -85,6 +85,7 @@ struct ReadingSettingsView: View {
                 }
             }
         }
+        .themedScreen()
         .navigationTitle("Reading and appearance")
     }
 }

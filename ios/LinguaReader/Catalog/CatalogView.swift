@@ -87,6 +87,7 @@ private struct SectionsList: View {
                     .accessibilityIdentifier("nav.settings")
             }
         }
+        .themedScreen()
         .navigationTitle("LingoAudioBook")
         .navigationDestination(for: CatalogDestination.self) { destination in
             switch destination {
@@ -181,6 +182,7 @@ struct BookListView: View {
             }
         }
         .accessibilityIdentifier("catalog.list")
+        .themedScreen()
         .navigationTitle(title)
         .searchable(text: $query, prompt: "Title or author")
         .toolbar {
@@ -349,6 +351,7 @@ private struct NewCollectionSheet: View {
             Form {
                 TextField("Collection name", text: $name)
             }
+            .themedScreen()
             .navigationTitle("New collection")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }

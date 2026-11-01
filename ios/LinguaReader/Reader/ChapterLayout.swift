@@ -15,6 +15,8 @@ struct ChapterLayout {
     let chapterIndex: Int
     let attributed: NSAttributedString
     let segments: [ChapterSegment]
+    /// Bloques que no se parten entre páginas (frase + su traducción), en offsets del capítulo.
+    let keepTogether: [NSRange]
     let key: String
 
     func chapterOffset(passageIndex: Int, offset: Int) -> Int? {
@@ -41,6 +43,8 @@ struct ChapterLayout {
         var justification: TextJustification = .left
         var showTranslations = false
         var translationLanguage = "es"
+        /// Traducciones automáticas por id de frase, para las frases sin traducción incluida en el libro.
+        var machineTranslations: [String: String] = [:]
         var themeId = "light"
     }
 
@@ -48,6 +52,8 @@ struct ChapterLayout {
         let chapter = book.chapters[chapterIndex]
         let text = NSMutableAttributedString()
         var segments: [ChapterSegment] = []
+        var keepTogether: [NSRange] = []
+        let language = Languages.primary(style.translationLanguage)
         let size = 20 * style.fontScale
         let body = serif(size: size, weight: .regular, italic: false)
         let paragraph = NSMutableParagraphStyle()
@@ -75,19 +81,22 @@ struct ChapterLayout {
                 for sentence in passage.sentences {
                     let start = Int(sentence.rangeStart), end = Int(sentence.rangeEnd)
                     let slice = utf16Slice(passage.text, start, end)
+                    let blockStart = text.length
                     segments.append(ChapterSegment(passageIndex: index, passageOffset: start, chapterOffset: text.length, length: slice.utf16.count))
                     text.append(NSAttributedString(string: slice + "\n", attributes: bodyAttributes))
-                    if let translation = sentence.translations[style.translationLanguage] {
+                    let translation = sentence.translations[language] ?? sentence.translations[style.translationLanguage] ?? style.machineTranslations[sentence.id]
+                    if let translation {
                         text.append(NSAttributedString(string: translation + "\n", attributes: translationAttributes))
                     }
+                    keepTogether.append(NSRange(location: blockStart, length: text.length - blockStart))
                 }
             } else {
                 segments.append(ChapterSegment(passageIndex: index, passageOffset: 0, chapterOffset: text.length, length: passage.text.utf16.count))
                 text.append(NSAttributedString(string: passage.text + "\n", attributes: bodyAttributes))
             }
         }
-        let key = "\(book.id)|\(chapterIndex)|\(style.fontScale)|\(style.lineHeight)|\(style.justification)|\(style.showTranslations)|\(style.translationLanguage)|\(style.themeId)"
-        return ChapterLayout(chapterIndex: chapterIndex, attributed: text, segments: segments, key: key)
+        let key = "\(book.id)|\(chapterIndex)|\(style.fontScale)|\(style.lineHeight)|\(style.justification)|\(style.showTranslations)|\(style.translationLanguage)|\(style.machineTranslations.count)|\(style.themeId)"
+        return ChapterLayout(chapterIndex: chapterIndex, attributed: text, segments: segments, keepTogether: keepTogether, key: key)
     }
 
     static func serif(size: CGFloat, weight: UIFont.Weight, italic: Bool) -> UIFont {

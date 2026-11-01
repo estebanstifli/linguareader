@@ -58,6 +58,7 @@ struct WordCardSheet: View {
                     if let sentenceTranslation { Text(sentenceTranslation).font(.callout).foregroundStyle(.secondary) }
                 }
             }
+            .themedScreen()
             .navigationTitle("Word")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -98,6 +99,7 @@ struct SentenceCardSheet: View {
                     Text(card.translation ?? "No translation available for this sentence.").foregroundStyle(card.translation == nil ? .secondary : .primary)
                 }
             }
+            .themedScreen()
             .navigationTitle("Sentence")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Close") { Task { await model.resumeAfterCard() } } } }
@@ -158,6 +160,7 @@ struct IndexSheet: View {
                 }
                 .listStyle(.plain)
             }
+            .themedScreen()
             .navigationTitle("Contents")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Close") { dismiss() } } }
@@ -186,6 +189,7 @@ struct SearchSheet: View {
             .overlay { if hits.isEmpty && query.count >= 2 { ContentUnavailableView.search(text: query) } }
             .searchable(text: $query, prompt: "Search in this book")
             .onChange(of: query) { _, q in hits = model.search(q) }
+            .themedScreen()
             .navigationTitle("Search")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Close") { dismiss() } } }
@@ -216,6 +220,7 @@ struct ReaderSettingsSheet: View {
                     }
                 }
             }
+            .themedScreen()
             .navigationTitle("Reading settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
@@ -253,6 +258,7 @@ struct AboutSheet: View {
                     }
                 }
             }
+            .themedScreen()
             .navigationTitle("About this book")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Close") { dismiss() } } }

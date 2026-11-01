@@ -35,6 +35,7 @@ struct TranslationView: View {
                 }
             }
         }
+        .themedScreen()
         .navigationTitle("Translation")
     }
 }

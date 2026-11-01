@@ -49,6 +49,10 @@ final class ReaderModel: ObservableObject {
     @Published var showFullCard = false
     @Published var error: String?
     @Published var translatorDownloading = false
+    /// Traducciones automáticas (ML Kit, caché en Room) por id de frase, para «traducción bajo cada frase» en libros
+    /// sin traducciones incluidas.
+    @Published private(set) var machineTranslations: [String: String] = [:]
+    private var translating: Task<Void, Never>?
 
     let bookId: String
     private var watchers: [FlowWatcher] = []
@@ -103,6 +107,7 @@ final class ReaderModel: ObservableObject {
     }
 
     func stop() async {
+        translating?.cancel()
         await persist()
         // Solo si el audio sigue siendo el de este libro: al cambiar de libro, el lector nuevo ya cargó su pasaje.
         if let passage, playback == nil || playback?.passageId == passage.id { try? await audio.stop() }
@@ -127,6 +132,7 @@ final class ReaderModel: ObservableObject {
             s.justification = p.textJustification
             s.showTranslations = p.displayMode == .translationBelow
             s.translationLanguage = p.translationLanguage
+            if s.showTranslations { s.machineTranslations = machineTranslations }
             s.themeId = p.theme.name
         }
         s.themeId += systemDark ? "-dark" : "-light"
@@ -135,6 +141,7 @@ final class ReaderModel: ObservableObject {
 
     func rebuildLayoutIfNeeded() {
         guard let book, chapterIndex < book.chapters.count else { return }
+        ensureMachineTranslations()
         let style = self.style
         if layout != nil, layout?.chapterIndex == chapterIndex, lastStyle == style { return }
         lastStyle = style
@@ -142,6 +149,35 @@ final class ReaderModel: ObservableObject {
         layout = ChapterLayout.build(book: book, chapterIndex: chapterIndex, style: style, theme: theme(systemDark: systemDark))
         if let anchor, let offset = layout?.chapterOffset(passageIndex: anchor.passageIndex, offset: anchor.offset) { showOffset = offset }
         UIApplication.shared.isIdleTimerDisabled = prefs?.keepScreenOn ?? false
+    }
+
+    /// Traduce las frases del capítulo que no traen traducción en el libro (una vez por frase; Room las guarda) y
+    /// recompone el capítulo al terminar. Si falta el modelo, pide su descarga y lo deja para la próxima vez.
+    private func ensureMachineTranslations() {
+        guard let book, prefs?.displayMode == .translationBelow, chapterIndex < book.chapters.count, translating == nil else { return }
+        let language = Languages.primary(translationLanguage)
+        let pending = book.chapters[chapterIndex].passages.flatMap { $0.sentences }
+            .filter { $0.translations[language] == nil && $0.translations[translationLanguage] == nil && machineTranslations[$0.id] == nil }
+        guard !pending.isEmpty else { return }
+        translating = Task { [weak self] in
+            var done: [String: String] = [:]
+            for sentence in pending {
+                if Task.isCancelled { break }
+                guard let result = try? await LinguaShared.shared.translateText(text: sentence.text, sourceLanguage: book.learningLanguage, targetLanguage: language) else { continue }
+                if let translated = result as? TranslationResultTranslated {
+                    done[sentence.id] = translated.text
+                } else if let unavailable = result as? TranslationResultUnavailable, unavailable.reason == .modelMissing {
+                    LinguaShared.shared.downloadTranslationModelsFor(sourceLanguage: book.learningLanguage, targetLanguage: language)
+                    break
+                }
+            }
+            guard let self, !Task.isCancelled else { return }
+            self.translating = nil
+            if !done.isEmpty {
+                self.machineTranslations.merge(done) { _, new in new }
+                self.rebuildLayoutIfNeeded()
+            }
+        }
     }
 
     func pagesResolved(_ offsets: [Int]) {
@@ -189,6 +225,7 @@ final class ReaderModel: ObservableObject {
         guard let book, index < book.chapters.count else { return }
         chapterIndex = index
         lastStyle = nil
+        ensureMachineTranslations()
         layout = ChapterLayout.build(book: book, chapterIndex: index, style: style, theme: theme(systemDark: systemDark))
         pageOffsets = []
         pageIndex = atEnd ? Int.max / 2 : 0

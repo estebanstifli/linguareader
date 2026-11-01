@@ -17,6 +17,7 @@ struct LinguaReaderApp: App {
                 }
             }
             .environmentObject(store)
+            .preferredColorScheme(store.prefs?.theme.colorScheme)
         }
     }
 }

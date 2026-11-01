@@ -2,6 +2,39 @@ import SwiftUI
 import UIKit
 import LinguaShared
 
+/// Tema elegido aplicado a una pantalla fuera del lector (catálogo, ajustes, hojas): fondo, barra de navegación y
+/// color de acento según `UserPreferences.theme`, como las pantallas de Android. Se aplica junto a `navigationTitle`.
+struct ThemedScreen: ViewModifier {
+    @EnvironmentObject private var store: AppStore
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        let mode = store.prefs?.theme
+        let theme = ReaderTheme.resolve(mode, systemDark: colorScheme == .dark)
+        content
+            .scrollContentBackground(.hidden)
+            .background(Color(theme.background).ignoresSafeArea())
+            .toolbarBackground(Color(theme.background), for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .tint(mode == .sepia ? Color(red: 0.55, green: 0.33, blue: 0.10) : nil)
+    }
+}
+
+extension View {
+    func themedScreen() -> some View { modifier(ThemedScreen()) }
+}
+
+extension ThemeMode {
+    /// Esquema claro/oscuro que fuerza el tema (nil = el del sistema).
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .dark: return .dark
+        case .light, .sepia: return .light
+        default: return nil
+        }
+    }
+}
+
 /// Colores del lector según el tema elegido (sistema, claro, oscuro, sepia), como `ReaderColors` en Android.
 struct ReaderTheme {
     let background: UIColor

@@ -37,7 +37,7 @@ struct ChapterPageView: UIViewRepresentable {
         view.onTap = { offset in onTap(offset) }
         view.onPages = { pages in onPages(pages) }
         view.backgroundColor = theme.background
-        if let layout { view.present(layout.attributed, key: layout.key) }
+        if let layout { view.present(layout.attributed, key: layout.key, keepTogether: layout.keepTogether) }
         view.apply(highlight: highlight, theme: theme)
         if let showOffset, let page = view.page(forOffset: showOffset) {
             DispatchQueue.main.async {
@@ -62,6 +62,7 @@ final class PageTextView: UIView {
     private var pageTops: [CGFloat] = []
     private(set) var pageOffsets: [Int] = []
     private var lines: [(rect: CGRect, start: Int)] = []
+    private var keepTogether: [NSRange] = []
     private var currentHighlight = PageHighlight()
     private var highlighted: [NSTextRange] = []
     var onTap: ((Int?) -> Void)?
@@ -71,8 +72,9 @@ final class PageTextView: UIView {
     private var pointerInputs: (plan: PointerPlan?, playing: Bool, reduceMotion: Bool) = (nil, false, false)
 
     /** Compone el texto en cuanto la vista tiene tamaño; hasta entonces lo deja pendiente. */
-    func present(_ text: NSAttributedString, key: String) {
+    func present(_ text: NSAttributedString, key: String, keepTogether: [NSRange]) {
         guard key != layoutKey else { return }
+        self.keepTogether = keepTogether
         if bounds.width > 10, bounds.height > 10 {
             setText(text, key: key, pageSize: bounds.size)
             let pages = pageOffsets
@@ -173,11 +175,19 @@ final class PageTextView: UIView {
         var tops: [CGFloat] = [0]
         var offsets: [Int] = [lines.first?.start ?? 0]
         var top: CGFloat = 0
-        for line in lines {
+        var pageFirst = 0
+        for (i, line) in lines.enumerated() {
             if line.rect.maxY - top > pageSize.height, line.rect.minY > top {
-                top = line.rect.minY
+                // Si el corte cae dentro de un bloque (frase + traducción), el bloque entero pasa a la página siguiente.
+                var breakAt = i
+                if let block = keepTogether.first(where: { $0.location < line.start && line.start < $0.location + $0.length }),
+                   let j = lines.indices.first(where: { lines[$0].start >= block.location }), j > pageFirst, j < i {
+                    breakAt = j
+                }
+                top = lines[breakAt].rect.minY
                 tops.append(top)
-                offsets.append(line.start)
+                offsets.append(lines[breakAt].start)
+                pageFirst = breakAt
             }
         }
         pageTops = tops

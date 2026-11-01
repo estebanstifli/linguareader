@@ -21,6 +21,7 @@ struct DiagnosticsView: View {
             .onChange(of: text) { _, _ in proxy.scrollTo("end", anchor: .bottom) }
             .onAppear { proxy.scrollTo("end", anchor: .bottom) }
         }
+        .themedScreen()
         .navigationTitle("Diagnostics")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

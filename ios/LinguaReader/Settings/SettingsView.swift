@@ -19,6 +19,7 @@ struct SettingsView: View {
                 NavigationLink { AboutView() } label: { Label("About", systemImage: "info.circle") }
             }
         }
+        .themedScreen()
         .navigationTitle("Settings")
     }
 }
@@ -41,6 +42,7 @@ struct LibrariesView: View {
                 }
             }
         }
+        .themedScreen()
         .navigationTitle("Libraries")
     }
 }
@@ -126,6 +128,7 @@ struct AboutView: View {
                 NavigationLink { DiagnosticsView() } label: { Label("Diagnostics", systemImage: "stethoscope") }
             }
         }
+        .themedScreen()
         .navigationTitle("About")
     }
 }

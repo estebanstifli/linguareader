@@ -29,6 +29,7 @@ struct VocabularyView: View {
                 }
             }
         }
+        .themedScreen()
         .navigationTitle("Vocabulary")
     }
 }
