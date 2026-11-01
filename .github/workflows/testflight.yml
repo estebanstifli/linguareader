@@ -17,7 +17,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  XCODE: /Applications/Xcode_16.4.app
+  # App Store Connect solo admite builds con el SDK de iOS 26 (Xcode 26 o posterior): se usa el más nuevo del runner.
+  XCODE_GLOB: /Applications/Xcode_26*.app
   XCFRAMEWORK: shared/build/XCFrameworks/debug/LinguaShared.xcframework
   TEAM_ID: 2FPJ5WXX2G
   PROFILE_NAME: LingoAudioBook App Store
@@ -41,7 +42,12 @@ jobs:
         with:
           path: ~/.konan
           key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
-      - run: sudo xcode-select -s "$XCODE"
+      - name: Select the newest Xcode 26 (iOS 26 SDK, required by App Store Connect)
+        run: |
+          xcode=$(ls -d $XCODE_GLOB 2>/dev/null | sort -V | tail -1)
+          [ -n "$xcode" ] || { echo "No Xcode 26 on this runner:"; ls -d /Applications/Xcode*.app; exit 1; }
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
       - name: Link LinguaShared for iPhone (arm64, release)
         run: ./gradlew --console=plain :shared:linkReleaseFrameworkIosArm64
       - name: Wrap it as an XCFramework (same path the project expects)
