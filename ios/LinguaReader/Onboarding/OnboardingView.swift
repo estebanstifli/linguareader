@@ -1,43 +1,38 @@
 import SwiftUI
 import LinguaShared
 
-/// Primera apertura (los mismos pasos que Android, sin el de examinar archivos, que no existe en iOS):
-/// propósito → idioma a aprender (descarga su biblioteca) → tu idioma → nivel → resumen.
+/// Primera apertura. La app de iPhone es solo para aprender idiomas, así que no pregunta el propósito (queda fijado
+/// en «aprender», con voz): idioma a aprender (descarga su biblioteca) → tu idioma → nivel → resumen.
 struct OnboardingView: View {
     @EnvironmentObject private var store: AppStore
 
-    private enum Step { case purpose, learnLanguage, nativeLanguage, level, summary }
+    private enum Step { case learnLanguage, nativeLanguage, level, summary }
 
     private var step: Step {
-        guard let p = store.prefs else { return .purpose }
-        if p.purpose == nil { return .purpose }
+        guard let p = store.prefs, p.purpose != nil else { return .learnLanguage }
         if !p.learnLanguageChosen { return .learnLanguage }
         if !p.translationSetupDone { return .nativeLanguage }
         if !p.learnerLevelChosen { return .level }
         return .summary
     }
 
-    private var totalSteps: Int { store.prefs?.purpose == AppPurpose.read ? 2 : 5 }
+    private let totalSteps = 4
 
     private var stepIndex: Int {
         switch step {
-        case .purpose: return 1
-        case .learnLanguage: return 2
-        case .nativeLanguage: return 3
-        case .level: return 4
-        case .summary: return totalSteps
+        case .learnLanguage: return 1
+        case .nativeLanguage: return 2
+        case .level: return 3
+        case .summary: return 4
         }
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                if step != .purpose {
-                    ProgressView(value: Double(stepIndex), total: Double(totalSteps))
-                    Text("Step \(stepIndex) of \(totalSteps)").font(.footnote).foregroundStyle(.secondary)
-                }
+                ProgressView(value: Double(stepIndex), total: Double(totalSteps))
+                Text("Step \(stepIndex) of \(totalSteps)").font(.footnote).foregroundStyle(.secondary)
                 switch step {
-                case .purpose: purpose
                 case .learnLanguage: learnLanguage
                 case .nativeLanguage: nativeLanguage
                 case .level: level
@@ -47,26 +42,14 @@ struct OnboardingView: View {
             .padding(24)
         }
         .accessibilityIdentifier("onboarding")
-    }
-
-    // MARK: Pasos
-
-    private var purpose: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("What will you use LingoAudioBook for?").font(.largeTitle.bold())
-            Text("We'll set up the app based on your choice. You can change it in Settings at any time.").foregroundStyle(.secondary)
-            choiceCard("Read my books and documents", "Opens EPUB, FB2, Word, TXT… files in a comfortable reader, without voice.", "book") { set(.read) }
-                .accessibilityIdentifier("onboarding.read")
-            choiceCard("Learn a language", "Graded readers by level, a voice that reads with the word highlighted, and translation on tap.", "character.book.closed") { set(.learn) }
-                .accessibilityIdentifier("onboarding.learn")
-            choiceCard("Both", "Sets up the language you want to learn and lets you add your own documents.", "books.vertical") { set(.both) }
-                .accessibilityIdentifier("onboarding.both")
+        .themedScreen()
+        .task(id: store.prefs?.purpose == nil) {
+            // Propósito fijo: aprender un idioma (modo con voz), sin preguntarlo.
+            if store.prefs?.purpose == nil { try? await LinguaShared.shared.setPurpose(purpose: .learn) }
         }
     }
 
-    private func set(_ purpose: AppPurpose) {
-        Task { try? await LinguaShared.shared.setPurpose(purpose: purpose) }
-    }
+    // MARK: Pasos
 
     private var learnLanguage: some View {
         VStack(alignment: .leading, spacing: 16) {

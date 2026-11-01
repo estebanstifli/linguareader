@@ -62,13 +62,13 @@ private struct SectionsList: View {
             Section {
                 row(.reading, "Reading now", "clock.arrow.circlepath", count: store.books.filter { store.progress[$0.id] != nil && !trashed($0.id) }.count)
                 row(.books, "Books", "books.vertical", count: store.books.filter { !trashed($0.id) }.count)
-            }
+            }.themedRows()
             Section {
                 ForEach(CatalogSection.learnLanguages, id: \.self) { lang in
                     row(.learn(lang), "Learn \(Languages.name(lang))", "character.book.closed", count: store.books.filter { Languages.primary($0.learningLanguage) == lang && !trashed($0.id) }.count)
                 }
                 row(.learnOther, "Learn other languages", "globe", count: store.books.filter { !CatalogSection.learnLanguages.contains(Languages.primary($0.learningLanguage)) && !trashed($0.id) }.count)
-            }
+            }.themedRows()
             Section("Shelves") {
                 ForEach(store.shelves?.shelves ?? [], id: \.id) { shelf in
                     row(.shelf(shelf.id), shelfName(shelf), shelfIcon(shelf), count: shelf.bookIds.count)
@@ -79,13 +79,13 @@ private struct SectionsList: View {
                         }
                 }
                 row(.trash, "Trash", "trash", count: store.shelves?.trash.count ?? 0)
-            }
+            }.themedRows()
             Section {
                 NavigationLink(value: CatalogDestination.vocabulary) { Label("Vocabulary", systemImage: "textformat.abc") }
                     .accessibilityIdentifier("nav.vocabulary")
                 NavigationLink(value: CatalogDestination.settings) { Label("Settings", systemImage: "gearshape") }
                     .accessibilityIdentifier("nav.settings")
-            }
+            }.themedRows()
         }
         .themedScreen()
         .navigationTitle("LingoAudioBook")

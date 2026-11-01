@@ -35,13 +35,13 @@ struct WordCardSheet: View {
                         }
                     }
                     if let lemma = card.lookup.wordLemma, lemma != card.token.text { Text("Base form: \(lemma)").font(.footnote).foregroundStyle(.secondary) }
-                }
+                }.themedRows()
                 if let match = card.lookup.expression {
                     Section("Expression") {
                         Text(match.surface).bold()
                         Text(match.entry.lemma).font(.footnote).foregroundStyle(.secondary)
                         if let expression { Text(expression) }
-                    }
+                    }.themedRows()
                 }
                 if let examples = (card.lookup.word as? TranslationResultTranslated)?.examples, !examples.isEmpty {
                     Section("Examples") {
@@ -51,12 +51,12 @@ struct WordCardSheet: View {
                                 if let t = ex.translation { Text(t).font(.footnote).foregroundStyle(.secondary) }
                             }
                         }
-                    }
+                    }.themedRows()
                 }
                 Section("In the sentence") {
                     Text(card.lookup.sentence.text).font(.callout)
                     if let sentenceTranslation { Text(sentenceTranslation).font(.callout).foregroundStyle(.secondary) }
-                }
+                }.themedRows()
             }
             .themedScreen()
             .navigationTitle("Word")
@@ -94,10 +94,10 @@ struct SentenceCardSheet: View {
                 Section {
                     Text(card.sentence.text)
                     Button { Task { await model.speak(card.sentence.text) } } label: { Label("Listen", systemImage: "speaker.wave.2") }
-                }
+                }.themedRows()
                 Section("Translation") {
                     Text(card.translation ?? "No translation available for this sentence.").foregroundStyle(card.translation == nil ? .secondary : .primary)
-                }
+                }.themedRows()
             }
             .themedScreen()
             .navigationTitle("Sentence")
@@ -217,7 +217,7 @@ struct ReaderSettingsSheet: View {
                         .accessibilityIdentifier("settings.engine")
                         NavigationLink("Audio diagnostics") { DiagnosticsView() }
                         VoicePreferencesRows(p: p, sourceLanguage: model.book?.learningLanguage)
-                    }
+                    }.themedRows()
                 }
             }
             .themedScreen()
@@ -239,7 +239,7 @@ struct AboutSheet: View {
                     Section {
                         Text(book.title).font(.headline)
                         if let d = book.description_ { Text(d).font(.footnote) }
-                    }
+                    }.themedRows()
                     Section("Details") {
                         row("Authors", book.authors.joined(separator: ", "))
                         row("Language", Languages.name(book.learningLanguage))
@@ -249,13 +249,13 @@ struct AboutSheet: View {
                         row("Passages", "\(book.passages.count)")
                         row("Words", "\(book.wordCount)")
                         row("Glossary entries", "\(book.glossary.count)")
-                    }
+                    }.themedRows()
                     Section("Rights") {
                         if let credit = book.adaptationCredit { row("Adaptation", credit) }
                         row("License", book.license.name ?? book.license.id)
                         row("Source", book.sourceAttribution)
                         row("Identifier", book.id)
-                    }
+                    }.themedRows()
                 }
             }
             .themedScreen()

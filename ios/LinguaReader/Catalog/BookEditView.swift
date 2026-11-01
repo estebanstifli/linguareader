@@ -25,18 +25,18 @@ struct BookEditView: View {
                 Section {
                     TextField("Title", text: $title).accessibilityIdentifier("edit.title")
                     TextField("Author", text: $author)
-                }
+                }.themedRows()
                 Section("Language of the text") {
                     Picker("Language", selection: $language) {
                         ForEach(languages, id: \.self) { Text(Languages.name($0)).tag($0) }
                     }
-                }
+                }.themedRows()
                 Section("Level") {
                     Picker("Level", selection: $level) {
                         ForEach([CefrLevel.a1, .a2, .b1, .b2, .c1, .c2], id: \.self) { Text($0.name).tag($0) }
                     }
                     .pickerStyle(.segmented)
-                }
+                }.themedRows()
                 if edited {
                     Button("Reset to original data", role: .destructive) {
                         Task { try? await LinguaShared.shared.library.resetBook(bookId: bookId); dismiss() }

@@ -23,7 +23,7 @@ struct TranslationView: View {
                     }))
                 } footer: {
                     Text("Translating needs the model of the book's language and of your language. Words and sentences are translated on the phone, without sending the text anywhere.")
-                }
+                }.themedRows()
             }
             Section("Translation models (about 30 MB each)") {
                 if let state = store.translationModels {
@@ -33,7 +33,7 @@ struct TranslationView: View {
                 } else {
                     Text("The translator is not available in this build.").foregroundStyle(.secondary)
                 }
-            }
+            }.themedRows()
         }
         .themedScreen()
         .navigationTitle("Translation")

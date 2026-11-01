@@ -23,7 +23,7 @@ struct TextPreferencesSection: View {
             Picker("Alignment", selection: Binding(get: { p.textJustification }, set: { j in Task { try? await LinguaShared.shared.setTextJustification(justification: j) } })) {
                 Text("Left").tag(TextJustification.left); Text("Justified").tag(TextJustification.justified); Text("Justified + hyphens").tag(TextJustification.justifiedHyphenated)
             }
-        }
+        }.themedRows()
     }
 }
 
@@ -45,7 +45,7 @@ struct ReadingPreferencesSection: View {
             Toggle("Pointing finger over the word", isOn: Binding(get: { p.fingerPointerEnabled }, set: { v in Task { try? await LinguaShared.shared.setFingerPointer(enabled: v) } }))
                 .accessibilityIdentifier("settings.fingerPointer")
             Toggle("Reduce motion", isOn: Binding(get: { p.reduceMotion }, set: { v in Task { try? await LinguaShared.shared.setReduceMotion(enabled: v) } }))
-        }
+        }.themedRows()
     }
 }
 
@@ -82,7 +82,7 @@ struct ReadingSettingsView: View {
                 ReadingPreferencesSection(p: p)
                 Section("Voice") {
                     VoicePreferencesRows(p: p, sourceLanguage: p.readingLanguage)
-                }
+                }.themedRows()
             }
         }
         .themedScreen()

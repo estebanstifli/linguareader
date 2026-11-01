@@ -43,10 +43,7 @@ final class SmokeUITests: XCTestCase {
         app.launchArguments = ["-resetOnboarding"]
         app.launch()
 
-        let learn = app.descendants(matching: .any).matching(identifier: "onboarding.learn").firstMatch
-        XCTAssertTrue(learn.waitForExistence(timeout: 30))
-        learn.tap()
-
+        // Sin paso de propósito: la app de iPhone es solo para aprender idiomas.
         let english = app.descendants(matching: .any).matching(identifier: "onboarding.language.en").firstMatch
         XCTAssertTrue(english.waitForExistence(timeout: 30), "The bundled libraries catalog should list English")
         english.tap()

@@ -12,12 +12,12 @@ struct SettingsView: View {
                 .accessibilityIdentifier("settings.libraries")
                 NavigationLink { TranslationView() } label: { Label("Translation", systemImage: "character.bubble") }
                     .accessibilityIdentifier("settings.translation")
-            }
+            }.themedRows()
             Section("App") {
                 NavigationLink { ReadingSettingsView() } label: { Label("Reading and appearance", systemImage: "textformat.size") }
                     .accessibilityIdentifier("settings.reading")
                 NavigationLink { AboutView() } label: { Label("About", systemImage: "info.circle") }
-            }
+            }.themedRows()
         }
         .themedScreen()
         .navigationTitle("Settings")
@@ -35,7 +35,7 @@ struct LibrariesView: View {
             Section {
                 Text("Graded readers (A1–B2) with word-by-word audio. Each library is about 5 MB and works offline once downloaded.")
                     .font(.footnote).foregroundStyle(.secondary)
-            }
+            }.themedRows()
             ForEach(languages, id: \.self) { lang in
                 if let info = store.libraryCatalog[lang] {
                     LibraryRow(lang: lang, info: info, state: store.libraryStates[lang])
@@ -101,7 +101,7 @@ struct AboutView: View {
                     .font(.footnote).foregroundStyle(.secondary)
                 Text("Learn languages by reading and listening: graded readers, a voice that highlights each word, and translation on tap, all offline.")
                     .font(.footnote)
-            }
+            }.themedRows()
             Section {
                 Link(destination: AppLinks.privacyPolicy) { LinkRow("Privacy policy", AppLinks.privacyPolicy.absoluteString, icon: "hand.raised") }
                 Link(destination: AppLinks.website) { LinkRow("Website and help", AppLinks.website.absoluteString, icon: "globe") }
@@ -110,23 +110,23 @@ struct AboutView: View {
                 }
             } footer: {
                 Text("No account, no ads and no tracking by the app. Your books, progress and vocabulary stay on your phone. The app only connects to the internet to download what you ask for (libraries, translators).")
-            }
+            }.themedRows()
             Section("Open source licenses") {
                 Text("This app uses the following components. Tap one to read its license.").font(.footnote).foregroundStyle(.secondary)
                 ForEach(ThirdPartyNotices.included) { NoticeRow(notice: $0) }
-            }
+            }.themedRows()
             if !ThirdPartyNotices.downloadable.isEmpty {
                 Section("Optional downloads") {
                     ForEach(ThirdPartyNotices.downloadable) { NoticeRow(notice: $0) }
-                }
+                }.themedRows()
             }
             Section {
                 Text("Graded readers: our own adaptations of public-domain works. Your imported books stay only on your device.")
                     .font(.footnote).foregroundStyle(.secondary)
-            }
+            }.themedRows()
             Section("Troubleshooting") {
                 NavigationLink { DiagnosticsView() } label: { Label("Diagnostics", systemImage: "stethoscope") }
-            }
+            }.themedRows()
         }
         .themedScreen()
         .navigationTitle("About")

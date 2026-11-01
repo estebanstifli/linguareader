@@ -20,8 +20,18 @@ struct ThemedScreen: ViewModifier {
     }
 }
 
+/// Fondo de las filas de una `Section` según el tema: en sepia, crema; en los demás, el del sistema.
+struct ThemedRows: ViewModifier {
+    @EnvironmentObject private var store: AppStore
+
+    func body(content: Content) -> some View {
+        content.listRowBackground(store.prefs?.theme == .sepia ? Color(ReaderTheme.sepiaCard) : nil)
+    }
+}
+
 extension View {
     func themedScreen() -> some View { modifier(ThemedScreen()) }
+    func themedRows() -> some View { modifier(ThemedRows()) }
 }
 
 extension ThemeMode {
@@ -62,6 +72,9 @@ struct ReaderTheme {
         background: UIColor(white: 0.09, alpha: 1), text: UIColor(white: 0.90, alpha: 1), secondary: UIColor(white: 0.62, alpha: 1),
         sentenceHighlight: UIColor(red: 0.35, green: 0.33, blue: 0.20, alpha: 0.7), wordHighlight: UIColor(red: 0.85, green: 0.65, blue: 0.20, alpha: 0.95),
         wordText: UIColor(white: 0.05, alpha: 1), dark: true)
+    /// Tarjetas y filas de lista sobre el fondo sepia.
+    static let sepiaCard = UIColor(red: 0.99, green: 0.965, blue: 0.90, alpha: 1)
+
     static let sepia = ReaderTheme(
         background: UIColor(red: 0.96, green: 0.92, blue: 0.82, alpha: 1), text: UIColor(red: 0.27, green: 0.20, blue: 0.12, alpha: 1), secondary: UIColor(red: 0.5, green: 0.42, blue: 0.3, alpha: 1),
         sentenceHighlight: UIColor(red: 0.95, green: 0.82, blue: 0.55, alpha: 0.6), wordHighlight: UIColor(red: 0.90, green: 0.65, blue: 0.25, alpha: 0.95),
