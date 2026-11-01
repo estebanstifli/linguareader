@@ -96,7 +96,7 @@ jobs:
         working-directory: ios
         run: |
           set -o pipefail
-          xcodebuild -exportArchive -archivePath build/LinguaReader.xcarchive -exportOptionsPath ExportOptions.plist -exportPath build/export \
+          xcodebuild -exportArchive -archivePath build/LinguaReader.xcarchive -exportOptionsPlist ExportOptions.plist -exportPath build/export 2>&1 \
             | tee build/xcodebuild-export.log | grep -E "error:|EXPORT" || true
           ls -la build/export
           test -f build/export/LinguaReader.ipa
