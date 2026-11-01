@@ -304,6 +304,7 @@ object LinguaShared {
             purpose = purpose,
             // Primera apertura en iOS: tema sepia (el lector de Android mantiene el del sistema).
             theme = if (it.purpose == null && it.theme == ThemeMode.SYSTEM) ThemeMode.SEPIA else it.theme,
+            libraryGrid = if (it.purpose == null) true else it.libraryGrid,
             ttsMode = !read,
             ttsModeChosen = true,
             learnLanguageChosen = read || it.learnLanguageChosen,

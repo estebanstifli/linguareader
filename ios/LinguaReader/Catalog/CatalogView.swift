@@ -66,7 +66,7 @@ private struct SectionsList: View {
             Section {
                 ForEach(CatalogSection.learnLanguages, id: \.self) { lang in
                     row(.learn(lang), "Learn \(Languages.name(lang))", "character.book.closed", count: store.books.filter { Languages.primary($0.learningLanguage) == lang && !trashed($0.id) }.count)
-                }
+                }.themedRows()
                 row(.learnOther, "Learn other languages", "globe", count: store.books.filter { !CatalogSection.learnLanguages.contains(Languages.primary($0.learningLanguage)) && !trashed($0.id) }.count)
             }.themedRows()
             Section("Shelves") {
@@ -77,7 +77,7 @@ private struct SectionsList: View {
                                 Button(role: .destructive) { store.deleteCollection(shelf.id) } label: { Label("Delete", systemImage: "trash") }
                             }
                         }
-                }
+                }.themedRows()
                 row(.trash, "Trash", "trash", count: store.shelves?.trash.count ?? 0)
             }.themedRows()
             Section {
@@ -140,7 +140,7 @@ struct BookListView: View {
     @State private var query = ""
     @State private var newCollectionFor: BookSummary?
 
-    private var grid: Bool { store.prefs?.libraryGrid ?? false }
+    private var grid: Bool { store.prefs?.libraryGrid ?? true }
 
     private var visible: [BookSummary] {
         let trashed = store.shelves?.trashedIds ?? []
@@ -172,7 +172,7 @@ struct BookListView: View {
             } else if grid {
                 ScrollView {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), spacing: 12)], spacing: 16) {
-                        ForEach(visible, id: \.id) { book in cell(book) }
+                        ForEach(visible, id: \.id) { book in cell(book) }.themedRows()
                     }
                     .padding()
                 }
@@ -205,12 +205,12 @@ struct BookListView: View {
                 chip("All levels", selected: level == nil) { level = nil }
                 ForEach([CefrLevel.a1, .a2, .b1, .b2, .c1, .c2], id: \.self) { l in
                     chip(l.name, selected: level == l) { level = l }
-                }
+                }.themedRows()
             }
             .padding(.horizontal)
             .padding(.vertical, 6)
         }
-        .background(.bar)
+        .themedBar()
     }
 
     private func chip(_ text: String, selected: Bool, action: @escaping () -> Void) -> some View {
@@ -311,7 +311,7 @@ private struct BookMenu: View {
             } label: {
                 Label(shelfTitle(shelf), systemImage: inShelf ? "checkmark" : "")
             }
-        }
+        }.themedRows()
         Button { newCollection() } label: { Label("New collection…", systemImage: "folder.badge.plus") }
         Divider()
         NavigationLink(value: CatalogDestination.edit(book.id)) { Label("Edit", systemImage: "pencil") }

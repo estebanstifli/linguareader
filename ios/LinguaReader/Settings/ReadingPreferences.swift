@@ -61,7 +61,7 @@ struct VoicePreferencesRows: View {
             try? await LinguaShared.shared.setTranslationLanguage(tag: l, wifiOnly: p.translationWifiOnly)
             LinguaShared.shared.downloadTranslationModelsFor(sourceLanguage: sourceLanguage, targetLanguage: l)
         } })) {
-            ForEach(Languages.translationTargets, id: \.self) { Text(Languages.name($0)).tag($0) }
+            ForEach(Languages.translationTargets, id: \.self) { Text(Languages.name($0)).tag($0) }.themedRows()
         }
         HStack {
             Text("Pause between sentences")

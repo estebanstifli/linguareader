@@ -16,7 +16,7 @@ struct TranslationView: View {
                             LinguaShared.shared.downloadTranslationModelsFor(sourceLanguage: p.readingLanguage, targetLanguage: l)
                         }
                     })) {
-                        ForEach(Languages.translationTargets, id: \.self) { Text(Languages.name($0)).tag($0) }
+                        ForEach(Languages.translationTargets, id: \.self) { Text(Languages.name($0)).tag($0) }.themedRows()
                     }
                     Toggle("Download translators only over Wi-Fi", isOn: Binding(get: { p.translationWifiOnly }, set: { v in
                         Task { try? await LinguaShared.shared.setTranslationLanguage(tag: p.translationLanguage, wifiOnly: v) }
@@ -29,7 +29,7 @@ struct TranslationView: View {
                 if let state = store.translationModels {
                     ForEach(state.supported, id: \.self) { code in
                         TranslationModelRow(code: code, installed: state.downloaded.contains(code), download: state.downloads[code])
-                    }
+                    }.themedRows()
                 } else {
                     Text("The translator is not available in this build.").foregroundStyle(.secondary)
                 }

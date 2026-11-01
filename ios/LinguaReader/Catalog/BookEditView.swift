@@ -28,12 +28,12 @@ struct BookEditView: View {
                 }.themedRows()
                 Section("Language of the text") {
                     Picker("Language", selection: $language) {
-                        ForEach(languages, id: \.self) { Text(Languages.name($0)).tag($0) }
+                        ForEach(languages, id: \.self) { Text(Languages.name($0)).tag($0) }.themedRows()
                     }
                 }.themedRows()
                 Section("Level") {
                     Picker("Level", selection: $level) {
-                        ForEach([CefrLevel.a1, .a2, .b1, .b2, .c1, .c2], id: \.self) { Text($0.name).tag($0) }
+                        ForEach([CefrLevel.a1, .a2, .b1, .b2, .c1, .c2], id: \.self) { Text($0.name).tag($0) }.themedRows()
                     }
                     .pickerStyle(.segmented)
                 }.themedRows()

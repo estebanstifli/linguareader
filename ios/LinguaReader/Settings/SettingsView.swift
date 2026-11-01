@@ -40,7 +40,7 @@ struct LibrariesView: View {
                 if let info = store.libraryCatalog[lang] {
                     LibraryRow(lang: lang, info: info, state: store.libraryStates[lang])
                 }
-            }
+            }.themedRows()
         }
         .themedScreen()
         .navigationTitle("Libraries")
@@ -113,11 +113,11 @@ struct AboutView: View {
             }.themedRows()
             Section("Open source licenses") {
                 Text("This app uses the following components. Tap one to read its license.").font(.footnote).foregroundStyle(.secondary)
-                ForEach(ThirdPartyNotices.included) { NoticeRow(notice: $0) }
+                ForEach(ThirdPartyNotices.included) { NoticeRow(notice: $0) }.themedRows()
             }.themedRows()
             if !ThirdPartyNotices.downloadable.isEmpty {
                 Section("Optional downloads") {
-                    ForEach(ThirdPartyNotices.downloadable) { NoticeRow(notice: $0) }
+                    ForEach(ThirdPartyNotices.downloadable) { NoticeRow(notice: $0) }.themedRows()
                 }.themedRows()
             }
             Section {

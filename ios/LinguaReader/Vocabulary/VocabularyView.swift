@@ -24,7 +24,7 @@ struct VocabularyView: View {
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                         .padding(.vertical, 4)
-                    }
+                    }.themedRows()
                     .onDelete { offsets in offsets.map { store.vocabulary[$0].id }.forEach { store.deleteVocabulary($0) } }
                 }
             }

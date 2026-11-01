@@ -50,7 +50,7 @@ struct WordCardSheet: View {
                                 Text(ex.text)
                                 if let t = ex.translation { Text(t).font(.footnote).foregroundStyle(.secondary) }
                             }
-                        }
+                        }.themedRows()
                     }.themedRows()
                 }
                 Section("In the sentence") {
@@ -136,7 +136,7 @@ struct IndexSheet: View {
                                     Text("\(chapter.passages.count) passages").font(.caption).foregroundStyle(.secondary)
                                 }
                             }
-                        }
+                        }.themedRows()
                     case 1:
                         ForEach(model.bookmarks, id: \.id) { b in
                             Button {
@@ -148,14 +148,14 @@ struct IndexSheet: View {
                                 }
                             }
                             .swipeActions { Button(role: .destructive) { Task { try? await LinguaShared.shared.deleteBookmark(id: b.id) } } label: { Label("Delete", systemImage: "trash") } }
-                        }
+                        }.themedRows()
                     default:
                         ForEach(store.vocabulary.filter { $0.bookId == model.bookId }, id: \.id) { v in
                             VStack(alignment: .leading) {
                                 Text("\(v.term) — \(v.translation ?? "…")")
                                 Text(v.context).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                             }
-                        }
+                        }.themedRows()
                     }
                 }
                 .listStyle(.plain)

@@ -29,9 +29,20 @@ struct ThemedRows: ViewModifier {
     }
 }
 
+/// Fondo de una barra (filtros, cabeceras) con el color del tema en vez del material del sistema.
+struct ThemedBar: ViewModifier {
+    @EnvironmentObject private var store: AppStore
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        content.background(Color(ReaderTheme.resolve(store.prefs?.theme, systemDark: colorScheme == .dark).background))
+    }
+}
+
 extension View {
     func themedScreen() -> some View { modifier(ThemedScreen()) }
     func themedRows() -> some View { modifier(ThemedRows()) }
+    func themedBar() -> some View { modifier(ThemedBar()) }
 }
 
 extension ThemeMode {
