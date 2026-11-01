@@ -115,3 +115,32 @@ Queda anotado para cuando merezca la pena.
 5. Lector con TextKit 2 (paginación, toque en palabra, traducción), catálogo completo, ajustes, Now Playing,
    `URLSession` en segundo plano para los packs. Ver el plan en [ROADMAP.md](ROADMAP.md#app-ios).
 6. Publicar: requiere cuenta Apple Developer (TestFlight / App Store) y un Mac o Xcode Cloud para firmar.
+
+## TestFlight y App Store (sin Mac)
+
+Workflow `.github/workflows/testflight.yml`, se lanza a mano (Actions › TestFlight › Run workflow, con la versión
+visible como parámetro). Enlaza el framework compartido en release, genera el proyecto, instala los pods, importa el
+certificado y el perfil en un llavero temporal, archiva en Release (firma manual definida en `project.yml`,
+`configs.Release`), exporta con `ios/ExportOptions.plist` y sube con `xcrun altool` y la API de App Store Connect.
+El número de build (`CFBundleVersion`) es el número de ejecución del workflow, así siempre crece.
+
+Secretos del repositorio (Settings › Secrets and variables › Actions); los archivos de origen viven fuera de git en
+`D:\prueba\ios-signing\` (el `.gitignore` excluye `*.p8`, `*.p12`, `*.mobileprovision`, `*.cer`):
+
+| Secreto | Contenido |
+| --- | --- |
+| `IOS_CERT_P12_BASE64` | `distribution.p12` (certificado Apple Distribution + clave privada) en base64. |
+| `IOS_CERT_PASSWORD` | Contraseña del `.p12`. |
+| `IOS_PROFILE_BASE64` | Perfil «LingoAudioBook App Store» (`.mobileprovision`) en base64. |
+| `ASC_API_KEY_P8` | Contenido del `AuthKey_<KEY_ID>.p8` de la clave de API (rol App Manager). |
+| `ASC_KEY_ID` | Key ID de esa clave. |
+| `ASC_ISSUER_ID` | Issuer ID de la página de claves de API. |
+
+Renovación: el certificado y el perfil caducan al año (noviembre de 2027); generar un CSR con `openssl req -new -key
+distribution.key -out nuevo.certSigningRequest -subj "/emailAddress=…/CN=…/C=ES"` (en Git Bash con
+`MSYS2_ARG_CONV_EXCL='*'`), crear el certificado Apple Distribution en el portal, `openssl pkcs12 -export` con la
+misma clave, regenerar el perfil y actualizar los dos secretos.
+
+App ID `com.lingoaudiobook.ios` (equipo `2FPJ5WXX2G`), sin capabilities. El icono de la app (1024 px) sale del
+vectorial de Android con `tools/make_store_graphics.py` (`icon(1024)`) y vive en
+`ios/LinguaReader/Assets.xcassets/AppIcon.appiconset`.

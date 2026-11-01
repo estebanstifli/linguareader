@@ -23,8 +23,9 @@ targets:
       path: LinguaReader/Info.plist
       properties:
         CFBundleDisplayName: LingoAudioBook
-        CFBundleShortVersionString: "0.4.1"
-        CFBundleVersion: "5"
+        # Versión y build desde los ajustes de compilación: TestFlight pasa MARKETING_VERSION y CURRENT_PROJECT_VERSION.
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         CFBundleDevelopmentRegion: en
         CFBundleLocalizations: [en, es, fr, de, it, pt]
         UILaunchScreen: {}
@@ -37,10 +38,20 @@ targets:
         codeSign: false
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.linguareader.ios
+        # App ID registrado en el programa de desarrolladores (equivale a com.lingoaudiobook.app en Android).
+        PRODUCT_BUNDLE_IDENTIFIER: com.lingoaudiobook.ios
         TARGETED_DEVICE_FAMILY: "1"
+        MARKETING_VERSION: "0.4.1"
+        CURRENT_PROJECT_VERSION: "5"
         # El compilador emite .stringsdata con las claves de las vistas SwiftUI; CI los vuelca al catálogo.
         SWIFT_EMIT_LOC_STRINGS: YES
+      configs:
+        # Solo el archivo de TestFlight se firma (workflow testflight.yml); Debug va sin firma (Device Farm, simulador).
+        Release:
+          CODE_SIGN_STYLE: Manual
+          DEVELOPMENT_TEAM: 2FPJ5WXX2G
+          CODE_SIGN_IDENTITY: "Apple Distribution"
+          PROVISIONING_PROFILE_SPECIFIER: "LingoAudioBook App Store"
   LinguaReaderTests:
     type: bundle.unit-test
     platform: iOS
@@ -50,7 +61,7 @@ targets:
       - target: LinguaReader
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.linguareader.ios.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.lingoaudiobook.ios.tests
   LinguaReaderUITests:
     type: bundle.ui-testing
     platform: iOS
@@ -60,7 +71,7 @@ targets:
       - target: LinguaReader
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.linguareader.ios.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: com.lingoaudiobook.ios.uitests
         TEST_TARGET_NAME: LinguaReader
 schemes:
   LinguaReader:

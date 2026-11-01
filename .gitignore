@@ -49,3 +49,10 @@ ios/Podfile.lock
 
 # Firma de release: datos de la clave de subida (docs/PLAY_STORE.md)
 keystore.properties
+
+# Firma y claves de Apple: nunca en git
+*.p8
+*.p12
+*.mobileprovision
+*.cer
+*.certSigningRequest
