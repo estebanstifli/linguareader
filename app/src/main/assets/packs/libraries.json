@@ -81,6 +81,33 @@
       "books": 16,
       "words": 98251,
       "fingerprint": "717b65bec0d38c0a1c2a492d07c58b778eda8d9fd12316dc2b996df1530d8b4e"
+    },
+    "ru": {
+      "version": 1,
+      "asset": "library-ru-v1.zip",
+      "sizeBytes": 2184928,
+      "sha256": "d099b4814a7907483befa46092f86d6f14f89467f174c9053603293c87825ff2",
+      "books": 16,
+      "words": 100727,
+      "fingerprint": "83e5362a6a0f34a3e43d4df40286ed9e25e75bf7582ace1832b9fd315e46050c"
+    },
+    "ko": {
+      "version": 1,
+      "asset": "library-ko-v1.zip",
+      "sizeBytes": 2100609,
+      "sha256": "1579d698d2ed2e88f86dbfba52e970a972f36b7c37c6d0bc8b050329a538a74f",
+      "books": 16,
+      "words": 84108,
+      "fingerprint": "a0c7ddd97277bf825b88f35dec858c27b1ae8a9e2e51038c7d49088b70e1ddd6"
+    },
+    "hi": {
+      "version": 1,
+      "asset": "library-hi-v1.zip",
+      "sizeBytes": 2135186,
+      "sha256": "9dd94c6655c43445f9e994fd4156480e2b1caee0167ddae315e654d5a53e731b",
+      "books": 16,
+      "words": 127085,
+      "fingerprint": "aa48dfc1d2bc9d72c541c2824d87de52240a305bd12308ac54dc6873330491bc"
     }
   }
 }
