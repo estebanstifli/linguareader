@@ -37,8 +37,26 @@ AUTHOR_NAMES = {
                                       "sv": "Amerikansk folksaga"},
 }
 
-CHAPTER = re.compile(r"^(?:chapter|capítulo|chapitre|kapitel|capitolo|hoofdstuk|rozdział)\s+\d+\s*:\s*(.+)$", re.I)
-END_LINES = {"the end", "fin", "ende", "fine", "fim", "einde", "koniec", "slut"}
+# Autores en ruso, coreano e hindi (sus alfabetos no usan la forma latina).
+for _name, (_ru, _ko, _hi) in {
+    "Hermanos Grimm": ("Братья Гримм", "그림 형제", "ग्रिम बंधु"),
+    "Cuento popular inglés": ("Английская народная сказка", "영국 민담", "अंग्रेज़ी लोककथा"),
+    "Cuento popular estadounidense": ("Американская народная сказка", "미국 민담", "अमेरिकी लोककथा"),
+    "Carlo Collodi": ("Карло Коллоди", "카를로 콜로디", "कार्लो कोलोडी"),
+    "Charles Dickens": ("Чарльз Диккенс", "찰스 디킨스", "चार्ल्स डिकेंस"),
+    "Charles Perrault": ("Шарль Перро", "샤를 페로", "शार्ल पेरो"),
+    "Hans Christian Andersen": ("Ганс Христиан Андерсен", "한스 크리스티안 안데르센", "हैंस क्रिश्चियन एंडरसन"),
+    "Jane Austen": ("Джейн Остин", "제인 오스틴", "जेन ऑस्टेन"),
+    "Jeanne-Marie Leprince de Beaumont": ("Жанна-Мари Лепренс де Бомон", "잔마리 르프랭스 드 보몽", "जान-मारी लेप्रिंस द बोमों"),
+    "Jules Verne": ("Жюль Верн", "쥘 베른", "जूल वर्न"),
+    "Mary Shelley": ("Мэри Шелли", "메리 셸리", "मैरी शेली"),
+    "Robert Louis Stevenson": ("Роберт Льюис Стивенсон", "로버트 루이스 스티븐슨", "रॉबर्ट लुई स्टीवेन्सन"),
+}.items():
+    AUTHOR_NAMES.setdefault(_name, {}).update(ru=_ru, ko=_ko, hi=_hi)
+
+CHAPTER = re.compile(r"^(?:(?:chapter|capítulo|chapitre|kapitel|capitolo|hoofdstuk|rozdział|глава|अध्याय)\s+\d+"
+                     r"|제\s*\d+\s*장)\s*:\s*(.+)$", re.I)
+END_LINES = {"the end", "fin", "ende", "fine", "fim", "einde", "koniec", "slut", "конец", "끝", "समाप्त"}
 
 
 def _author(original, lang):

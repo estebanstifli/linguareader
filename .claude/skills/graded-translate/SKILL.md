@@ -54,7 +54,9 @@ Idioma destino (código o nombre: `de`, «alemán»…) + libro opcional (ruta o
   adultos: usted/vous/Sie/Lei/o senhor–a senhora. En portugués europeo el *você* es menos cortés que
   *o senhor*; en italiano *Lei* se escribe con mayúscula. En neerlandés *jij*/*u* (súbdito → rey: *u* + «Majesteit»); en polaco
   *ty*/*pan, pani* (súbdito → rey: «Wasza Wysokość» / «Najjaśniejszy Panie» con 3.ª persona); en sueco
-  *du* casi siempre, «Ers Majestät» al rey.
+  *du* casi siempre, «Ers Majestät» al rey. En ruso *ты*/*вы* (al rey: «Ваше Величество» + *вы*); en
+  coreano 반말/해요체/합쇼체 según edad y rango (al rey: 전하 + 합쇼체); en hindi *तू/तुम/आप* (al rey:
+  महाराज + *आप*).
 - **Nombres y títulos**: usa la forma tradicional del destino cuando exista, la de las traducciones
   del original y no la de una película (*El sastrecillo valiente*, *Le Vaillant Petit Tailleur*, *Das
   tapfere Schneiderlein*, *Il piccolo sarto coraggioso*, *O Alfaiate Valente*; *Caperucita Roja*, *Le
@@ -64,7 +66,9 @@ Idioma destino (código o nombre: `de`, «alemán»…) + libro opcional (ruta o
   botas*, *Le Chat botté*, *Der gestiefelte Kater*, *Il gatto con gli stivali*, *O Gato das Botas*; en nl/pl/sv: *Het dappere snijdertje*, *Dzielny krawczyk*, *Det tappra lilla
   skräddaren*; *Roodkapje*, *Czerwony Kapturek*, *Rödluvan*; *Sneeuwwitje*, *Królewna Śnieżka*,
   *Snövit*; *Assepoester*, *Kopciuszek*, *Askungen*; *De gelaarsde kat*, *Kot w butach*, *Mästerkatten
-  i stövlar*; *Pinokkio*, *Pinokio*, *Pinocchio*). Los
+  i stövlar*; *Pinokkio*, *Pinokio*, *Pinocchio*; en ru/ko/hi: *Храбрый портняжка*, *용감한 꼬마 재봉사*;
+  *Красная Шапочка*, *빨간 모자*, *लाल टोपी*; *Белоснежка*, *백설공주*; *Золушка*, *신데렐라*, *सिंड्रेला*;
+  *Кот в сапогах*, *장화 신은 고양이*; *Приключения Пиноккио*, *피노키오의 모험*). Los
   nombres inventados en nuestra adaptación se conservan, salvo que suenen raros en el destino.
 - Si la obra original está escrita en el idioma destino (Perrault, Leprince de Beaumont o Verne al
   francés; Collodi al italiano; Grimm al alemán), puedes usar sus fórmulas célebres cuando la
@@ -83,6 +87,9 @@ El nivel MCER no cambia, pero la gramática de cada nivel es la del idioma desti
 | **nl** | presens; *gaan* + inf.; *kunnen/willen/moeten/mogen* + inf.; imperatief. **Sin** imperfectum, perfectum ni *zou*; bijzinnen solo con *omdat, dat, als* | imperfectum como tiempo narrativo (*zei, ging, was, had*); perfectum en el diálogo; *zullen* para el futuro. **Sin** plusquamperfectum ni *zou* (salvo cortesía: *zou je…?*) | + plusquamperfectum, *zou* + inf., lijdende vorm, indirecte rede, bijzinnen de todo tipo | todo |
 | **pl** | presente (aspecto imperfectivo); futuro con *będę* + inf.; *chcieć/móc/musieć* + inf.; imperativo. **Sin** czas przeszły ni tryb przypuszczający (*-by*); aspecto perfectivo solo en imperativo y en el futuro simple de verbos muy frecuentes (*zobaczę, zrobię*) | czas przeszły (ambos aspectos) como tiempo narrativo; futuro simple y compuesto. **Sin** tryb przypuszczający (salvo *chciałbym*); participios adjetivales sencillos | + tryb przypuszczający, *gdyby*, mowa zależna, participios (*czytający, przeczytany*), voz pasiva | todo: imiesłowy przysłówkowe (*czytając, przeczytawszy*), registro literario |
 | **sv** | presens; *ska* + inf.; *kan/vill/måste* + inf.; imperativ. **Sin** preteritum, perfekt ni *skulle*; bisatser solo con *för att, att, när, om* | preteritum como tiempo narrativo (*sa, gick, var, hade*); perfekt en el diálogo; futuro con *ska/kommer att*. **Sin** pluskvamperfekt ni *skulle* (salvo cortesía: *skulle du kunna…?*) | + pluskvamperfekt, *skulle* + inf., s-passiv, indirekt tal, bisatser de todo tipo | todo |
+| **ru** | настоящее время (imperfectivo); futuro con *буду* + inf. y futuro perfectivo de verbos muy frecuentes; *хотеть/мочь/надо* + inf.; imperativo. **Sin** прошедшее время, *бы* ni participios | прошедшее время (ambos aspectos) como tiempo narrativo; futuro simple y compuesto. **Sin** *бы* (salvo *хотел бы*), participios ni деепричастия | + *бы* (condicional), participios activos y pasivos, деепричастия sencillos (*читая*), estilo indirecto | todo |
+| **ko** | presente en 해요체 (-아요/어요) en diálogo y -ㄴ다/는다 en la narración; futuro -(으)ㄹ 거예요; -고 싶다, -(으)ㄹ 수 있다; imperativo -(으)세요. **Sin** pasado (-았/었-), honoríficos complejos ni conectores avanzados (solo -고, -아서/어서, -지만) | pasado -았/었- como tiempo narrativo; -(으)면, -(으)니까, -(으)ㄹ 때; modificadores -(으)ㄴ/는/(으)ㄹ. **Sin** 대과거 (-았었-) ni estilo indirecto (-다고 하다) | + estilo indirecto, -(으)ㄹ 뻔하다, -던, honoríficos (-시-, 드리다) coherentes, -았었- | todo: registro literario, -더라 |
+| **hi** | presente habitual (*करता है*) y continuo (*कर रहा है*); futuro (*करेगा*); *सकना/चाहना* + inf.; imperativo. **Sin** pasado perfectivo (*किया, गया*), *था* ni construcción con *ने*; adjetivos de estado como *बैठा है* sí | pasado perfectivo con *ने* y pasado habitual/continuo (*करता था, कर रहा था*) para narrar. **Sin** pluscuamperfecto (*गया था, चुका था*) ni condicional irreal | + pluscuamperfecto, condicional (*अगर… तो*), subjuntivo (*करे*), voz pasiva sencilla, oraciones relativas *जो… वह* | todo: registro literario, compuestos verbales ricos |
 | **pt** | presente; *ir* + inf.; *estar a* + inf.; *poder/querer/ter de* + inf.; imperativo. **Sin** pretérito perfeito, imperfeito, futuro, condicional ni subjuntivo («Quero que venhas» → «Vem comigo») | pretérito perfeito + imperfeito para narrar; futuro con *ir* + inf. (o futuro simples). **Sin** mais-que-perfeito, condicional ni subjuntivo (presente del subjuntivo solo en fórmulas: *oxalá*, *que…!*) | + mais-que-perfeito composto (*tinha feito*), condicional, presente e imperfeito do subjuntivo, futuro do subjuntivo (*se tiveres*), discurso indireto | todo: mais-que-perfeito simples literario, infinitivo pessoal complejo, subjuntivo pleno |
 
 Vocabulario: el más frecuente del destino y, si una palabra clave pasa del nivel, explícala con el
@@ -97,9 +104,12 @@ tienden a alargarse. Nunca recortes ni añadas escenas para ajustar la cifra.
   (`es/A1/el-sastrecillo-valiente.txt`, `de/A1/das-tapfere-schneiderlein.txt`).
 - Cabecera de capítulo (la reconoce `TextExtractor`): `Capítulo N: Título` (es, pt),
   `Chapitre N : Titre` (fr), `Kapitel N: Titel` (de, sv), `Capitolo N: Titolo` (it),
-  `Hoofdstuk N: Titel` (nl), `Rozdział N: Tytuł` (pl).
+  `Hoofdstuk N: Titel` (nl), `Rozdział N: Tytuł` (pl), `Глава N: Название` (ru), `제N장: 제목` (ko),
+  `अध्याय N: शीर्षक` (hi).
 - Última línea: `Fin` (es, fr), `Ende` (de), `Fine` (it), `Fim` (pt), `Einde` (nl), `Koniec` (pl),
-  `Slut` (sv). Slug sin diacríticos también en pl/sv (ł→l, ą→a, å→a, ö→o).
+  `Slut` (sv), `Конец` (ru), `끝` (ko), `समाप्त` (hi). Slug sin diacríticos también en pl/sv (ł→l, ą→a,
+  å→a, ö→o). En **ru, ko y hi** (alfabetos no latinos) el slug es el **inglés** del original
+  (`ru/A1/the-brave-little-tailor.txt`): rutas y URLs siempre en ASCII.
 - Diálogos según la norma del idioma:
   - **es**: raya (`—`), nunca comillas: `—¡Siete! —dice—. ¡Siete de un golpe!` Con `¿?` y `¡!` de
     apertura siempre. Carteles y citas: comillas latinas («SIETE DE UN GOLPE»).
@@ -118,6 +128,12 @@ tienden a alargarse. Nunca recortes ni añadas escenas para ajustar la cifra.
     jednym zamachem!`. Citas y carteles con „…”.
   - **sv**: comillas suecas ”…” (la **misma** comilla ” al abrir y cerrar): `”Sju!” säger han. ”Sju i
     ett slag!”`. Nunca `"`, « », „ ni “.
+  - **ru**: raya (`—`) al inicio del diálogo: `— Семь! — говорит он. — Семь одним ударом!`; citas y
+    carteles con «…» (y „…“ dentro). Escribe siempre la ё.
+  - **ko**: comillas “…” con verbo de cita o partícula (`“일곱!” 하고 그가 말해요.`); espacios entre
+    eojeol según la norma (띄어쓰기). Nunca « ».
+  - **hi**: comillas “…”, danda `।` como punto final (nunca `.`), `?` y `!` normales; nukta donde
+    corresponda (*ज़*, *फ़*). Números en cifras indoarábigas (1, 2, 3).
 - Párrafos separados por una línea en blanco, como el original.
 
 ## Proceso (cada lectura y reescritura cuesta tokens)
@@ -152,7 +168,7 @@ tienden a alargarse. Nunca recortes ni añadas escenas para ajustar la cifra.
    - la fila del libro: ⬜ → ✅ y rellena `Fichero` (`` `<idioma>/<NIVEL>/<slug>.txt` ``), `Título`,
      `Palabras` (con punto de miles: 3.154), `Palabras/frase` (coma decimal: 5,7) y `Legibilidad`
      (índice y valor que imprime el checker: «INFLESZ 92», «Flesch-Amstad 85», «Gulpease 78»,
-     «Flesch-Martins 88», «Flesch-Douma 84», «FOG-PL 5», «LIX 24»); `Notas` solo si hay algo que recordar (tratamiento, canción, tiempo
+     «Flesch-Martins 88», «Flesch-Douma 84», «FOG-PL 5», «LIX 24», «Flesch-Oborneva 90», «Sílabas/palabra 2,4»); `Notas` solo si hay algo que recordar (tratamiento, canción, tiempo
      narrativo elegido). Las celdas vacías se dejan vacías; no toques las demás filas;
    - glosario (sección «Vocabulario fuera de nivel»): una entrada `- **<Título traducido>**: ...` con
      las palabras del destino que pasan del nivel, en el mismo orden que la tabla.

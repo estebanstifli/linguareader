@@ -1,7 +1,7 @@
 """Comprueba la traducción de un libro graduado frente a su original de content/graded-books.
 
 Uso:
-  python -I tools/translation_check.py <origen.txt> <traduccion.txt> --lang es|fr|de|it|pt|nl|pl|sv
+  python -I tools/translation_check.py <origen.txt> <traduccion.txt> --lang es|fr|de|it|pt|nl|pl|sv|ru|ko|hi
          [--level A1|A2|B1|B2] [--show-long N] [--fix-typography]
 
 Comprueba:
@@ -9,7 +9,8 @@ Comprueba:
   - extensión: palabras de la traducción / palabras del origen dentro del rango del idioma;
   - frases: media de palabras por frase comparada con la del origen;
   - legibilidad del idioma destino: INFLESZ (es), Kandel-Moles (fr), Flesch-Amstad (de), Gulpease (it),
-    Flesch-Martins (pt), Flesch-Douma (nl), FOG-PL (pl), LIX (sv);
+    Flesch-Martins (pt), Flesch-Douma (nl), FOG-PL (pl), LIX (sv), Flesch-Oborneva (ru) y sílabas por
+    palabra (ko, hi: sin índice estándar);
   - tiempos verbales no permitidos en el nivel (es, fr, de, it, pt): listado para revisar a mano;
   - restos en inglés y tipografía (¿¡ y raya en es; « » y espacios no separables en fr; „“ en de;
     « » o raya en it; travessão en pt; comillas rectas " en todos).
@@ -22,9 +23,12 @@ import statistics
 import sys
 
 NBSP = " "
-WORD = re.compile(r"[^\W\d_]+(?:['’][^\W\d_]+)*")
-UPPER = "A-ZÁÉÍÓÚÑÜÀÂÇÈÊËÎÏÔÛÙŸÆŒÄÖÃÕÌÒĄĆĘŁŃŚŹŻÅ"
+# Letras más signos vocálicos/virama del devanagari y diacríticos combinantes (no son \w en Python).
+WORD = re.compile(r"(?:[^\W\d_]|[\u0900-\u0963\u0971-\u097f\u0300-\u036f])+(?:['’][^\W\d_]+)*")
+UPPER = "A-ZÁÉÍÓÚÑÜÀÂÇÈÊËÎÏÔÛÙŸÆŒÄÖÃÕÌÒĄĆĘŁŃŚŹŻÅА-ЯЁ"
 SENTENCE_END = re.compile(rf'(?<=[.!?…])[»"”“]?[\s{NBSP}]*[»"”]?\s+(?=[—–«"“”¡¿„]?[{UPPER}])')
+# Escrituras sin mayúsculas (hangul, devanagari): fin de frase sin mirar la letra siguiente.
+SENTENCE_END_CASELESS = re.compile(r'(?<=[.!?…।])[»"”’]?\s+')
 CHAPTER_EN = re.compile(r"^chapter\s+\d+\b.{0,60}$", re.I)
 
 LANGS = {
@@ -37,12 +41,29 @@ LANGS = {
     # Sin artículos (pl) o con artículo pegado y compuestos (sv): menos palabras y frases más cortas.
     "pl": {"chapter": r"rozdział", "end": "Koniec", "ratio": (0.6, 1.15), "sentence_ratio": (0.7, 1.3)},
     "sv": {"chapter": r"kapitel", "end": "Slut", "ratio": (0.8, 1.2), "sentence_ratio": (0.8, 1.35)},
+    "ru": {"chapter": r"глава", "end": "Конец", "ratio": (0.6, 1.1), "sentence_ratio": (0.7, 1.3)},
+    # Coreano: palabra = eojeol (raíz + partículas y terminaciones), muchas menos que en inglés.
+    "ko": {"chapter": r"제", "heading": r"^제\s*\d+\s*장\s*:.{0,60}$", "end": "끝", "ratio": (0.4, 1.0),
+           "sentence_ratio": (0.4, 1.2), "caseless": True},
+    # Hindi: posposiciones y auxiliares sueltos (ने, को, है), algo más de palabras que en inglés.
+    "hi": {"chapter": r"अध्याय", "end": "समाप्त", "ratio": (0.9, 1.6), "sentence_ratio": (0.9, 1.8),
+           "caseless": True},
 }
 SENTENCE_RATIO = (0.9, 1.4)
 ENGLISH = set("the and says said with you they this that what is are of from was were".split())
 # Palabras inglesas que también existen en el idioma destino y no cuentan como resto.
 ENGLISH_EXCEPT = {"de": {"was"}, "it": set(), "pt": set(), "es": set(), "fr": set(),
-                  "nl": {"is", "was", "of"}, "sv": {"is"}, "pl": set()}
+                  "nl": {"is", "was", "of"}, "sv": {"is"}, "pl": set(), "ru": set(), "ko": set(), "hi": set()}
+
+
+def _korean_past():
+    """Sílabas hangul con batchim ㅆ (갔, 왔, 했, 었…), salvo 있/겠/밌, que no son pasado."""
+    chars = [chr(c) for c in range(0xAC00, 0xD7A4) if (c - 0xAC00) % 28 == 20 and chr(c) not in "있겠밌"]
+    return "[" + "".join(chars) + "]"
+
+
+_KO_PAST = _korean_past()
+_HB, _HE = r"(?<![\w\u0900-\u097f])", r"(?![\w\u0900-\u097f])"
 
 # (etiqueta, regex sobre la frase, niveles en los que está prohibido, palabras que no cuentan)
 TENSES = {
@@ -123,6 +144,40 @@ TENSES.update({
 })
 
 
+TENSES.update({
+    "ru": [
+        ("прошедшее время", r"\b\w{2,}(?:л|ла|ло|ли|лся|лась|лось|лись)\b", {"A1"},
+         {"стол", "пол", "угол", "орёл", "осёл", "козёл", "котёл", "посол", "ангел", "пепел", "дятел", "футбол",
+          "если", "сила", "пила", "стрела", "скала", "игла", "мгла", "земли", "корабли", "капли", "мысли", "угли",
+          "мало", "тепло", "светло", "весело", "зло", "крыло", "село", "число", "масло", "кресло", "весло", "тело",
+          "дело", "стекло", "зеркало", "начало", "дела", "тела", "стола", "стекла", "крыла", "сабли", "тепла",
+          "смело", "бело", "кругло", "мило", "умело", "дотла", "пчела", "метла", "вола", "козла", "орла", "пола",
+          "угла", "дула", "пили"}),
+        ("сослагательное наклонение (бы)", r"\b(?:бы|б)\b", {"A1", "A2"}, set()),
+        ("причастия", r"\b\w+(?:вший|вшая|вшее|вшие|вшего|вшей|ющий|ющая|ющее|ющие|ящий|ящая|ящее|ящие|ащий|ащая|ащие|ущий|ущая|ущие|енный|енная|анный|анная)\b",
+         {"A1", "A2"}, {"настоящий", "настоящая", "настоящее", "настоящие", "будущий", "будущая", "будущее",
+                        "следующий", "следующая", "следующее", "следующие", "подходящий", "блестящий", "старинный",
+                        "длинный", "длинная", "странный", "странная", "деревянный", "деревянная", "стеклянный",
+                        "песчаный", "оловянный", "оловянная", "румяный", "пьяный", "пряный", "ранний", "туманный",
+                        "уверенный", "уверенная", "военный", "военная", "огненный", "огненная", "священный",
+                        "дорогой", "современный", "обыкновенный", "обыкновенная", "медленный", "медленная",
+                        "кожаный", "кожаная", "серебряный", "серебряная", "соломенный", "соломенная", "бумажный"}),
+    ],
+    "ko": [
+        ("과거형 (-았/었/했-)", _KO_PAST, {"A1"}, set()),
+        ("대과거 (-았었/었었-)", _KO_PAST + "었", {"A1", "A2"}, set()),
+    ],
+    "hi": [
+        ("भूतकाल (था, गया, किया…)", _HB + r"(?:था|थी|थे|थीं|गया|गई|गए|गयी|गये|किया|कहा|देखा|आया|आई|आए|आयी|लिया|लिए|दिया|दिए|हुआ|हुई|हुए|बोला|बोली|बोले|पूछा|सोचा|पाया|रखा|चला|चली|चले|मिला|मिली|सुना|लगा|लगी|लगे|उठा|उठी|दौड़ा|दौड़ी|खाया|पिया|सोया|सोई|रोया|रोई|हँसा|हँसी)" + _HE,
+         {"A1"}, set()),
+        ("पूर्ण भूतकाल (गया था, चुका था)", _HB + r"(?:\S+\s+)?(?:चुका|चुकी|चुके|गया|गई|गए|किया|लिया|दिया|आया|हुआ)\s+(?:था|थी|थे)" + _HE,
+         {"A1", "A2"}, set()),
+        ("संभावनार्थ / शर्त (होता, करता… तो)", _HB + r"(?:अगर|यदि)" + _HE + r".*\s(?:होता|होती|होते|करता|करती|करते|जाता|जाती|सकता|सकती)\s+(?:तो|था|थी)?" + _HE,
+         {"A1", "A2"}, set()),
+    ],
+})
+
+
 def syllables(word, lang):
     w = word.lower()
     if lang == "es":
@@ -139,7 +194,12 @@ def syllables(word, lang):
         if n > 1 and re.search(r"[^aeiouyàâäéèêëîïôöùûü](e|es)$", w):
             n -= 1
         return max(n, 1)
-    return max(len(re.findall(r"[aeiouyäöüàèéìòùáíóúâêôãõåąęó]+", w)), 1)
+    if lang == "ko":
+        return max(len(re.findall(r"[가-힣]", w)), 1)
+    if lang == "hi":
+        # Aksharas: vocales independientes + consonantes que no llevan virama detrás.
+        return max(len(re.findall(r"[\u0904-\u0914]|[\u0915-\u0939\u0958-\u095f](?!\u093c?\u094d)", w)), 1)
+    return max(len(re.findall(r"[aeiouyäöüàèéìòùáíóúâêôãõåąęóаеёиоуыэюя]+", w)), 1)
 
 
 def readability(words, n_sentences, lang):
@@ -164,6 +224,10 @@ def readability(words, n_sentences, lang):
     if lang == "sv":
         long_words = sum(1 for w in words if len(w) > 6) / len(words)
         return "LIX", wps + 100 * long_words, "<30 mycket lätt, 30-40 lätt, 40-50 medel (más bajo = más fácil)"
+    if lang == "ru":
+        return "Flesch-Oborneva", 206.835 - 1.3 * wps - 60.1 * spw, ">80 очень легко, 60-80 легко, 50-60 средне"
+    if lang in ("ko", "hi"):
+        return "Sílabas/palabra", spw, "orientativo, sin índice estándar: comparar con los demás libros del mismo nivel"
     return "Flesch genérico", 206.835 - 1.015 * wps - 84.6 * spw, "aproximado: no calibrado para este idioma"
 
 
@@ -181,8 +245,8 @@ def chapters_of(text, heading):
     return out
 
 
-def sentences_of(chapters):
-    return [s for ch in chapters for p in ch for s in SENTENCE_END.split(p) if WORD.search(s)]
+def sentences_of(chapters, splitter=SENTENCE_END):
+    return [s for ch in chapters for p in ch for s in splitter.split(p) if WORD.search(s)]
 
 
 def fix_french(text):
@@ -217,7 +281,7 @@ def main():
         text = fixed
 
     src = chapters_of(open(args.source, encoding="utf-8").read(), CHAPTER_EN)
-    heading = re.compile(rf"^{cfg['chapter']}\s+\d+\b.{{0,60}}$", re.I)
+    heading = re.compile(cfg.get("heading") or rf"^{cfg['chapter']}\s+\d+\b.{{0,60}}$", re.I)
     dst = chapters_of(text, heading)
     problems = 0
 
@@ -235,7 +299,8 @@ def main():
         problems += 1
         print(f"  ERROR: la última línea debe ser «{cfg['end']}»")
 
-    s_src, s_dst = sentences_of(src), sentences_of(dst)
+    s_src = sentences_of(src)
+    s_dst = sentences_of(dst, SENTENCE_END_CASELESS if cfg.get("caseless") else SENTENCE_END)
     w_src = [w for s in s_src for w in WORD.findall(s)]
     w_dst = [w.lower() for s in s_dst for w in WORD.findall(s)]
     lengths = [len(WORD.findall(s)) for s in s_dst]
@@ -252,7 +317,8 @@ def main():
     print(f"Frases: {len(s_dst)}  media {m_dst:.1f}  (origen {m_src:.1f}, ratio {sr:.2f}, "
           f"objetivo {s_lo}-{s_hi}){flag}  máx {max(lengths)}")
     name, score, scale = readability(w_dst, len(s_dst), args.lang)
-    print(f"Legibilidad {name}: {score:.0f}  ({scale})")
+    print(f"Legibilidad {name}: {score:.1f}  ({scale})" if score < 10 else
+          f"Legibilidad {name}: {score:.0f}  ({scale})")
     print(f"Palabras distintas: {len(set(w_dst))}")
 
     leftovers = sorted({w for w in w_dst if w in ENGLISH - ENGLISH_EXCEPT.get(args.lang, set())})
@@ -313,7 +379,17 @@ def main():
             typo.append("comillas “…” sin „ de apertura: en polaco usa „…”")
     if args.lang in ("nl", "sv") and re.search(r"^[-—] ", text, re.M):
         typo.append("diálogos con raya: usa comillas (“…” en nl, ”…” en sv)")
-    if args.lang in ("pt", "nl", "pl", "sv") and re.search(r"[¿¡]", text):
+    if args.lang == "ru":
+        if re.search(r"^[-–] ", text, re.M):
+            typo.append("diálogos con guion corto: en ruso usa la raya (—)")
+        if "“" in text and "«" not in text:
+            typo.append("comillas “…” sin « »: en ruso las citas van con «…»")
+    if args.lang in ("ko", "hi"):
+        if "«" in text or "»" in text or "„" in text:
+            typo.append("comillas « » o „ ajenas al idioma: usa “…”")
+    if args.lang == "hi" and text.count(".") > text.count("।"):
+        typo.append(f"{text.count('.')} puntos «.» y {text.count('।')} dandas «।»: en hindi la frase acaba en «।»")
+    if args.lang in ("pt", "nl", "pl", "sv", "ru", "ko", "hi") and re.search(r"[¿¡]", text):
         typo.append("signos ¿ ¡ (solo español)")
     for t in typo:
         problems += 1

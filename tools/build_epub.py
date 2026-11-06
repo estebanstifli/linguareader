@@ -30,11 +30,16 @@ CREDITS = {
     "nl": ("Bewerking op niveau en vertaling", "LinguaReader"),
     "pl": ("Adaptacja stopniowana i przekład", "LinguaReader"),
     "sv": ("Nivåanpassad bearbetning och översättning", "LinguaReader"),
+    "ru": ("Адаптация по уровням и перевод", "LinguaReader"),
+    "ko": ("수준별 각색 및 번역", "LinguaReader"),
+    "hi": ("स्तर-आधारित रूपांतरण और अनुवाद", "LinguaReader"),
 }
 CHAPTER_WORD = {"en": "Chapter", "es": "Capítulo", "fr": "Chapitre", "de": "Kapitel", "it": "Capitolo",
-                "pt": "Capítulo", "nl": "Hoofdstuk", "pl": "Rozdział", "sv": "Kapitel"}
+                "pt": "Capítulo", "nl": "Hoofdstuk", "pl": "Rozdział", "sv": "Kapitel",
+                "ru": "Глава", "ko": "장", "hi": "अध्याय"}
 CONTENTS = {"en": "Contents", "es": "Índice", "fr": "Table des matières", "de": "Inhalt", "it": "Indice",
-            "pt": "Índice", "nl": "Inhoud", "pl": "Spis treści", "sv": "Innehåll"}
+            "pt": "Índice", "nl": "Inhoud", "pl": "Spis treści", "sv": "Innehåll",
+            "ru": "Содержание", "ko": "차례", "hi": "विषय-सूची"}
 # Dónde están publicadas las narraciones: lo único que cambia si se migran a otro alojamiento.
 NARRATION_BASE_URL = "https://files.lingoaudiobook.eu/library-v1"
 NARRATIONS = BOOKS_DIR / "narrations.json"

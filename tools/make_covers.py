@@ -24,7 +24,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from library_meta import BOOKS_DIR, ROOT, books  # noqa: E402
@@ -33,6 +33,15 @@ COVERS = BOOKS_DIR / "covers"
 PROMPTS = COVERS / "prompts.json"
 FONT = Path(__file__).resolve().parent / "fonts" / "Merriweather.ttf"
 FONT_URL = "https://github.com/google/fonts/raw/main/ofl/merriweather/Merriweather%5Bopsz,wdth,wght%5D.ttf"
+# Escrituras que Merriweather no cubre (todas SIL OFL, se descargan al usarlas). Las que necesitan
+# composición tipográfica (devanagari: matras y conjuntos) se dibujan con HarfBuzz + FreeType, porque
+# Pillow sin raqm no reordena los glifos.
+SCRIPT_FONTS = {
+    "ko": ("NotoSerifKR.ttf", "https://github.com/google/fonts/raw/main/ofl/notoserifkr/NotoSerifKR%5Bwght%5D.ttf", False),
+    "hi": ("NotoSerifDevanagari.ttf",
+           "https://github.com/google/fonts/raw/main/ofl/notoserifdevanagari/NotoSerifDevanagari%5Bwdth,wght%5D.ttf", True),
+}
+WEIGHTS = {b"Bold": 700, b"Regular": 400}
 MODEL, SIZE, QUALITY = "gpt-image-2.5-flare", "1024x1536", "medium"
 COST_ESTIMATE = (0.03, 0.06)   # $/imagen, orientativo
 W, H = 600, 900
@@ -160,23 +169,99 @@ def shrink(data: bytes) -> bytes:
     return out.getvalue()
 
 
-def font(size, weight=b"Bold"):
-    if not FONT.exists():
-        FONT.parent.mkdir(parents=True, exist_ok=True)
-        urllib.request.urlretrieve(FONT_URL, FONT)
-    f = ImageFont.truetype(str(FONT), size)
+class ShapedFont:
+    """Fuente que se compone con HarfBuzz y se rasteriza con FreeType (escrituras complejas)."""
+
+    def __init__(self, path, size, wght):
+        import freetype
+        import uharfbuzz as hb
+        self.size, self.wght = size, wght
+        self.hb_font = hb.Font(hb.Face(hb.Blob.from_file_path(str(path))))
+        self.hb_font.scale = (size * 64, size * 64)
+        self.hb_font.set_variations({"wght": wght})
+        self.ft = freetype.Face(str(path))
+        self.ft.set_char_size(size * 64)
+        axes = self.ft.get_variation_info().axes
+        self.ft.set_var_design_coords([wght if a.tag == "wght" else a.default for a in axes])
+        self.ascender = self.ft.size.ascender / 64
+
+    def shape(self, text):
+        import uharfbuzz as hb
+        buf = hb.Buffer()
+        buf.add_str(text)
+        buf.guess_segment_properties()
+        hb.shape(self.hb_font, buf)
+        return buf.glyph_infos, buf.glyph_positions
+
+    def length(self, text):
+        return sum(p.x_advance for p in self.shape(text)[1]) / 64
+
+    def draw(self, img, xy, text, fill):
+        import freetype
+        infos, positions = self.shape(text)
+        x, baseline = xy[0], xy[1] + self.ascender
+        layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        colour = Image.new("RGBA", img.size, fill[:3] + (255,))
+        mask = Image.new("L", img.size, 0)
+        for info, pos in zip(infos, positions):
+            self.ft.load_glyph(info.codepoint, freetype.FT_LOAD_RENDER)
+            g = self.ft.glyph
+            bm = g.bitmap
+            if bm.width and bm.rows:
+                glyph = Image.frombytes("L", (bm.width, bm.rows), bytes(bm.buffer), "raw", "L", bm.pitch)
+                gx = round(x + pos.x_offset / 64 + g.bitmap_left)
+                gy = round(baseline - pos.y_offset / 64 - g.bitmap_top)
+                region = mask.crop((gx, gy, gx + bm.width, gy + bm.rows))
+                mask.paste(ImageChops.lighter(region, glyph), (gx, gy))
+            x += pos.x_advance / 64
+        alpha = fill[3] if len(fill) > 3 else 255
+        mask = mask.point(lambda v: v * alpha // 255)
+        layer.paste(colour, (0, 0), mask)
+        img.alpha_composite(layer)
+
+
+def _download(path, url):
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        urllib.request.urlretrieve(url, path)
+    return path
+
+
+def font(size, weight=b"Bold", lang="en"):
+    if lang in SCRIPT_FONTS:
+        name, url, shaped = SCRIPT_FONTS[lang]
+        path = _download(FONT.parent / name, url)
+        if shaped:
+            return ShapedFont(path, size, WEIGHTS.get(weight, 700))
+    else:
+        path = _download(FONT, FONT_URL)
+    f = ImageFont.truetype(str(path), size)
     try:
         f.set_variation_by_name(weight)
     except (OSError, ValueError):
-        pass
+        try:
+            f.set_variation_by_axes([WEIGHTS.get(weight, 700)])
+        except (OSError, ValueError):
+            pass
     return f
+
+
+def text_length(draw, text, fnt):
+    return fnt.length(text) if isinstance(fnt, ShapedFont) else draw.textlength(text, font=fnt)
+
+
+def draw_text(img, draw, xy, text, fnt, fill):
+    if isinstance(fnt, ShapedFont):
+        fnt.draw(img, xy, text, fill)
+    else:
+        draw.text(xy, text, font=fnt, fill=fill)
 
 
 def wrap(draw, text, fnt, width):
     lines, line = [], ""
     for word in text.split():
         trial = f"{line} {word}".strip()
-        if draw.textlength(trial, font=fnt) <= width or not line:
+        if text_length(draw, trial, fnt) <= width or not line:
             line = trial
         else:
             lines.append(line)
@@ -211,18 +296,18 @@ def compose_cover(book, quality=80) -> bytes:
 
     margin, max_w = 40, W - 80
     for size in range(58, 25, -2):
-        title_font = font(size)
+        title_font = font(size, lang=book["lang"])
         lines = wrap(d, book["title"], title_font, max_w)
-        if len(lines) <= 3 and all(d.textlength(l, font=title_font) <= max_w for l in lines):
+        if len(lines) <= 3 and all(text_length(d, l, title_font) <= max_w for l in lines):
             break
-    author_font = font(24, b"Regular")
-    line_h = int(title_font.size * 1.18)
+    author_font = font(24, b"Regular", lang=book["lang"])
+    line_h = int(title_font.size * (1.45 if book["lang"] in SCRIPT_FONTS else 1.18))
     y = H - 60 - 34 - line_h * len(lines)
     for line in lines:
-        d.text((margin + 2, y + 2), line, font=title_font, fill=(0, 0, 0, 160))
-        d.text((margin, y), line, font=title_font, fill=(255, 255, 255, 255))
+        draw_text(img, d, (margin + 2, y + 2), line, title_font, (0, 0, 0, 160))
+        draw_text(img, d, (margin, y), line, title_font, (255, 255, 255, 255))
         y += line_h
-    d.text((margin, H - 60), ", ".join(book["authors"]), font=author_font, fill=(235, 235, 235, 230))
+    draw_text(img, d, (margin, H - 60), ", ".join(book["authors"]), author_font, (235, 235, 235, 230))
 
     badge_font = font(28)
     label = book["level"]

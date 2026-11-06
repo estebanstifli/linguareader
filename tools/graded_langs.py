@@ -72,6 +72,27 @@ LANGS = {
         "chapter": "Kapitel N: Titel", "end": "Slut",
         "readability": "LIX (< 30 mycket lätt, 30-40 lätt, 40-50 medel)",
     },
+    "ru": {
+        "name": "ruso", "title": "Переводы на русский язык (ru)",
+        "variety": "ruso estándar (*ты* en familia y amigos, *вы* con desconocidos; ё escrita siempre)",
+        "dialogue": "raya (`—`) al inicio del diálogo: `— Семь! — говорит он. — Семь одним ударом!`; citas y carteles con «…»",
+        "chapter": "Глава N: Название", "end": "Конец",
+        "readability": "Flesch-Oborneva (> 80 очень легко, 60-80 легко)",
+    },
+    "ko": {
+        "name": "coreano", "title": "한국어 번역 (ko)",
+        "variety": "coreano estándar de Seúl; narración en estilo -다 (해라체), diálogos en 해요체 o 반말 según la relación",
+        "dialogue": "comillas “…” con verbo de cita: `“일곱!” 하고 그가 말해요.`; nunca « » ni \"",
+        "chapter": "제N장: 제목", "end": "끝",
+        "readability": "Sílabas/palabra (orientativo; sin índice estándar)",
+    },
+    "hi": {
+        "name": "hindi", "title": "हिंदी अनुवाद (hi)",
+        "variety": "hindi estándar en devanagari, vocabulario cotidiano (hindustani), sin sánscrito culto ni urdu marcado",
+        "dialogue": "comillas “…” y danda `।` como punto final; nunca « » ni \"",
+        "chapter": "अध्याय N: शीर्षक", "end": "समाप्त",
+        "readability": "Sílabas/palabra (orientativo; sin índice estándar)",
+    },
 }
 
 # Los 16 libros con los que arranca cada idioma nuevo (slugs ingleses, en orden de trabajo).
