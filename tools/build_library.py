@@ -2,7 +2,7 @@
 
   python -I tools/build_library.py                  # todos los idiomas con libros
   python -I tools/build_library.py --lang es,fr
-  python -I tools/build_library.py --upload         # además sube a la release (gh)
+  python -I tools/build_library.py --upload         # además sube al bucket R2 (tools/publish_packs.py --library)
 
 Pasos por idioma: portada compuesta (make_covers.compose_cover) + EPUB junto a cada .txt
 (build_epub.build) y el zip dist/library/library-<lang>-v<N>.zip con:
@@ -11,7 +11,7 @@ Pasos por idioma: portada compuesta (make_covers.compose_cover) + EPUB junto a c
   books/<NIVEL>/<slug>.epub
 La versión N solo sube si cambia el contenido (los EPUB son reproducibles). El catálogo
 `libraries.json` ({formatVersion, libraries: {<lang>: {version, asset, sizeBytes, sha256, books, words}}})
-se escribe en dist/library/ (adjunto de la release, para que la app vea bibliotecas nuevas sin
+se escribe en dist/library/ (se publica en library-v1/ del bucket, para que la app vea bibliotecas nuevas sin
 actualizarse) y en app/src/main/assets/packs/libraries.json (copia de respaldo sin red).
 Las portadas sin ilustración (make_covers.py) salen provisionales: genera las ilustraciones antes.
 """
@@ -30,6 +30,7 @@ from make_covers import COVERS, compose_cover  # noqa: E402
 
 DIST = ROOT / "dist" / "library"
 ASSET_CATALOG = ROOT / "app" / "src" / "main" / "assets" / "packs" / "libraries.json"
+IOS_ASSET_CATALOG = ROOT / "ios" / "LinguaReader" / "Resources" / "libraries.json"
 TAG = "library-v1"
 LEVEL_ORDER = {"A1": 0, "A2": 1, "B1": 2, "B2": 3}
 
@@ -84,8 +85,7 @@ def main():
     sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--lang", help="idiomas separados por comas (por defecto, todos)")
-    ap.add_argument("--upload", action="store_true", help=f"subir zips y catálogo a la release {TAG}")
-    ap.add_argument("--repo", default="estebanstifli/linguareader")
+    ap.add_argument("--upload", action="store_true", help=f"subir zips y catálogo al bucket R2 ({TAG}/)")
     args = ap.parse_args()
 
     all_books = books()
@@ -100,14 +100,15 @@ def main():
     (DIST / "libraries.json").write_text(text, encoding="utf-8")
     ASSET_CATALOG.parent.mkdir(parents=True, exist_ok=True)
     ASSET_CATALOG.write_text(text, encoding="utf-8")
+    if IOS_ASSET_CATALOG.parent.is_dir():   # la app iOS lleva la misma copia empaquetada
+        IOS_ASSET_CATALOG.write_text(text, encoding="utf-8")
     assets = [str(DIST / "libraries.json")] + [str(DIST / catalog["libraries"][l]["asset"]) for l in langs
                                                if l in catalog["libraries"]]
-    cmd = ["gh", "release", "upload", TAG, *assets, "--clobber", "--repo", args.repo]
+    cmd = [sys.executable, "-I", str(Path(__file__).with_name("publish_packs.py")), "--library"]
     if args.upload:
         subprocess.run(cmd, check=True)
     else:
-        print("Para publicar (crea antes la release si no existe: gh release create "
-              f"{TAG} --repo {args.repo} --title \"Biblioteca\" --notes \"Bibliotecas EPUB por idioma\"):")
+        print("Para publicar en https://files.lingoaudiobook.eu/library-v1/:")
         print("  " + " ".join(f'"{c}"' if " " in c else c for c in cmd))
 
 

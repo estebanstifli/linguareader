@@ -5,19 +5,22 @@ vigilancia de tokens que tools/book_runner.py: si el consumo es anormal, la sesi
 orquestador se detiene sin pasar al siguiente libro.
 
 Uso:
-  python -I tools/translate_runner.py --lang es              # todos los pendientes al español
-  python -I tools/translate_runner.py --lang es,fr --level A1 --max-books 4
-  python -I tools/translate_runner.py --lang fr --title "Puss in Boots"
-  python -I tools/translate_runner.py --lang es --dry-run    # plan y límites, sin ejecutar
+  python -I tools/translate_runner.py --lang de              # todos los ⬜ del alemán, en orden
+  python -I tools/translate_runner.py --lang de,it --level A1 --max-books 4
+  python -I tools/translate_runner.py --lang pt --title "Puss in Boots"
+  python -I tools/translate_runner.py --lang de --dry-run    # plan y límites, sin ejecutar
+  python -I tools/translate_runner.py --lang es --add-missing --dry-run   # añade filas ⬜ de todo el catálogo
 
-Pendiente = libro del catálogo en inglés sin fila en la tabla «Traducciones» para ese idioma. Los
-originales íntegros de B2 (Standard Ebooks) se excluyen salvo --include-originals: traducirlos es una
-traducción literaria completa de 25.000-50.000 palabras, no de una adaptación propia.
+Control por idioma: content/graded-books/<idioma>/README.md (tools/graded_langs.py). Pendiente = fila ⬜
+de ese fichero; si no existe, se crea con los 16 libros de graded_langs.DEFAULT_PLAN. --add-missing añade
+filas ⬜ para los libros del catálogo inglés que aún no estén (los originales íntegros de B2, Standard
+Ebooks, solo con --include-originals: traducirlos es una traducción literaria de 25.000-50.000 palabras).
+Modelo: `opus` salvo --model (no bajar de opus: la naturalidad de la traducción depende de él).
 
 Detención (código de salida 1) si en una traducción:
   - salida, entrada acumulada, contexto de una llamada o llamadas superan el límite;
   - la sesión acaba con error;
-  - no aparece la fila en «Traducciones», falta el fichero o tools/translation_check.py no da OK
+  - la fila no queda ✅ con fichero en el README del idioma, falta el fichero o translation_check.py no da OK
     (se ejecuta aquí, independiente de lo que diga la sesión).
 Límites por nivel en LIMITS; tras dos traducciones del mismo nivel e idioma, `--factor` × la mediana
 si es menor. Registro: .claude/translate-runs.jsonl.
@@ -30,6 +33,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import graded_langs  # noqa: E402
 from book_runner import README, ROOT, finish, run_session  # noqa: E402
 
 LOG = os.path.join(ROOT, ".claude", "translate-runs.jsonl")
@@ -42,11 +46,12 @@ LIMITS = {
     "B1": {"output": 130_000, "input": 5_000_000, "context": 200_000, "calls": 50},
     "B2": {"output": 200_000, "input": 8_000_000, "context": 240_000, "calls": 70},
 }
-LANG_NAMES = {"es": "español", "fr": "francés", "de": "alemán", "it": "italiano", "pt": "portugués"}
+LANG_NAMES = {code: info["name"] for code, info in graded_langs.LANGS.items()}
 
 PROMPT = (
     "/graded-translate {source} {lang}\n\n"
-    "Traduce `content/graded-books/{source}` ({title}, {level}) al {lang_name}. "
+    "Traduce `content/graded-books/{source}` ({title}, {level}) al {lang_name}; es la fila #{n} (⬜) de "
+    "`content/graded-books/{lang}/README.md`, que debes dejar ✅ con fichero, título y métricas. "
     "Ejecución desatendida desde tools/translate_runner.py: no preguntes nada, no hagas commit y no "
     "toques otros libros ni otras traducciones. PYTHONIOENCODING=utf-8 ya está definido en el "
     "entorno: no lo antepongas a los comandos. Al terminar responde solo con una línea: "
@@ -54,16 +59,32 @@ PROMPT = (
 )
 
 SOURCE_ROW = re.compile(r"^\| `(en/(A1|A2|B1|B2)/[^`]+)` \| ([^|]+?) \| (?:A1|A2|B1|B2) \|.*\| ([^|]+) \|$", re.M)
-TRANSLATION_ROW = re.compile(
-    r"^\| `(([a-z]{2})/(?:A1|A2|B1|B2)/[^`]+)` \|[^\n]*\| `(en/[^`]+)` \|", re.M)
 
 
-def catalogue():
+def sources():
+    """Libros del catálogo inglés: {source, level, title, original}, en orden del README general."""
     text = open(README, encoding="utf-8").read()
-    sources = [{"source": m[1], "level": m[2], "title": m[3].strip(),
-                "original": "Standard Ebooks" in m[4]} for m in SOURCE_ROW.finditer(text)]
-    done = {(m[2], m[3]): m[1] for m in TRANSLATION_ROW.finditer(text)}
-    return sources, done
+    return [{"source": m[1], "level": m[2], "title": m[3].strip(), "original": "Standard Ebooks" in m[4]}
+            for m in SOURCE_ROW.finditer(text)]
+
+
+def ensure_control_file(lang, srcs, add_missing, include_originals):
+    """Crea el README del idioma si falta (plan de 16) y, con --add-missing, añade filas ⬜."""
+    data = graded_langs.parse(lang)
+    rows = data["rows"]
+    created = not graded_langs.readme_path(lang).exists()
+    if created:
+        rows = graded_langs.plan_rows()
+    if add_missing:
+        have = {r["source"] for r in rows}
+        for s in srcs:
+            if s["source"] not in have and (include_originals or not s["original"]):
+                rows += graded_langs.plan_rows([s["source"][3:-4]], start=len(rows) + 1)
+    if created or len(rows) != len(data["rows"]):
+        graded_langs.write(lang, rows, data["glossary"])
+        print(f"{'Creado' if created else 'Ampliado'} content/graded-books/{lang}/README.md: "
+              f"{sum(not r['done'] for r in rows)} filas ⬜")
+    return rows
 
 
 def history():
@@ -86,11 +107,13 @@ def limits_for(job, factor):
 
 
 def verify(job):
-    """La traducción cuenta como hecha si tiene fila en «Traducciones», existe y pasa el checker."""
-    _, done = catalogue()
-    target = done.get((job["lang"], job["source"]))
+    """Hecha si su fila del README del idioma está ✅ con fichero, el fichero existe y pasa el checker."""
+    row = next((r for r in graded_langs.parse(job["lang"])["rows"] if r["source"] == job["source"]), None)
+    if not row or not row["done"]:
+        return False, f"la fila #{job['n']} no está ✅ en content/graded-books/{job['lang']}/README.md"
+    target = row["target"]
     if not target:
-        return False, "no hay fila en la tabla «Traducciones» del README"
+        return False, f"la fila #{job['n']} está ✅ pero sin fichero"
     path = os.path.join(ROOT, "content", "graded-books", target)
     if not os.path.exists(path):
         return False, f"falta el fichero {target}"
@@ -112,10 +135,14 @@ def main():
     ap.add_argument("--level", choices=["A1", "A2", "B1", "B2"])
     ap.add_argument("--title", help="solo este libro (título inglés del catálogo)")
     ap.add_argument("--max-books", type=int, default=0, help="0 = todos")
-    ap.add_argument("--include-originals", action="store_true", help="incluir originales íntegros de B2")
+    ap.add_argument("--include-originals", action="store_true",
+                    help="con --add-missing, incluir también los originales íntegros de B2")
+    ap.add_argument("--add-missing", action="store_true",
+                    help="añadir filas ⬜ al README del idioma para los libros del catálogo que falten")
     ap.add_argument("--factor", type=float, default=2.5, help="límite adaptativo = factor × mediana")
     ap.add_argument("--budget-usd", type=float, help="tope de gasto por libro (--max-budget-usd)")
-    ap.add_argument("--model", help="modelo para las sesiones (por defecto, el configurado)")
+    ap.add_argument("--model", default="opus",
+                    help="modelo para las sesiones (por defecto opus; p. ej. fable)")
     ap.add_argument("--permission-mode", default="acceptEdits")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
@@ -125,12 +152,17 @@ def main():
     if unknown:
         sys.exit(f"Idioma no soportado por translation_check.py: {unknown} (válidos: {', '.join(LANG_NAMES)})")
 
-    sources, done = catalogue()
-    jobs = [dict(s, lang=l, lang_name=LANG_NAMES[l]) for l in langs for s in sources
-            if (l, s["source"]) not in done
-            and (args.include_originals or not s["original"])
-            and (not args.level or s["level"] == args.level)
-            and (not args.title or s["title"].lower() == args.title.lower())]
+    srcs = sources()
+    by_source = {s["source"]: s for s in srcs}
+    jobs = []
+    for l in langs:
+        for r in ensure_control_file(l, srcs, args.add_missing, args.include_originals):
+            s = by_source.get(r["source"])
+            if r["done"] or not s:
+                continue
+            if (not args.level or s["level"] == args.level) and \
+                    (not args.title or s["title"].lower() == args.title.lower()):
+                jobs.append(dict(s, n=r["n"], lang=l, lang_name=LANG_NAMES[l]))
     if args.max_books:
         jobs = jobs[: args.max_books]
     if not jobs:
@@ -139,12 +171,12 @@ def main():
 
     for i, job in enumerate(jobs, 1):
         lim = limits_for(job, args.factor)
-        print(f"[{i}/{len(jobs)}] {job['title']} ({job['level']}) -> {job['lang']}  "
+        print(f"[{i}/{len(jobs)}] #{job['n']} {job['title']} ({job['level']}) -> {job['lang']}  "
               f"límites: salida {lim['output']:,}, entrada {lim['input']:,}, contexto {lim['context']:,}, "
               f"llamadas {lim['calls']}")
         if args.dry_run:
             continue
-        base = {k: job[k] for k in ("source", "title", "level", "lang")}
+        base = {k: job[k] for k in ("source", "title", "level", "lang", "n")}
         record, reason = run_session(PROMPT.format(**job), lim, args, base)
         ok, detail = verify(job)
         if ok:

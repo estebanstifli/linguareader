@@ -1,11 +1,16 @@
-"""Metadatos de los libros graduados a partir de content/graded-books/README.md.
+"""Metadatos de los libros graduados a partir de content/graded-books/README.md (catálogo inglés) y de
+content/graded-books/<idioma>/README.md (traducciones, ver graded_langs.py).
 
 Lo usan make_covers.py, build_epub.py y build_library.py. Cada libro es un dict con:
   lang, level, slug, title, authors, year, work (slug inglés de la obra: clave de la ilustración),
   description (columna «Original»), license, txt (ruta), source (fichero inglés si es traducción).
 """
 import re
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import graded_langs  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 BOOKS_DIR = ROOT / "content" / "graded-books"
@@ -14,18 +19,17 @@ README = BOOKS_DIR / "README.md"
 SOURCE_ROW = re.compile(
     r"^\| `en/(A1|A2|B1|B2)/([^`]+)\.txt` \| ([^|]+?) \| (?:A1|A2|B1|B2) \| [^|]* \| [^|]* \| [^|]* \| "
     r"([^|]+?) \| ([^|]+?) \|$", re.M)
-TRANSLATION_ROW = re.compile(
-    r"^\| `([a-z]{2})/(A1|A2|B1|B2)/([^`]+)\.txt` \| ([^|]+?) \| (?:A1|A2|B1|B2) \|[^\n]*\| "
-    r"`en/(?:A1|A2|B1|B2)/([^`]+)\.txt` \| ([^|]+?) \|$", re.M)
 
 # Autores colectivos: se dan en el idioma del libro.
 AUTHOR_NAMES = {
     "Hermanos Grimm": {"en": "Brothers Grimm", "es": "Hermanos Grimm", "fr": "Frères Grimm",
                        "de": "Brüder Grimm", "it": "Fratelli Grimm", "pt": "Irmãos Grimm"},
     "Cuento popular inglés": {"en": "English folk tale", "es": "Cuento popular inglés",
-                              "fr": "Conte populaire anglais"},
+                              "fr": "Conte populaire anglais", "de": "Englisches Volksmärchen",
+                              "it": "Fiaba popolare inglese", "pt": "Conto popular inglês"},
     "Cuento popular estadounidense": {"en": "American folk tale", "es": "Cuento popular estadounidense",
-                                      "fr": "Conte populaire américain"},
+                                      "fr": "Conte populaire américain", "de": "Amerikanisches Volksmärchen",
+                                      "it": "Fiaba popolare americana", "pt": "Conto popular americano"},
 }
 
 CHAPTER = re.compile(r"^(?:chapter|capítulo|chapitre|kapitel|capitolo)\s+\d+\s*:\s*(.+)$", re.I)
@@ -49,13 +53,14 @@ def books():
             "license": license.strip(), "txt": BOOKS_DIR / "en" / level / f"{slug}.txt", "source": None,
         }
     out = list(sources.values())
-    for lang, level, slug, title, src_slug, license in (m.groups() for m in TRANSLATION_ROW.finditer(text)):
-        src = sources.get(src_slug)
-        if not src:
-            continue
-        out.append(dict(src, lang=lang, level=level, slug=slug, title=title.strip(),
-                        authors=[_author(src["original"], lang)], license=license.strip(),
-                        txt=BOOKS_DIR / lang / level / f"{slug}.txt", source=src["txt"]))
+    for lang in graded_langs.languages():
+        for r in graded_langs.parse(lang)["rows"]:
+            src = sources.get(r["source_slug"])
+            if not src or not r["done"] or not r["target"]:
+                continue
+            out.append(dict(src, lang=lang, level=r["level"], slug=r["slug"], title=r["title"],
+                            authors=[_author(src["original"], lang)], license=graded_langs.TRANSLATION_LICENSE,
+                            txt=BOOKS_DIR / r["target"], source=src["txt"]))
     return [b for b in out if b["txt"].exists()]
 
 

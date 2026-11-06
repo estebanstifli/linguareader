@@ -97,8 +97,8 @@ segmentadas automáticamente, sin traducciones ni glosario, y media con `sha256`
 
 ## Bibliotecas por idioma (packs descargables)
 
-Los libros graduados de `content/graded-books/` se distribuyen como **un zip por idioma** en la release
-`library-v1` (lo genera `tools/build_library.py`):
+Los libros graduados de `content/graded-books/` se distribuyen como **un zip por idioma** bajo el prefijo
+`library-v1/` del bucket R2 `files.lingoaudiobook.eu` (lo genera `tools/build_library.py`):
 
 ```
 libraries.json                    catálogo: {formatVersion, libraries: {<idioma>: {version, asset, sizeBytes, sha256, books, words}}}
@@ -107,8 +107,13 @@ library-<idioma>-v<N>.zip
   books/<NIVEL>/<slug>.epub
 ```
 
-- El catálogo también va en el APK (`assets/packs/libraries.json`); la app lo refresca desde la
-  release para ver bibliotecas nuevas sin actualizarse.
+- El catálogo también va en el APK (`assets/packs/libraries.json`) y en la app iOS
+  (`ios/LinguaReader/Resources/libraries.json`); la app lo refresca desde R2 para ver bibliotecas nuevas
+  sin actualizarse.
+- Qué libros tiene cada idioma lo dicta `content/graded-books/README.md` (catálogo inglés) y
+  `content/graded-books/<idioma>/README.md` (traducciones: una fila por libro, ⬜ pendiente / ✅ hecha con
+  fichero, título y métricas, más el glosario del idioma; formato en `tools/graded_langs.py`).
+  `tools/library_meta.py` lee ambos y solo incluye filas ✅ cuyo `.txt` existe.
 - Cada EPUB 3 (`tools/build_epub.py`) declara `dc:language`, `dc:title`, `dc:creator`,
   `<meta property="schema:educationalLevel">A1</meta>` y `dc:subject` «CEFR A1» (el importador lee el
   nivel de cualquiera de los dos), portada con `properties="cover-image"`, `nav.xhtml` y `toc.ncx`, y un
@@ -145,17 +150,20 @@ las palabras), se sigue con el TTS sin avisos.
   tiempo propio reparten el hueco entre sus vecinas.
 - **Solo libros de la biblioteca** (`u-lib-…`): un EPUB importado por el usuario con estos `<meta>` no provoca descargas.
 - **En el dispositivo**: `filesDir/narrations/<bookId>/` (nombres con el sha256); se borra con el libro.
+- **En la ficha del libro**: la tarjeta «Audio del libro» muestra la narración como audio listo al 100 % (o
+  «Descargar ahora») y no ofrece la generación local con Supertonic.
 
-Publicar (hoy, adjuntos de la release `library-v1` con nombres planos `narration-<idioma>-<slug>-v<N>.<ext>`):
+Publicar (objetos `library-v1/narration-<idioma>-<slug>-v<N>.<ext>` del bucket R2 público `files.lingoaudiobook.eu`):
 
 ```powershell
 python -I tools\publish_narration.py --lang en --slug the-three-little-pigs --audio narracion.mp3 --ass narracion.ass --upload
 python -I tools\build_library.py --lang en --upload      # el EPUB del libro cambia → la biblioteca sube de versión
 ```
 
-`publish_narration.py` registra tamaño y sha256 en `content/graded-books/narrations.json` (versionado). Para migrar a
-otro alojamiento basta con subir allí los mismos ficheros, cambiar `NARRATION_BASE_URL` en `tools/build_epub.py` y
-regenerar las bibliotecas: la app reimporta solo los libros cambiados y conserva progreso, marcadores y vocabulario.
+`publish_narration.py` registra tamaño y sha256 en `content/graded-books/narrations.json` (versionado) y sube con
+`tools/publish_packs.py --narrations`. Para migrar a otro alojamiento basta con subir allí los mismos ficheros, cambiar
+`NARRATION_BASE_URL` en `tools/build_epub.py` y regenerar las bibliotecas: la app reimporta solo los libros cambiados y
+conserva progreso, marcadores y vocabulario (así se pasó de GitHub Releases a R2 el 06/11/2026: biblioteca `en` v3).
 
 ## Validación
 

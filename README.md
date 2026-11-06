@@ -11,8 +11,8 @@ Nombre en Google Play: **LingoAudioBook** (`com.lingoaudiobook.app`). En el cód
 [docs/PLAY_STORE.md](docs/PLAY_STORE.md).
 
 > ⚠️ **ALPHA en desarrollo.** Proyecto experimental: funciones incompletas, cambios frecuentes y sin garantías.
-> Las voces pregeneradas y los modelos de alineación por palabra se descargan de la release
-> [`packs-v1`](https://github.com/estebanstifli/linguareader/releases/tag/packs-v1) de este repositorio (público, **sin token**).
+> Las voces pregeneradas (un paquete por idioma), las bibliotecas y las
+> narraciones se descargan de <https://files.lingoaudiobook.eu> (bucket R2 público, **sin token**; `tools/publish_packs.py`).
 > El modelo Supertonic 3 se descarga de Hugging Face. Aún no hay APK publicado: se compila con `run.ps1` (ver «Probarlo en Windows con un solo comando» o «Compilar, probar e instalar a mano»).
 > Licencias de código, modelos y contenido: ver [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) y [docs/ALIGNMENT.md](docs/ALIGNMENT.md).
 
@@ -51,8 +51,9 @@ Nombre en Google Play: **LingoAudioBook** (`com.lingoaudiobook.app`). En el cód
   - **Supertonic 3**, voz neuronal local con ONNX Runtime en CPU y sin red. El modelo de 398 MB se
     descarga bajo demanda, con progreso y opción de borrarlo. El audio se genera por frases con
     precarga del pasaje siguiente y se guarda en caché. Detalles en [docs/SUPERTONIC.md](docs/SUPERTONIC.md).
-- **Resaltado honesto**: por palabra solo con eventos `onRangeStart` válidos; si no, por frase.
-  Supertonic no da tiempos por palabra, así que con él el resaltado es por frase.
+- **Resaltado por palabra**: eventos `onRangeStart` en Android TTS y tiempos de la atención interna en Supertonic.
+  Supertonic usa cinco pasos, guarda inicio/final con el audio y no requiere modelos de alineación adicionales.
+  Ante marcas ausentes o no válidas, el resaltado pasa a frase.
   La barra inferior indica qué sincronía está activa.
 - Estilos de resaltado (fondo, subrayado, marcador), **dedo indicador** opcional, auto-scroll,
   reducción de movimiento, tamaño de letra, interlineado, tema claro/oscuro.
@@ -168,12 +169,13 @@ escribieron para este proyecto. La app no incluye libros: se descargan por idiom
 Icons (Apache-2.0). El resumen de licencias está en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#licencias).
 No hay claves de API ni modelos binarios en el repositorio.
 
-Las **bibliotecas de lecturas graduadas** (inglés, español, francés) son adaptaciones propias de obras
-de dominio público (`content/graded-books/`). Se publican como zip de EPUB por idioma en la release
-`library-v1`:
+Las **bibliotecas de lecturas graduadas** (inglés, español, francés, alemán, italiano, portugués) son
+adaptaciones propias de obras de dominio público (`content/graded-books/`; el estado de cada idioma
+está en `content/graded-books/<idioma>/README.md`). Se publican como zip de EPUB por idioma en el
+bucket R2 `files.lingoaudiobook.eu/library-v1/`:
 
 ```
 python -I tools/make_covers.py        # ilustraciones (OpenAI; OPENAI_API_KEY en .env), solo las que falten
 python -I tools/build_library.py      # EPUB + zips + catálogo (dist/library/ y assets/packs/libraries.json)
-python -I tools/build_library.py --upload   # sube a la release library-v1 (gh)
+python -I tools/build_library.py --upload   # sube al bucket R2 (https://files.lingoaudiobook.eu/library-v1/)
 ```

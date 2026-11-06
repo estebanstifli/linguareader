@@ -8,9 +8,11 @@ Comprueba:
   - estructura: mismo número de capítulos y de párrafos por capítulo (1:1, para la vista bilingüe);
   - extensión: palabras de la traducción / palabras del origen dentro del rango del idioma;
   - frases: media de palabras por frase comparada con la del origen;
-  - legibilidad del idioma destino: INFLESZ (es), Kandel-Moles (fr), Flesch genérico (resto);
-  - tiempos verbales no permitidos en el nivel (es, fr): listado para revisar a mano;
-  - restos en inglés y tipografía (¿¡ y raya en es; « » y espacios no separables en fr).
+  - legibilidad del idioma destino: INFLESZ (es), Kandel-Moles (fr), Flesch-Amstad (de), Gulpease (it),
+    Flesch-Martins (pt);
+  - tiempos verbales no permitidos en el nivel (es, fr, de, it, pt): listado para revisar a mano;
+  - restos en inglés y tipografía (¿¡ y raya en es; « » y espacios no separables en fr; „“ en de;
+    « » o raya en it; travessão en pt; comillas rectas " en todos).
 --fix-typography (fr): pone espacio no separable antes de ; : ! ? » y después de «, y reescribe el
 fichero. El nivel se deduce de la ruta (/A1/, /A2/...) si no se indica.
 """
@@ -21,7 +23,7 @@ import sys
 
 NBSP = " "
 WORD = re.compile(r"[^\W\d_]+(?:['’][^\W\d_]+)*")
-UPPER = "A-ZÁÉÍÓÚÑÜÀÂÇÈÊËÎÏÔÛÙŸÆŒÄÖ"
+UPPER = "A-ZÁÉÍÓÚÑÜÀÂÇÈÊËÎÏÔÛÙŸÆŒÄÖÃÕÌÒ"
 SENTENCE_END = re.compile(rf'(?<=[.!?…])[»"”“]?[\s{NBSP}]*[»"”]?\s+(?=[—«"“¡¿„]?[{UPPER}])')
 CHAPTER_EN = re.compile(r"^chapter\s+\d+\b.{0,60}$", re.I)
 
@@ -34,6 +36,8 @@ LANGS = {
 }
 SENTENCE_RATIO = (0.9, 1.4)
 ENGLISH = set("the and says said with you they this that what is are of from was were".split())
+# Palabras inglesas que también existen en el idioma destino y no cuentan como resto.
+ENGLISH_EXCEPT = {"de": {"was"}, "it": set(), "pt": set(), "es": set(), "fr": set()}
 
 # (etiqueta, regex sobre la frase, niveles en los que está prohibido, palabras que no cuentan)
 TENSES = {
@@ -57,6 +61,34 @@ TENSES = {
         ("subjonctif (fórmulas)", r"\b(?:il faut que|pour que|avant que|bien que|veux que|veut que|voulez que)\b", {"A1"}, set()),
         ("conditionnel", r"\b\w{3,}(?:rais|rait|rions|riez|raient)\b", {"A1"}, {"vrais", "frais", "trait", "portrait", "retrait", "extrait"}),
     ],
+    "de": [
+        ("Präteritum", r"\b(?:war|waren|hatte|hatten|wurde|wurden|ging|gingen|kam|kamen|sagte|sagten|sah|sahen|gab|nahm|lief|stand|saß|fand|fiel|rief|schrie|dachte|wusste|konnte|wollte|musste|sollte|durfte|\w{3,}(?:te|ten|test|tet))\b", {"A1"},
+         {"bitte", "mitte", "tante", "karte", "torte", "ente", "ernte", "tinte", "kette", "hütte", "ratte", "matte", "sorte", "liste", "kiste", "pforte", "ratten", "katten", "garten", "warten", "hinten", "unten", "zehnte", "letzte", "erste", "zweite", "dritte", "vierte", "fünfte", "sechste", "siebte", "achte", "neunte", "beste", "bunte", "alte", "kalte", "gute", "rote", "weite", "harte", "glatte", "nette", "satte", "fette", "dichte", "rechte", "echte", "leichte", "schlechte", "feuchte", "spitze", "minute", "minuten", "seite", "seiten", "leute", "weste", "geste", "paste", "hute", "haute", "braute"}),
+        ("Perfekt", r"\b(?:hat|hast|habe|haben|habt|ist|bist|bin|sind|seid)\s+(?:\w+\s+){0,3}?(?:ge\w+(?:t|en)|\w+iert)\b", {"A1"},
+         {"gesund", "gefährlich", "gelb", "genug", "gern", "gerade", "gegen", "gegenüber", "gestern", "gemein", "geheim", "gemütlich", "geduldig", "geschickt", "gewohnt", "gewiss", "geliebt", "gelehrt"}),
+        ("Plusquamperfekt", r"\b(?:hatte|hatten|war|waren)\s+(?:\w+\s+){0,3}?ge\w+(?:t|en)\b", {"A1", "A2"}, set()),
+        ("Konjunktiv II", r"\b(?:hätte|hätten|wäre|wären|würde|würden|könnte|könnten|möchte|möchten|sollte|sollten|wüsste|käme|ginge|gäbe)\b", {"A1"}, {"möchte", "möchten"}),
+    ],
+    "it": [
+        ("passato prossimo", r"\b(?:ho|hai|ha|abbiamo|avete|hanno|sono|sei|è|siamo|siete)\s+(?:\w+\s+)?\w+(?:ato|ata|ati|ate|uto|uta|uti|ute|ito|ita|iti|ite|so|sa|si|se|sto|sta|sti|ste|tto|tta|tti|tte)\b", {"A1"},
+         {"seduto", "seduta", "seduti", "sedute", "stanco", "stanca", "contento", "contenta", "felice", "triste", "questo", "questa", "questi", "queste", "molto", "molta", "molti", "molte", "tutto", "tutta", "tutti", "tutte", "fatto", "cosa", "casa", "testa", "festa", "vista", "basta", "giusto", "giusta", "presto", "posto", "pronto", "pronta", "pronti", "pronte", "alto", "alta", "alti", "alte", "stretto", "stretta", "sotto", "così", "subito", "proprio", "certo", "certa", "corto", "corta", "brutto", "brutta", "brutti", "brutte", "quasi", "spesso", "tanto", "tanta", "tanti", "tante", "lontano", "vicino", "pieno", "piena", "diverso", "diversa", "perso", "persa", "chiuso", "chiusa", "aperto", "aperta"}),
+        ("imperfetto", r"\b(?:era|erano|eri|avevo|aveva|avevano|\w{2,}(?:ava|avano|avi|avamo|eva|evano|evi|evamo|iva|ivano|ivi|ivamo))\b", {"A1"},
+         {"cava", "lava", "fava", "brava", "bravi", "neva", "leva", "oliva", "riva", "diva", "viva", "arriva", "schiava", "schiavi", "operai", "allievi", "chiavi", "ulivi", "divi", "attiva", "cattiva", "cattivi", "vivi", "nativa", "evitava"}),
+        ("passato remoto", r"\b(?:fu|furono|ebbe|ebbero|fece|fecero|disse|dissero|andò|venne|vennero|vide|videro|prese|presero|mise|misero|rispose|\w{3,}(?:arono|irono|erono|ò|ì))\b", {"A1", "A2", "B1"},
+         {"però", "ciò", "più", "così", "perché", "lì", "sì", "già", "giù", "può", "farò", "sarò", "avrò", "andrò", "dirò", "verrò", "starò", "vedrò", "potrò", "dovrò", "vorrò", "saprò"}),
+        ("trapassato", r"\b(?:avevo|aveva|avevano|ero|era|erano)\s+(?:\w+\s+)?\w+(?:ato|ata|ati|ate|uto|uta|uti|ute|ito|ita|iti|ite|so|sto|tto)\b", {"A1", "A2"}, {"questo", "questa", "molto", "tutto", "tutta", "fatto", "presto", "subito", "tanto", "alto", "contento", "stanco", "pronto"}),
+        ("congiuntivo imperfetto / condizionale", r"\b(?:fosse|fossero|avesse|avessero|\w{3,}(?:asse|assero|esse|essero|isse|issero|rei|rebbe|rebbero|remmo))\b", {"A1", "A2"},
+         {"classe", "basse", "grasse", "tasse", "casse", "messe", "stesse", "stesso", "interesse", "promesse", "ammesse", "crei", "sei", "dei", "lei", "miei", "tuoi", "suoi"}),
+    ],
+    "pt": [
+        ("pretérito perfeito", r"\b(?:foi|foram|fui|teve|tiveram|fez|fizeram|disse|disseram|veio|vieram|viu|viram|deu|deram|pôs|puseram|quis|houve|esteve|pôde|soube|\w{2,}(?:ou|aram|eu|eram|iu|iram|ei|aste|este|iste|emos|imos))\b", {"A1"},
+         {"sou", "estou", "vou", "dou", "seu", "meu", "teu", "céu", "chapéu", "museu", "judeu", "europeu", "hebreu", "ateu", "troféu", "véu", "réu", "mausoléu", "eu", "deus", "sei", "rei", "lei", "hotel", "papel", "temos", "comemos", "bebemos", "vivemos", "podemos", "queremos", "sabemos", "vemos", "lemos", "fazemos", "dizemos", "vamos", "estamos", "somos", "damos", "ficamos", "falamos", "andamos", "chamamos", "chegamos", "olhamos", "gostamos", "moramos", "precisamos"}),
+        ("pretérito imperfeito", r"\b(?:era|eram|tinha|tinham|estava|estavam|havia|ia|iam|\w{2,}(?:ava|avam|ávamos|ia|iam|íamos))\b", {"A1"},
+         {"dia", "dias", "fria", "alegria", "família", "sabia", "maria", "bia", "via", "guia", "mia", "pia", "tia", "fantasia", "praia", "cavalaria", "padaria", "livraria", "lava", "cava", "fava", "brava", "oitava", "goiaba", "árvore", "polícia", "história", "memória", "glória", "vitória", "harmonia", "melodia", "poesia", "energia", "magia", "companhia", "cortesia", "noticia", "notícia", "fantasia", "sombria", "vazia", "cheia", "feia", "meia", "ideia", "areia", "cadeia", "aldeia", "baía"}),
+        ("mais-que-perfeito", r"\b(?:tinha|tinham|havia|haviam)\s+(?:\w+\s+)?\w+(?:ado|ada|ados|adas|ido|ida|idos|idas|to|ta|tos|tas|sto|sta)\b", {"A1", "A2"}, {"muito", "muita", "muitos", "muitas", "tudo", "isto", "esta", "este", "estas", "estes", "certo", "perto", "cedo", "alto", "pronto", "pronta"}),
+        ("futuro do subjuntivo / condicional / imperfeito do subjuntivo", r"\b(?:fosse|fossem|tivesse|tivessem|pudesse|quisesse|\w{3,}(?:asse|assem|esse|essem|isse|issem|aria|ariam|eria|eriam|iria|iriam))\b", {"A1", "A2"},
+         {"classe", "interesse", "esse", "essa", "esses", "essas", "nesse", "nessa", "desse", "dessa", "disse", "promessa", "pressa", "travessa", "princesa", "mesa", "presa", "surpresa", "defesa", "despesa", "empresa", "aria", "maria", "padaria", "livraria", "feria", "feira", "série", "matéria", "bateria", "galeria", "história", "memória", "sapataria", "mercearia", "confeitaria", "leitaria", "cavalaria", "artilharia", "infantaria", "secretaria"}),
+    ],
 }
 
 
@@ -76,7 +108,7 @@ def syllables(word, lang):
         if n > 1 and re.search(r"[^aeiouyàâäéèêëîïôöùûü](e|es)$", w):
             n -= 1
         return max(n, 1)
-    return max(len(re.findall(r"[aeiouyäöüàèéìòùáíóú]+", w)), 1)
+    return max(len(re.findall(r"[aeiouyäöüàèéìòùáíóúâêôãõ]+", w)), 1)
 
 
 def readability(words, n_sentences, lang):
@@ -86,6 +118,13 @@ def readability(words, n_sentences, lang):
         return "INFLESZ", 206.835 - 62.3 * spw - wps, ">80 muy fácil, 65-80 bastante fácil, 55-65 normal"
     if lang == "fr":
         return "Kandel-Moles", 207 - 1.015 * wps - 73.6 * spw, ">80 très facile, 70-80 facile, 60-70 assez facile"
+    if lang == "de":
+        return "Flesch-Amstad", 180 - wps - 58.5 * spw, ">80 sehr leicht, 70-80 leicht, 60-70 mittel"
+    if lang == "it":
+        letters = sum(len(w) for w in words)
+        return "Gulpease", 89 + (300 * n_sentences - 10 * letters) / len(words), ">80 facile (lettore elementare), 60-80 media"
+    if lang == "pt":
+        return "Flesch-Martins", 248.835 - 1.015 * wps - 84.6 * spw, ">75 muito fácil, 50-75 fácil"
     return "Flesch genérico", 206.835 - 1.015 * wps - 84.6 * spw, "aproximado: no calibrado para este idioma"
 
 
@@ -175,7 +214,7 @@ def main():
     print(f"Legibilidad {name}: {score:.0f}  ({scale})")
     print(f"Palabras distintas: {len(set(w_dst))}")
 
-    leftovers = sorted({w for w in w_dst if w in ENGLISH})
+    leftovers = sorted({w for w in w_dst if w in ENGLISH - ENGLISH_EXCEPT.get(args.lang, set())})
     if leftovers:
         problems += 1
         print(f"  ERROR: posibles restos en inglés: {leftovers}")
@@ -208,6 +247,20 @@ def main():
         miss = re.findall(rf"\S(?<![{NBSP} ])[!?;:»]|«(?![{NBSP} ])", text)
         if miss:
             typo.append(f"{len(miss)} signos sin espacio no separable (ejecuta con --fix-typography)")
+    if args.lang == "de":
+        if "«" in text or "»" in text:
+            typo.append(f"{text.count('«') + text.count('»')} guillemets « »: en alemán se usan „…“")
+        if re.search(r"[“”].*[“”]", text) and "„" not in text:
+            typo.append("comillas inglesas “…” sin „ de apertura: usa „…“")
+        if re.search(r"^[-–] ", text, re.M):
+            typo.append("diálogos con guion: en alemán se usan comillas „…“")
+    if args.lang in ("it", "pt"):
+        if re.search(r"^- ", text, re.M):
+            typo.append("diálogos con guion corto: usa la raya (—) o « »")
+        if "„" in text or "“" in text:
+            typo.append("comillas „ “ ajenas al idioma: usa « » (it) o raya (pt)")
+    if args.lang == "pt" and re.search(r"[¿¡]", text):
+        typo.append("signos ¿ ¡ (solo español)")
     for t in typo:
         problems += 1
         print(f"  TIPOGRAFÍA: {t}")

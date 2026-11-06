@@ -10,12 +10,20 @@ lecturas graduadas de ese nivel. El lector es un estudiante de ese idioma, no un
 lo que importa es que el texto sea natural, ameno y del nivel, no que se parezca al inglés.
 
 ## Entrada
-Libro (ruta o título del catálogo de `content/graded-books/README.md`) + idioma destino (código o
-nombre: `fr`, «francés»…). El **nivel es el del original** y no se cambia.
-- Si el libro no está en el catálogo, para y dilo.
-- Si ya hay fila de ese libro en ese idioma en la tabla «Traducciones», no lo repitas: avísalo.
-- Variedad por defecto: español peninsular estándar (con *vosotros*, sin regionalismos marcados),
-  francés de Francia, alemán estándar, italiano estándar, portugués europeo; otra si se pide.
+Idioma destino (código o nombre: `de`, «alemán»…) + libro opcional (ruta o título del catálogo de
+`content/graded-books/README.md`). El **nivel es el del original** y no se cambia.
+- **Fichero de control del idioma**: `content/graded-books/<idioma>/README.md` (formato y cabecera por
+  idioma en `tools/graded_langs.py`). Tiene una tabla «Libros» con una fila por libro (⬜ pendiente,
+  ✅ hecho con fichero, título y métricas) y el glosario de ese idioma. Es la memoria del proyecto: el
+  historial se borra entre libros.
+- **Sin libro**: toma la primera fila ⬜ de esa tabla. **Con libro**: busca su fila; si está ✅, no lo
+  repitas y avísalo; si no tiene fila, añádela al final (⬜) antes de empezar; si el idioma no tiene
+  fichero, créalo con `python -I -c "import sys; sys.path.insert(0,'tools'); import graded_langs as g;
+  g.write('<idioma>', g.plan_rows(), {})"`.
+- Si el libro no está en el catálogo inglés, para y dilo.
+- Variedad y tipografía por defecto: las que indica la cabecera del fichero de control (español
+  peninsular con *vosotros*, francés de Francia, alemán estándar, italiano estándar, portugués europeo);
+  otra solo si se pide.
 
 ## Traducir la escena, no la frase
 - **Se mantiene**: trama, personajes, orden de las escenas, información de cada párrafo, número de
@@ -40,14 +48,19 @@ nombre: `fr`, «francés»…). El **nivel es el del original** y no se cambia.
   avergonzado / gêné; *sensible* → sensato / raisonnable; *library* → biblioteca / bibliothèque;
   *assist* → ayudar / aider; *ignore* → no hacer caso / ne pas faire attention; *at last* → por fin /
   enfin. Prefiere siempre la palabra frecuente del destino a la que se parece al inglés.
-- **Tratamiento** (tú/usted, tu/vous, du/Sie): decídelo por relación antes de escribir y mantenlo.
-  Rey → súbdito: tú/tu; súbdito → rey: usted/vous + «Majestad» / « Votre Majesté »; amigos y
-  familia: tú/tu; desconocidos adultos: usted/vous.
+- **Tratamiento** (tú/usted, tu/vous, du/Sie, tu/Lei, tu/você–o senhor): decídelo por relación antes
+  de escribir y mantenlo. Rey → súbdito: tú/tu/du; súbdito → rey: usted/vous/Sie/Lei/Vossa Majestade
+  + «Majestad» / « Votre Majesté » / „Majestät“ / «Maestà»; amigos y familia: tú/tu/du; desconocidos
+  adultos: usted/vous/Sie/Lei/o senhor–a senhora. En portugués europeo el *você* es menos cortés que
+  *o senhor*; en italiano *Lei* se escribe con mayúscula.
 - **Nombres y títulos**: usa la forma tradicional del destino cuando exista, la de las traducciones
-  del original y no la de una película (*El sastrecillo valiente*, *Le Vaillant Petit Tailleur*,
-  *Caperucita Roja*, *Le Petit Chaperon rouge*, *Blancanieves*, *Blanche-Neige*, *Hansel y Gretel*,
-  *Pinocho*, *Garfio*, *Crochet*). Los nombres inventados en nuestra adaptación se conservan, salvo que
-  suenen raros en el destino.
+  del original y no la de una película (*El sastrecillo valiente*, *Le Vaillant Petit Tailleur*, *Das
+  tapfere Schneiderlein*, *Il piccolo sarto coraggioso*, *O Alfaiate Valente*; *Caperucita Roja*, *Le
+  Petit Chaperon rouge*, *Rotkäppchen*, *Cappuccetto Rosso*, *O Capuchinho Vermelho*; *Blancanieves*,
+  *Blanche-Neige*, *Schneewittchen*, *Biancaneve*, *Branca de Neve*; *Hansel y Gretel*, *Hänsel und
+  Gretel*; *Pinocho*, *Pinocchio*, *Pinóquio*; *Garfio*, *Crochet*, *Hook*, *Uncino*, *Gancho*; *El gato con
+  botas*, *Le Chat botté*, *Der gestiefelte Kater*, *Il gatto con gli stivali*, *O Gato das Botas*). Los
+  nombres inventados en nuestra adaptación se conservan, salvo que suenen raros en el destino.
 - Si la obra original está escrita en el idioma destino (Perrault, Leprince de Beaumont o Verne al
   francés; Collodi al italiano; Grimm al alemán), puedes usar sus fórmulas célebres cuando la
   adaptación inglesa tenga esa escena y el nivel lo permita (anótalas en el glosario). No copies
@@ -60,17 +73,20 @@ El nivel MCER no cambia, pero la gramática de cada nivel es la del idioma desti
 |---|---|---|---|---|
 | **es** | presente; `ir a` + inf.; `poder`/`querer`/`tener que` + inf.; imperativo. **Sin** pasados, perfectos ni subjuntivo («Quiero que vengas» → «Ven conmigo») | indefinido + imperfecto para narrar; perfecto en el diálogo; futuro. **Sin** pluscuamperfecto ni imperfecto de subjuntivo; presente de subjuntivo solo en fórmulas (*¡Que…!*, *ojalá*) | + pluscuamperfecto, condicional, presente de subjuntivo, *si tuviera…*, estilo indirecto | todo: *hubiera* + participio, subjuntivo pleno, perífrasis |
 | **fr** | présent; futur proche; impératif. **Sin** passé composé, imparfait, conditionnel ni subjonctif | passé composé + imparfait para narrar; futur simple. **Sin** passé simple ni plus-que-parfait; subjonctif solo con *il faut que* | + plus-que-parfait, conditionnel, subjonctif présent; se narra en passé composé (sin passé simple) | todo; passé simple admitido como tiempo narrativo literario (elige uno por libro) |
+| **de** | Präsens; Modalverben (*kann, will, muss, darf*); Imperativ; *möchte*. **Sin** Präteritum, Perfekt, Plusquamperfekt ni Konjunktiv II (ni *würde*); Nebensätze solo con *weil, dass, wenn* | Präteritum como tiempo narrativo (*sagte, ging, war, hatte*); Perfekt en el diálogo; Futur con *werden*; *würde* + inf. solo en cortesías. **Sin** Plusquamperfekt ni Konjunktiv II pleno; Relativsätze sencillos | + Plusquamperfekt, Konjunktiv II (*hätte, wäre, könnte*), Passiv, indirekte Rede con Indikativ, Nebensätze de todo tipo | todo: Konjunktiv I en estilo indirecto, Partizipialkonstruktionen, Passiv complejo |
+| **it** | presente; *stare* + gerundio; *andare a* + inf.; *potere/volere/dovere* + inf.; imperativo. **Sin** passato prossimo, imperfetto, futuro, condizionale ni congiuntivo («Voglio che venga» → «Vieni con me») | passato prossimo + imperfetto para narrar; futuro semplice; condizionale solo *vorrei*. **Sin** passato remoto, trapassato ni congiuntivo (salvo fórmulas: *magari*, *che Dio…*) | + trapassato prossimo, condizionale, congiuntivo presente e imperfetto en *se…*, discorso indiretto; se narra en passato prossimo (sin passato remoto) | todo; passato remoto admitido como tiempo narrativo literario (elige uno por libro) |
+| **pt** | presente; *ir* + inf.; *estar a* + inf.; *poder/querer/ter de* + inf.; imperativo. **Sin** pretérito perfeito, imperfeito, futuro, condicional ni subjuntivo («Quero que venhas» → «Vem comigo») | pretérito perfeito + imperfeito para narrar; futuro con *ir* + inf. (o futuro simples). **Sin** mais-que-perfeito, condicional ni subjuntivo (presente del subjuntivo solo en fórmulas: *oxalá*, *que…!*) | + mais-que-perfeito composto (*tinha feito*), condicional, presente e imperfeito do subjuntivo, futuro do subjuntivo (*se tiveres*), discurso indireto | todo: mais-que-perfeito simples literario, infinitivo pessoal complejo, subjuntivo pleno |
 
-Otros idiomas: sigue el mismo criterio (A1 presente; A2 el pasado narrativo habitual del idioma, como
-el *Präteritum* en alemán o el *passato prossimo* en italiano). Vocabulario: el más frecuente del
-destino y, si una palabra clave pasa del nivel, explícala con el contexto como hace el original.
+Vocabulario: el más frecuente del destino y, si una palabra clave pasa del nivel, explícala con el
+contexto como hace el original.
 Extensión: no se fuerza. En A1/A2 el español sale algo más corto que el inglés (omite sujetos y
 auxiliares como *do not*) y el francés, parecido (*l'arbre* cuenta como una palabra); en B1/B2 ambos
 tienden a alargarse. Nunca recortes ni añadas escenas para ajustar la cifra.
 
 ## Formato del fichero
 - Ruta: `content/graded-books/<idioma>/<NIVEL>/<slug>.txt`, con el slug del título traducido en
-  minúsculas, sin acentos y con guiones (`es/A1/el-sastrecillo-valiente.txt`).
+  minúsculas, sin acentos ni diéresis (ä→a, ß→ss, ç→c), y con guiones
+  (`es/A1/el-sastrecillo-valiente.txt`, `de/A1/das-tapfere-schneiderlein.txt`).
 - Cabecera de capítulo (la reconoce `TextExtractor`): `Capítulo N: Título` (es, pt),
   `Chapitre N : Titre` (fr), `Kapitel N: Titel` (de), `Capitolo N: Titolo` (it).
 - Última línea: `Fin` (es, fr), `Ende` (de), `Fine` (it), `Fim` (pt).
@@ -80,12 +96,18 @@ tienden a alargarse. Nunca recortes ni añadas escenas para ajustar la cifra.
   - **fr**: guillemets con inciso invertido: `« Sept ! dit-il. Sept d'un coup ! »`. Escribe los
     espacios normales y deja que `--fix-typography` ponga los no separables (antes de `; : ! ? »` y
     después de `«`).
-  - **de**: „…“; **it**: «…» o raya; **pt**: raya.
+  - **de**: „…“ (comillas alemanas, nunca `"` ni « »), inciso con coma: `„Sieben!“, sagt er. „Sieben auf
+    einen Streich!“`. Ortografía de 2006 con `ß` (*groß, Straße*); sustantivos con mayúscula.
+  - **it**: caporali « » sin espacios interiores: `«Sette!», dice. «Sette in un colpo!»`; también se
+    admite la raya al inicio de línea, pero elige una norma para todo el libro. Nunca `"`.
+  - **pt**: travessão (`—`) al inicio del diálogo, como en español pero **sin** `¿` ni `¡`:
+    `— Sete! — diz ele. — Sete de uma vez!`. Citas y carteles con «…».
 - Párrafos separados por una línea en blanco, como el original.
 
 ## Proceso (cada lectura y reescritura cuesta tokens)
-1. Lee la fila del libro en el catálogo, su línea del glosario y el libro completo (A1/A2 de una
-   vez; B1/B2 por bloques de 3–4 capítulos con `Read` y `offset`).
+1. Lee la fila del libro en el catálogo inglés (`content/graded-books/README.md`, tabla «Catálogo»),
+   su entrada en el glosario inglés, la cabecera del fichero de control del idioma y el libro completo
+   (A1/A2 de una vez; B1/B2 por bloques de 3–4 capítulos con `Read` y `offset`).
 2. Antes de escribir decide y no cambies: título, nombres, tratamiento, lemas y estribillos, y
    onomatopeyas recurrentes.
 3. Escribe:
@@ -105,12 +127,16 @@ tienden a alargarse. Nunca recortes ni añadas escenas para ajustar la cifra.
    lector nativo y busca calcos, sujetos sobrantes, `dice` repetido, tratamiento incoherente o frases
    que «suenan a traducción». Corrige con un script de reemplazos puntuales (escrito con Write en el
    scratchpad, `assert t.count(a) == 1`), sin retraducir el libro. Vuelve a verificar.
-6. Solo cuando todo pasa, actualiza `content/graded-books/README.md`:
-   - tabla **Traducciones** del catálogo: fichero, título, nivel, palabras, palabras/frase,
-     legibilidad (índice y valor), fichero de origen y licencia («Traducción propia de la adaptación
-     propia»);
-   - glosario: una línea `**<Título traducido>** (<idioma>)` con las palabras del destino que pasan
-     del nivel.
+6. Solo cuando todo pasa, actualiza **`content/graded-books/<idioma>/README.md`** (no el README
+   general):
+   - la fila del libro: ⬜ → ✅ y rellena `Fichero` (`` `<idioma>/<NIVEL>/<slug>.txt` ``), `Título`,
+     `Palabras` (con punto de miles: 3.154), `Palabras/frase` (coma decimal: 5,7) y `Legibilidad`
+     (índice y valor que imprime el checker: «INFLESZ 92», «Flesch-Amstad 85», «Gulpease 78»,
+     «Flesch-Martins 88»); `Notas` solo si hay algo que recordar (tratamiento, canción, tiempo
+     narrativo elegido). Las celdas vacías se dejan vacías; no toques las demás filas;
+   - glosario (sección «Vocabulario fuera de nivel»): una entrada `- **<Título traducido>**: ...` con
+     las palabras del destino que pasan del nivel, en el mismo orden que la tabla.
+   Comprueba con `python -I tools/graded_langs.py <idioma>` que la fila se lee (cuenta ✅ y glosarios).
 
 ## Derechos
 La traducción parte de nuestra adaptación (texto propio), así que hereda su licencia. No uses

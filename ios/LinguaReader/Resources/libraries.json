@@ -2,13 +2,13 @@
   "formatVersion": 1,
   "libraries": {
     "en": {
-      "version": 2,
-      "asset": "library-en-v2.zip",
-      "sizeBytes": 5307751,
-      "sha256": "414c63714f7315bf6cea90be72ee022a63e99d5583aafb79680442fdddbb68a0",
+      "version": 3,
+      "asset": "library-en-v3.zip",
+      "sizeBytes": 5307754,
+      "sha256": "515af8266406fb542ebfe9960aaac3802abdb31bcabbe992ea67490700b1cb59",
       "books": 38,
       "words": 474160,
-      "fingerprint": "7c559cfd64d914d894eda940bfd0d8f9184e2fd8c1861caea36012e684ebfe88"
+      "fingerprint": "26415c3ec3a42e062444b8695aff1df60c32f1bafd69a4094b8829250977dec4"
     },
     "es": {
       "version": 2,
@@ -27,6 +27,33 @@
       "books": 32,
       "words": 288029,
       "fingerprint": "982692fa690d93d1dde32f79db353c2638db30b2021e96b2ae7985fd8ebefdfe"
+    },
+    "it": {
+      "version": 1,
+      "asset": "library-it-v1.zip",
+      "sizeBytes": 2094598,
+      "sha256": "6fdb612232b9d10c1a68100bf90d6694e024b2e78df466f72745e613041f234d",
+      "books": 16,
+      "words": 112747,
+      "fingerprint": "f4f8986060980d8cb57b1cf585adb0bdf5d7c43134ec2fb1059345d789006ac7"
+    },
+    "pt": {
+      "version": 1,
+      "asset": "library-pt-v1.zip",
+      "sizeBytes": 2098835,
+      "sha256": "d87908bfa0dda277dd259c05ef58ff65733285ffefb15fabbaed670cca7a297c",
+      "books": 16,
+      "words": 116245,
+      "fingerprint": "88f933bd56c00dd7748598c92211946099ffd25f2907b1899516573895391137"
+    },
+    "de": {
+      "version": 1,
+      "asset": "library-de-v1.zip",
+      "sizeBytes": 2128269,
+      "sha256": "f16221822cf6f57f17ae9f8466db90ba3444a68e0503f4c8ef0d52d6a91495ad",
+      "books": 16,
+      "words": 115079,
+      "fingerprint": "e2bdaac78235156cf79c771e75840d4336df87bb867bae778d25ed3884692fc8"
     }
   }
 }

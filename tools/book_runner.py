@@ -15,6 +15,7 @@ Detención (código de salida 1) si en un libro:
   - la sesión acaba con error, o el libro no queda ✅ en el README (la skill no lo verificó).
 Los límites son los de LIMITS por nivel/tipo; tras dos libros del mismo nivel y tipo, el límite
 pasa a ser `--factor` × la mediana registrada si es menor. Registro: .claude/book-runs.jsonl.
+Modelo: `opus` salvo `--model` (la calidad del texto depende de él; no bajar de opus).
 """
 import argparse
 import json
@@ -148,6 +149,7 @@ def run_session(prompt, lim, args, base):
     print()
 
     record = {"time": datetime.now(timezone.utc).isoformat(timespec="seconds"), **base,
+              "model": args.model,
               "minutes": round((time.time() - started) / 60, 1), "calls": len(calls),
               "context_max": max((x["context"] for x in calls.values()), default=0), "session": session}
     if result:
@@ -201,7 +203,8 @@ def main():
     ap.add_argument("--max-books", type=int, default=0, help="0 = todos")
     ap.add_argument("--factor", type=float, default=2.5, help="límite adaptativo = factor × mediana")
     ap.add_argument("--budget-usd", type=float, help="tope de gasto por libro (--max-budget-usd)")
-    ap.add_argument("--model", help="modelo para las sesiones (por defecto, el configurado)")
+    ap.add_argument("--model", default="opus",
+                    help="modelo para las sesiones (por defecto opus; p. ej. fable, sonnet)")
     ap.add_argument("--permission-mode", default="acceptEdits")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
