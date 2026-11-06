@@ -52,14 +52,19 @@ Idioma destino (código o nombre: `de`, «alemán»…) + libro opcional (ruta o
   de escribir y mantenlo. Rey → súbdito: tú/tu/du; súbdito → rey: usted/vous/Sie/Lei/Vossa Majestade
   + «Majestad» / « Votre Majesté » / „Majestät“ / «Maestà»; amigos y familia: tú/tu/du; desconocidos
   adultos: usted/vous/Sie/Lei/o senhor–a senhora. En portugués europeo el *você* es menos cortés que
-  *o senhor*; en italiano *Lei* se escribe con mayúscula.
+  *o senhor*; en italiano *Lei* se escribe con mayúscula. En neerlandés *jij*/*u* (súbdito → rey: *u* + «Majesteit»); en polaco
+  *ty*/*pan, pani* (súbdito → rey: «Wasza Wysokość» / «Najjaśniejszy Panie» con 3.ª persona); en sueco
+  *du* casi siempre, «Ers Majestät» al rey.
 - **Nombres y títulos**: usa la forma tradicional del destino cuando exista, la de las traducciones
   del original y no la de una película (*El sastrecillo valiente*, *Le Vaillant Petit Tailleur*, *Das
   tapfere Schneiderlein*, *Il piccolo sarto coraggioso*, *O Alfaiate Valente*; *Caperucita Roja*, *Le
   Petit Chaperon rouge*, *Rotkäppchen*, *Cappuccetto Rosso*, *O Capuchinho Vermelho*; *Blancanieves*,
   *Blanche-Neige*, *Schneewittchen*, *Biancaneve*, *Branca de Neve*; *Hansel y Gretel*, *Hänsel und
   Gretel*; *Pinocho*, *Pinocchio*, *Pinóquio*; *Garfio*, *Crochet*, *Hook*, *Uncino*, *Gancho*; *El gato con
-  botas*, *Le Chat botté*, *Der gestiefelte Kater*, *Il gatto con gli stivali*, *O Gato das Botas*). Los
+  botas*, *Le Chat botté*, *Der gestiefelte Kater*, *Il gatto con gli stivali*, *O Gato das Botas*; en nl/pl/sv: *Het dappere snijdertje*, *Dzielny krawczyk*, *Det tappra lilla
+  skräddaren*; *Roodkapje*, *Czerwony Kapturek*, *Rödluvan*; *Sneeuwwitje*, *Królewna Śnieżka*,
+  *Snövit*; *Assepoester*, *Kopciuszek*, *Askungen*; *De gelaarsde kat*, *Kot w butach*, *Mästerkatten
+  i stövlar*; *Pinokkio*, *Pinokio*, *Pinocchio*). Los
   nombres inventados en nuestra adaptación se conservan, salvo que suenen raros en el destino.
 - Si la obra original está escrita en el idioma destino (Perrault, Leprince de Beaumont o Verne al
   francés; Collodi al italiano; Grimm al alemán), puedes usar sus fórmulas célebres cuando la
@@ -75,6 +80,9 @@ El nivel MCER no cambia, pero la gramática de cada nivel es la del idioma desti
 | **fr** | présent; futur proche; impératif. **Sin** passé composé, imparfait, conditionnel ni subjonctif | passé composé + imparfait para narrar; futur simple. **Sin** passé simple ni plus-que-parfait; subjonctif solo con *il faut que* | + plus-que-parfait, conditionnel, subjonctif présent; se narra en passé composé (sin passé simple) | todo; passé simple admitido como tiempo narrativo literario (elige uno por libro) |
 | **de** | Präsens; Modalverben (*kann, will, muss, darf*); Imperativ; *möchte*. **Sin** Präteritum, Perfekt, Plusquamperfekt ni Konjunktiv II (ni *würde*); Nebensätze solo con *weil, dass, wenn* | Präteritum como tiempo narrativo (*sagte, ging, war, hatte*); Perfekt en el diálogo; Futur con *werden*; *würde* + inf. solo en cortesías. **Sin** Plusquamperfekt ni Konjunktiv II pleno; Relativsätze sencillos | + Plusquamperfekt, Konjunktiv II (*hätte, wäre, könnte*), Passiv, indirekte Rede con Indikativ, Nebensätze de todo tipo | todo: Konjunktiv I en estilo indirecto, Partizipialkonstruktionen, Passiv complejo |
 | **it** | presente; *stare* + gerundio; *andare a* + inf.; *potere/volere/dovere* + inf.; imperativo. **Sin** passato prossimo, imperfetto, futuro, condizionale ni congiuntivo («Voglio che venga» → «Vieni con me») | passato prossimo + imperfetto para narrar; futuro semplice; condizionale solo *vorrei*. **Sin** passato remoto, trapassato ni congiuntivo (salvo fórmulas: *magari*, *che Dio…*) | + trapassato prossimo, condizionale, congiuntivo presente e imperfetto en *se…*, discorso indiretto; se narra en passato prossimo (sin passato remoto) | todo; passato remoto admitido como tiempo narrativo literario (elige uno por libro) |
+| **nl** | presens; *gaan* + inf.; *kunnen/willen/moeten/mogen* + inf.; imperatief. **Sin** imperfectum, perfectum ni *zou*; bijzinnen solo con *omdat, dat, als* | imperfectum como tiempo narrativo (*zei, ging, was, had*); perfectum en el diálogo; *zullen* para el futuro. **Sin** plusquamperfectum ni *zou* (salvo cortesía: *zou je…?*) | + plusquamperfectum, *zou* + inf., lijdende vorm, indirecte rede, bijzinnen de todo tipo | todo |
+| **pl** | presente (aspecto imperfectivo); futuro con *będę* + inf.; *chcieć/móc/musieć* + inf.; imperativo. **Sin** czas przeszły ni tryb przypuszczający (*-by*); aspecto perfectivo solo en imperativo y en el futuro simple de verbos muy frecuentes (*zobaczę, zrobię*) | czas przeszły (ambos aspectos) como tiempo narrativo; futuro simple y compuesto. **Sin** tryb przypuszczający (salvo *chciałbym*); participios adjetivales sencillos | + tryb przypuszczający, *gdyby*, mowa zależna, participios (*czytający, przeczytany*), voz pasiva | todo: imiesłowy przysłówkowe (*czytając, przeczytawszy*), registro literario |
+| **sv** | presens; *ska* + inf.; *kan/vill/måste* + inf.; imperativ. **Sin** preteritum, perfekt ni *skulle*; bisatser solo con *för att, att, när, om* | preteritum como tiempo narrativo (*sa, gick, var, hade*); perfekt en el diálogo; futuro con *ska/kommer att*. **Sin** pluskvamperfekt ni *skulle* (salvo cortesía: *skulle du kunna…?*) | + pluskvamperfekt, *skulle* + inf., s-passiv, indirekt tal, bisatser de todo tipo | todo |
 | **pt** | presente; *ir* + inf.; *estar a* + inf.; *poder/querer/ter de* + inf.; imperativo. **Sin** pretérito perfeito, imperfeito, futuro, condicional ni subjuntivo («Quero que venhas» → «Vem comigo») | pretérito perfeito + imperfeito para narrar; futuro con *ir* + inf. (o futuro simples). **Sin** mais-que-perfeito, condicional ni subjuntivo (presente del subjuntivo solo en fórmulas: *oxalá*, *que…!*) | + mais-que-perfeito composto (*tinha feito*), condicional, presente e imperfeito do subjuntivo, futuro do subjuntivo (*se tiveres*), discurso indireto | todo: mais-que-perfeito simples literario, infinitivo pessoal complejo, subjuntivo pleno |
 
 Vocabulario: el más frecuente del destino y, si una palabra clave pasa del nivel, explícala con el
@@ -88,8 +96,10 @@ tienden a alargarse. Nunca recortes ni añadas escenas para ajustar la cifra.
   minúsculas, sin acentos ni diéresis (ä→a, ß→ss, ç→c), y con guiones
   (`es/A1/el-sastrecillo-valiente.txt`, `de/A1/das-tapfere-schneiderlein.txt`).
 - Cabecera de capítulo (la reconoce `TextExtractor`): `Capítulo N: Título` (es, pt),
-  `Chapitre N : Titre` (fr), `Kapitel N: Titel` (de), `Capitolo N: Titolo` (it).
-- Última línea: `Fin` (es, fr), `Ende` (de), `Fine` (it), `Fim` (pt).
+  `Chapitre N : Titre` (fr), `Kapitel N: Titel` (de, sv), `Capitolo N: Titolo` (it),
+  `Hoofdstuk N: Titel` (nl), `Rozdział N: Tytuł` (pl).
+- Última línea: `Fin` (es, fr), `Ende` (de), `Fine` (it), `Fim` (pt), `Einde` (nl), `Koniec` (pl),
+  `Slut` (sv). Slug sin diacríticos también en pl/sv (ł→l, ą→a, å→a, ö→o).
 - Diálogos según la norma del idioma:
   - **es**: raya (`—`), nunca comillas: `—¡Siete! —dice—. ¡Siete de un golpe!` Con `¿?` y `¡!` de
     apertura siempre. Carteles y citas: comillas latinas («SIETE DE UN GOLPE»).
@@ -102,11 +112,21 @@ tienden a alargarse. Nunca recortes ni añadas escenas para ajustar la cifra.
     admite la raya al inicio de línea, pero elige una norma para todo el libro. Nunca `"`.
   - **pt**: travessão (`—`) al inicio del diálogo, como en español pero **sin** `¿` ni `¡`:
     `— Sete! — diz ele. — Sete de uma vez!`. Citas y carteles con «…».
+  - **nl**: comillas “…” con inciso con coma: `“Zeven!” zegt hij. “Zeven in één klap!”`. Nunca `"`,
+    « » ni „.
+  - **pl**: pauza (`—`) al inicio del diálogo, como en portugués: `— Siedem! — mówi. — Siedem za
+    jednym zamachem!`. Citas y carteles con „…”.
+  - **sv**: comillas suecas ”…” (la **misma** comilla ” al abrir y cerrar): `”Sju!” säger han. ”Sju i
+    ett slag!”`. Nunca `"`, « », „ ni “.
 - Párrafos separados por una línea en blanco, como el original.
 
 ## Proceso (cada lectura y reescritura cuesta tokens)
-1. Lee la fila del libro en el catálogo inglés (`content/graded-books/README.md`, tabla «Catálogo»),
-   su entrada en el glosario inglés, la cabecera del fichero de control del idioma y el libro completo
+- Si una herramienta o un comando es denegado, no lo reintentes de otra forma: sigue con Read/Write
+  y el checker.
+
+1. Saca con `grep -n "<slug>\|<Título>" content/graded-books/README.md` solo la fila del catálogo y
+   su entrada del glosario inglés (no leas el README entero); lee las primeras 10 líneas del fichero
+   de control del idioma y el libro completo
    (A1/A2 de una vez; B1/B2 por bloques de 3–4 capítulos con `Read` y `offset`).
 2. Antes de escribir decide y no cambies: título, nombres, tratamiento, lemas y estribillos, y
    onomatopeyas recurrentes.
@@ -123,8 +143,8 @@ tienden a alargarse. Nunca recortes ni añadas escenas para ajustar la cifra.
    - Sin restos en inglés ni avisos de tipografía.
    - Tiempos marcados `REVISAR`: comprueba cada forma, porque hay falsos positivos (adjetivos como
      *assis* o *fatigué*, nombres en *-aba*). Las formas reales se reformulan.
-5. **Revisión de naturalidad** (obligatoria y barata): relee el capítulo 1 y otro al azar como un
-   lector nativo y busca calcos, sujetos sobrantes, `dice` repetido, tratamiento incoherente o frases
+5. **Revisión de naturalidad** (obligatoria): revisa el capítulo 1 y otro al azar **sobre el texto que
+   ya escribiste y tienes en el contexto, sin volver a leerlo con Read**, como un lector nativo, y busca calcos, sujetos sobrantes, `dice` repetido, tratamiento incoherente o frases
    que «suenan a traducción». Corrige con un script de reemplazos puntuales (escrito con Write en el
    scratchpad, `assert t.count(a) == 1`), sin retraducir el libro. Vuelve a verificar.
 6. Solo cuando todo pasa, actualiza **`content/graded-books/<idioma>/README.md`** (no el README
@@ -132,7 +152,7 @@ tienden a alargarse. Nunca recortes ni añadas escenas para ajustar la cifra.
    - la fila del libro: ⬜ → ✅ y rellena `Fichero` (`` `<idioma>/<NIVEL>/<slug>.txt` ``), `Título`,
      `Palabras` (con punto de miles: 3.154), `Palabras/frase` (coma decimal: 5,7) y `Legibilidad`
      (índice y valor que imprime el checker: «INFLESZ 92», «Flesch-Amstad 85», «Gulpease 78»,
-     «Flesch-Martins 88»); `Notas` solo si hay algo que recordar (tratamiento, canción, tiempo
+     «Flesch-Martins 88», «Flesch-Douma 84», «FOG-PL 5», «LIX 24»); `Notas` solo si hay algo que recordar (tratamiento, canción, tiempo
      narrativo elegido). Las celdas vacías se dejan vacías; no toques las demás filas;
    - glosario (sección «Vocabulario fuera de nivel»): una entrada `- **<Título traducido>**: ...` con
      las palabras del destino que pasan del nivel, en el mismo orden que la tabla.

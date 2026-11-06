@@ -1,7 +1,7 @@
 """Comprueba la traducción de un libro graduado frente a su original de content/graded-books.
 
 Uso:
-  python -I tools/translation_check.py <origen.txt> <traduccion.txt> --lang es|fr|de|it|pt
+  python -I tools/translation_check.py <origen.txt> <traduccion.txt> --lang es|fr|de|it|pt|nl|pl|sv
          [--level A1|A2|B1|B2] [--show-long N] [--fix-typography]
 
 Comprueba:
@@ -9,7 +9,7 @@ Comprueba:
   - extensión: palabras de la traducción / palabras del origen dentro del rango del idioma;
   - frases: media de palabras por frase comparada con la del origen;
   - legibilidad del idioma destino: INFLESZ (es), Kandel-Moles (fr), Flesch-Amstad (de), Gulpease (it),
-    Flesch-Martins (pt);
+    Flesch-Martins (pt), Flesch-Douma (nl), FOG-PL (pl), LIX (sv);
   - tiempos verbales no permitidos en el nivel (es, fr, de, it, pt): listado para revisar a mano;
   - restos en inglés y tipografía (¿¡ y raya en es; « » y espacios no separables en fr; „“ en de;
     « » o raya en it; travessão en pt; comillas rectas " en todos).
@@ -23,8 +23,8 @@ import sys
 
 NBSP = " "
 WORD = re.compile(r"[^\W\d_]+(?:['’][^\W\d_]+)*")
-UPPER = "A-ZÁÉÍÓÚÑÜÀÂÇÈÊËÎÏÔÛÙŸÆŒÄÖÃÕÌÒ"
-SENTENCE_END = re.compile(rf'(?<=[.!?…])[»"”“]?[\s{NBSP}]*[»"”]?\s+(?=[—«"“¡¿„]?[{UPPER}])')
+UPPER = "A-ZÁÉÍÓÚÑÜÀÂÇÈÊËÎÏÔÛÙŸÆŒÄÖÃÕÌÒĄĆĘŁŃŚŹŻÅ"
+SENTENCE_END = re.compile(rf'(?<=[.!?…])[»"”“]?[\s{NBSP}]*[»"”]?\s+(?=[—–«"“”¡¿„]?[{UPPER}])')
 CHAPTER_EN = re.compile(r"^chapter\s+\d+\b.{0,60}$", re.I)
 
 LANGS = {
@@ -33,11 +33,16 @@ LANGS = {
     "de": {"chapter": r"kapitel", "end": "Ende", "ratio": (0.85, 1.15)},
     "it": {"chapter": r"capitolo", "end": "Fine", "ratio": (0.85, 1.25)},
     "pt": {"chapter": r"capítulo", "end": "Fim", "ratio": (0.85, 1.25)},
+    "nl": {"chapter": r"hoofdstuk", "end": "Einde", "ratio": (0.85, 1.25)},
+    # Sin artículos (pl) o con artículo pegado y compuestos (sv): menos palabras y frases más cortas.
+    "pl": {"chapter": r"rozdział", "end": "Koniec", "ratio": (0.6, 1.15), "sentence_ratio": (0.7, 1.3)},
+    "sv": {"chapter": r"kapitel", "end": "Slut", "ratio": (0.8, 1.2), "sentence_ratio": (0.8, 1.35)},
 }
 SENTENCE_RATIO = (0.9, 1.4)
 ENGLISH = set("the and says said with you they this that what is are of from was were".split())
 # Palabras inglesas que también existen en el idioma destino y no cuentan como resto.
-ENGLISH_EXCEPT = {"de": {"was"}, "it": set(), "pt": set(), "es": set(), "fr": set()}
+ENGLISH_EXCEPT = {"de": {"was"}, "it": set(), "pt": set(), "es": set(), "fr": set(),
+                  "nl": {"is", "was", "of"}, "sv": {"is"}, "pl": set()}
 
 # (etiqueta, regex sobre la frase, niveles en los que está prohibido, palabras que no cuentan)
 TENSES = {
@@ -92,6 +97,32 @@ TENSES = {
 }
 
 
+TENSES.update({
+    "nl": [
+        ("imperfectum", r"\b(?:was|waren|had|hadden|ging|gingen|kwam|kwamen|zei|zeiden|zag|zagen|gaf|gaven|nam|namen|liep|liepen|stond|stonden|zat|zaten|vond|vonden|viel|vielen|riep|riepen|dacht|dachten|wist|wisten|kon|konden|wilde|wilden|moest|moesten|mocht|deed|deden|lag|lagen|keek|keken|sprong|zwom|vloog|at|aten|dronk|sliep|werd|werden|\w{3,}(?:dde|tte)n?)\b", {"A1"},
+         {"middel", "midden", "ratten", "katten", "hutten", "zitten", "bidden", "redden", "wedden", "kladde", "platte", "natte", "witte", "dikke", "zatte", "matte", "vette", "zotte", "slechte", "echte", "lichte", "rechte", "at"}),
+        ("perfectum", r"\b(?:heb|hebt|heeft|hebben|ben|bent|is|zijn)\s+(?:\w+\s+){0,3}?ge\w+(?:d|t|en)\b", {"A1"},
+         {"gezond", "gemeen", "gewend", "gehaast", "gerust", "geest", "gebied", "gedicht", "gezicht", "gevecht", "geschenk", "gerecht", "gebit", "gebed"}),
+        ("plusquamperfectum", r"\b(?:had|hadden|was|waren)\s+(?:\w+\s+){0,3}?ge\w+(?:d|t|en)\b", {"A1", "A2"}, {"gezond", "gemeen", "gewend"}),
+        ("conditionalis", r"\b(?:zou|zouden|zoudt)\b", {"A1"}, set()),
+    ],
+    "sv": [
+        ("preteritum", r"\b(?:var|hade|gick|kom|sa|sade|såg|gav|tog|sprang|stod|satt|fann|föll|tänkte|visste|kunde|ville|skulle|åt|drack|sov|blev|låg|flög|simmade|\w{3,}ade)\b", {"A1"},
+         {"parade", "fasade", "limonade", "promenade", "marmelade", "skade", "glade"}),
+        ("perfekt", r"\b(?:har)\s+(?:\w+\s+){0,2}?(?:varit|haft|fått|gått|kommit|sagt|sett|tagit|gett|gjort|blivit|skrivit|ätit|druckit|sovit|\w{2,}(?:at|it))\b", {"A1"},
+         {"mat", "hat", "lite", "vit", "hit", "dit", "bit", "tid", "skit", "flit", "split", "kvit"}),
+        ("pluskvamperfekt", r"\bhade\s+(?:\w+\s+){0,2}?(?:varit|haft|fått|gått|kommit|sagt|sett|tagit|gett|gjort|blivit|\w{2,}(?:at|it|tt))\b", {"A1", "A2"},
+         {"mat", "vit", "hit", "dit", "katt", "natt", "hatt", "lätt", "rätt", "nytt", "gott"}),
+        ("konditionalis", r"\b(?:skulle|skulla)\b", {"A1"}, set()),
+    ],
+    "pl": [
+        ("czas przeszły", r"\b\w{2,}(?:łem|łam|łeś|łaś|liśmy|łyśmy|liście|łyście|ł|ła|ło|li|ły)\b", {"A1"},
+         {"stół", "kościół", "anioł", "orzeł", "popiół", "osioł", "kozioł", "szkoła", "pszczoła", "skała", "mała", "cała", "biała", "stała", "koło", "czoło", "zło", "szkło", "mało", "ciało", "masło", "wiosło", "krzesło", "hasło", "słońce", "jeśli", "gdyby", "zali", "mały", "cały", "biały", "stały", "ciepły", "wesoły", "goły", "miły", "miła", "miło", "mili", "śmiały", "śmiała", "zły", "zła", "aniołowie", "stoły", "szkoły", "skały", "pszczoły", "anioły", "orły", "osły", "koły", "dziupli", "chwili", "soli", "roli", "woli", "doli", "fali", "sali", "ali", "kroli", "króli", "wiele", "stali", "dali", "tyły", "sokół", "kocioł", "dół", "wół", "pół", "muł", "wiosła", "krzesła", "hasła", "tło", "pomału", "ciała", "dziupla"}),
+        ("tryb przypuszczający", r"\b(?:\w+ł(?:a|o)?(?:bym|byś|by)|\w+(?:li|ły)by(?:śmy|ście)?|by(?:m|ś|śmy|ście)?\s+\w+ł[aoy]?)\b", {"A1"}, set()),
+    ],
+})
+
+
 def syllables(word, lang):
     w = word.lower()
     if lang == "es":
@@ -108,7 +139,7 @@ def syllables(word, lang):
         if n > 1 and re.search(r"[^aeiouyàâäéèêëîïôöùûü](e|es)$", w):
             n -= 1
         return max(n, 1)
-    return max(len(re.findall(r"[aeiouyäöüàèéìòùáíóúâêôãõ]+", w)), 1)
+    return max(len(re.findall(r"[aeiouyäöüàèéìòùáíóúâêôãõåąęó]+", w)), 1)
 
 
 def readability(words, n_sentences, lang):
@@ -125,6 +156,14 @@ def readability(words, n_sentences, lang):
         return "Gulpease", 89 + (300 * n_sentences - 10 * letters) / len(words), ">80 facile (lettore elementare), 60-80 media"
     if lang == "pt":
         return "Flesch-Martins", 248.835 - 1.015 * wps - 84.6 * spw, ">75 muito fácil, 50-75 fácil"
+    if lang == "nl":
+        return "Flesch-Douma", 206.84 - 0.93 * wps - 77 * spw, ">80 zeer makkelijk, 60-80 makkelijk, 50-60 vrij moeilijk"
+    if lang == "pl":
+        hard = sum(1 for w in words if syllables(w, lang) >= 4) / len(words)
+        return "FOG-PL", 0.4 * (wps + 100 * hard), "<7 bardzo łatwy, 7-9 łatwy, 10-12 średni (más bajo = más fácil)"
+    if lang == "sv":
+        long_words = sum(1 for w in words if len(w) > 6) / len(words)
+        return "LIX", wps + 100 * long_words, "<30 mycket lätt, 30-40 lätt, 40-50 medel (más bajo = más fácil)"
     return "Flesch genérico", 206.835 - 1.015 * wps - 84.6 * spw, "aproximado: no calibrado para este idioma"
 
 
@@ -157,6 +196,7 @@ def fix_french(text):
 
 
 def main():
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")   # ł, å… en consola cp1252
     ap = argparse.ArgumentParser()
     ap.add_argument("source")
     ap.add_argument("target")
@@ -206,10 +246,11 @@ def main():
     print(f"Palabras: {len(w_dst)}  origen {len(w_src)}  ratio {ratio:.2f}  objetivo {lo}-{hi}{flag}")
     m_src, m_dst = len(w_src) / len(s_src), statistics.mean(lengths)
     sr = m_dst / m_src
-    flag = "" if SENTENCE_RATIO[0] <= sr <= SENTENCE_RATIO[1] else "  FUERA DE RANGO"
+    s_lo, s_hi = cfg.get("sentence_ratio", SENTENCE_RATIO)
+    flag = "" if s_lo <= sr <= s_hi else "  FUERA DE RANGO"
     problems += bool(flag)
     print(f"Frases: {len(s_dst)}  media {m_dst:.1f}  (origen {m_src:.1f}, ratio {sr:.2f}, "
-          f"objetivo {SENTENCE_RATIO[0]}-{SENTENCE_RATIO[1]}){flag}  máx {max(lengths)}")
+          f"objetivo {s_lo}-{s_hi}){flag}  máx {max(lengths)}")
     name, score, scale = readability(w_dst, len(s_dst), args.lang)
     print(f"Legibilidad {name}: {score:.0f}  ({scale})")
     print(f"Palabras distintas: {len(set(w_dst))}")
@@ -259,7 +300,20 @@ def main():
             typo.append("diálogos con guion corto: usa la raya (—) o « »")
         if "„" in text or "“" in text:
             typo.append("comillas „ “ ajenas al idioma: usa « » (it) o raya (pt)")
-    if args.lang == "pt" and re.search(r"[¿¡]", text):
+    if args.lang in ("nl", "pl", "sv") and ("«" in text or "»" in text):
+        typo.append(f"{text.count('«') + text.count('»')} guillemets « » ajenos al idioma")
+    if args.lang == "nl" and "„" in text:
+        typo.append("comillas „ : en neerlandés usa “…”")
+    if args.lang == "sv" and ("„" in text or "“" in text):
+        typo.append("comillas „ “: en sueco se usa ”…” (la misma al abrir y cerrar)")
+    if args.lang == "pl":
+        if re.search(r"^[-–] ", text, re.M):
+            typo.append("diálogos con guion corto: en polaco usa la pauza (—)")
+        if "“" in text and "„" not in text:
+            typo.append("comillas “…” sin „ de apertura: en polaco usa „…”")
+    if args.lang in ("nl", "sv") and re.search(r"^[-—] ", text, re.M):
+        typo.append("diálogos con raya: usa comillas (“…” en nl, ”…” en sv)")
+    if args.lang in ("pt", "nl", "pl", "sv") and re.search(r"[¿¡]", text):
         typo.append("signos ¿ ¡ (solo español)")
     for t in typo:
         problems += 1

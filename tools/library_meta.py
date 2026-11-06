@@ -23,17 +23,22 @@ SOURCE_ROW = re.compile(
 # Autores colectivos: se dan en el idioma del libro.
 AUTHOR_NAMES = {
     "Hermanos Grimm": {"en": "Brothers Grimm", "es": "Hermanos Grimm", "fr": "Frères Grimm",
-                       "de": "Brüder Grimm", "it": "Fratelli Grimm", "pt": "Irmãos Grimm"},
+                       "de": "Brüder Grimm", "it": "Fratelli Grimm", "pt": "Irmãos Grimm",
+                       "nl": "Gebroeders Grimm", "pl": "Bracia Grimm", "sv": "Bröderna Grimm"},
     "Cuento popular inglés": {"en": "English folk tale", "es": "Cuento popular inglés",
                               "fr": "Conte populaire anglais", "de": "Englisches Volksmärchen",
-                              "it": "Fiaba popolare inglese", "pt": "Conto popular inglês"},
+                              "it": "Fiaba popolare inglese", "pt": "Conto popular inglês",
+                              "nl": "Engels volksverhaal", "pl": "Angielska baśń ludowa",
+                              "sv": "Engelsk folksaga"},
     "Cuento popular estadounidense": {"en": "American folk tale", "es": "Cuento popular estadounidense",
                                       "fr": "Conte populaire américain", "de": "Amerikanisches Volksmärchen",
-                                      "it": "Fiaba popolare americana", "pt": "Conto popular americano"},
+                                      "it": "Fiaba popolare americana", "pt": "Conto popular americano",
+                                      "nl": "Amerikaans volksverhaal", "pl": "Amerykańska opowieść ludowa",
+                                      "sv": "Amerikansk folksaga"},
 }
 
-CHAPTER = re.compile(r"^(?:chapter|capítulo|chapitre|kapitel|capitolo)\s+\d+\s*:\s*(.+)$", re.I)
-END_LINES = {"the end", "fin", "ende", "fine", "fim"}
+CHAPTER = re.compile(r"^(?:chapter|capítulo|chapitre|kapitel|capitolo|hoofdstuk|rozdział)\s+\d+\s*:\s*(.+)$", re.I)
+END_LINES = {"the end", "fin", "ende", "fine", "fim", "einde", "koniec", "slut"}
 
 
 def _author(original, lang):

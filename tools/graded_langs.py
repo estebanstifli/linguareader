@@ -51,6 +51,27 @@ LANGS = {
         "chapter": "Capítulo N: Título", "end": "Fim",
         "readability": "Flesch-Martins (> 75 muito fácil, 50-75 fácil)",
     },
+    "nl": {
+        "name": "neerlandés", "title": "Vertalingen in het Nederlands (nl)",
+        "variety": "neerlandés estándar de los Países Bajos (*jij* en familia y amigos, *u* con desconocidos y autoridades)",
+        "dialogue": "comillas “…” (nunca \" ni « » ni „); inciso con `, zegt hij.`",
+        "chapter": "Hoofdstuk N: Titel", "end": "Einde",
+        "readability": "Flesch-Douma (> 80 zeer makkelijk, 60-80 makkelijk)",
+    },
+    "pl": {
+        "name": "polaco", "title": "Tłumaczenia na język polski (pl)",
+        "variety": "polaco estándar (*ty* en familia y amigos, *pan / pani* con desconocidos)",
+        "dialogue": "pauza (`—`) al inicio del diálogo: `— Siedem! — mówi. — Siedem za jednym zamachem!`; citas y carteles con „…”",
+        "chapter": "Rozdział N: Tytuł", "end": "Koniec",
+        "readability": "FOG-PL (< 7 bardzo łatwy, 7-9 łatwy, 10-12 średni)",
+    },
+    "sv": {
+        "name": "sueco", "title": "Översättningar till svenska (sv)",
+        "variety": "sueco estándar de Suecia (*du* con casi todos; *ni* de cortesía solo con reyes y nobles)",
+        "dialogue": "comillas suecas ”…” (la misma comilla al abrir y cerrar; nunca \" ni « » ni „ “)",
+        "chapter": "Kapitel N: Titel", "end": "Slut",
+        "readability": "LIX (< 30 mycket lätt, 30-40 lätt, 40-50 medel)",
+    },
 }
 
 # Los 16 libros con los que arranca cada idioma nuevo (slugs ingleses, en orden de trabajo).
