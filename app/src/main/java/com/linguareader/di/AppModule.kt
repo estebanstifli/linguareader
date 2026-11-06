@@ -19,6 +19,7 @@ import com.linguareader.core.narration.NarrationSelector
 import com.linguareader.core.reader.NarratedReaderAudioController
 import com.linguareader.core.reader.ReaderAudioController
 import com.linguareader.core.reader.RenderedReaderAudioController
+import com.linguareader.core.reader.SentenceClipPipeline
 import com.linguareader.core.reader.SpeechPauses
 import com.linguareader.core.reader.StreamingReaderAudioController
 import com.linguareader.core.reader.SwitchingReaderAudioController
@@ -44,30 +45,35 @@ import com.linguareader.data.prefs.UserPreferencesRepository
 import com.linguareader.data.prefs.userPreferencesStore
 import com.linguareader.data.scan.DocumentScanner
 import com.linguareader.data.scan.ScanSettingsRepository
-import com.linguareader.engine.alignment.AlignmentModelManager
-import com.linguareader.engine.alignment.Wav2Vec2ClipAligner
+import com.linguareader.engine.alignment.RetiredAlignmentModels
 import com.linguareader.engine.audio.AndroidAudioFocusGate
 import com.linguareader.engine.audio.CuePlayer
 import com.linguareader.core.reader.LazyClipPlayer
 import com.linguareader.engine.audio.Media3ClipPlayer
 import com.linguareader.engine.importing.PdfExtractor
-import com.linguareader.engine.packs.GithubPackSource
+import com.linguareader.engine.packs.PackSource
 import com.linguareader.engine.packs.LibraryPackManager
 import com.linguareader.engine.packs.VoicePackManager
 import com.linguareader.engine.supertonic.AndroidMemoryProbe
 import com.linguareader.engine.supertonic.SupertonicEngine
 import com.linguareader.engine.supertonic.SupertonicModelManager
 import com.linguareader.engine.text.AndroidIcuNumberSpeller
+import com.linguareader.engine.audio.BookAudioService
 import com.linguareader.engine.translation.BookTranslationService
 import com.linguareader.engine.translation.MlKitTranslationEngine
 import com.linguareader.engine.translation.TranslationModelManager
 import com.linguareader.engine.tts.AndroidTtsEngine
 import com.linguareader.engine.tts.SystemTtsAutoSelect
 import com.linguareader.importer.ExtractorRegistry
+import com.linguareader.ui.catalog.BookDetailViewModel
 import com.linguareader.ui.catalog.BookEditViewModel
 import com.linguareader.ui.catalog.CatalogViewModel
 import com.linguareader.ui.catalog.DeviceDocumentsViewModel
 import com.linguareader.ui.catalog.ImportViewModel
+import com.linguareader.data.catalog.OnlineCatalog
+import com.linguareader.data.catalog.LingoOnlineCatalog
+import com.linguareader.data.catalog.OnlineBookImporter
+import com.linguareader.ui.library.OnlineLibraryViewModel
 import com.linguareader.ui.onboarding.OnboardingViewModel
 import com.linguareader.ui.reader.OriginalPdfViewModel
 import com.linguareader.ui.reader.ReaderViewModel
@@ -75,14 +81,15 @@ import com.linguareader.ui.settings.LibraryViewModel
 import com.linguareader.ui.settings.PacksViewModel
 import com.linguareader.ui.settings.ScanViewModel
 import com.linguareader.ui.settings.SettingsViewModel
-import com.linguareader.ui.settings.TranslationViewModel
+import com.linguareader.ui.languages.LanguageInstaller
+import com.linguareader.ui.languages.LanguagesViewModel
 import com.linguareader.ui.settings.TtsSettingsViewModel
-import com.linguareader.ui.settings.WordAlignmentViewModel
 import com.linguareader.ui.viewer.PdfViewerViewModel
 import com.linguareader.ui.vocabulary.VocabularyViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.map
 import okio.Path.Companion.toOkioPath
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.bind
@@ -115,6 +122,8 @@ class EngineSettingsHolder {
 
 /** Datos: base de datos Room (módulo `:data`), preferencias, libros incluidos e importados, biblioteca, escaneo. */
 val dataModule = module {
+    single<OnlineCatalog> { LingoOnlineCatalog() }
+    single { OnlineBookImporter(androidContext(), get(), get()) }
     /** Ámbito de la aplicación para trabajos que sobreviven a las pantallas (descargas, escaneo, pretraducción). */
     single<CoroutineScope> { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
 
@@ -144,7 +153,7 @@ val dataModule = module {
     singleOf(::CoverThumbnails)
     single { LibraryRepository(get(), get(), BookDeleter { get<BookImportService>().delete(it) }) }
     singleOf(::DocumentScanner)
-    single { GithubPackSource(BuildConfig.PACKS_REPO, BuildConfig.PACKS_TAG) }
+    single { PackSource(BuildConfig.PACKS_BASE_URL, BuildConfig.PACKS_TAG) }
     single {
         LibraryPackManager(
             FileSystem.SYSTEM, filesDir(), cacheDir(), get(), get(), get(), BuildConfig.LIBRARY_TAG,
@@ -174,20 +183,17 @@ val speechEngineModule = module {
     singleOf(::AndroidTtsEngine) { bind<StreamingSpeechEngine>() }
 }
 
-/** Motores TTS, alineación y fachada del lector. Un motor futuro = otro controlador + entrada en el registro. */
+/** Motores TTS y fachada del lector. Los tiempos vienen de cada sintetizador. */
 val ttsEngineModule = module {
     single { SupertonicModelManager(FileSystem.SYSTEM, filesDir(), get(), log = { Log.i("SupertonicModel", it) }) }
     single {
-        AlignmentModelManager(
-            FileSystem.SYSTEM, filesDir(), get(), get(),
-            catalogJson = { assetText("aligners/catalog.json") },
-            log = { Log.i("AlignerModels", it) },
-        )
+        RetiredAlignmentModels(FileSystem.SYSTEM, filesDir(), log = { Log.i("RetiredAligners", it) })
     }
     single {
         VoicePackManager(
             FileSystem.SYSTEM, filesDir(), cacheDir(), get(), get(), get(),
             catalogJson = { assetText("packs/voices.json") },
+            learningLanguage = get<UserPreferencesRepository>().preferences.map { it.readingLanguage },
             log = { Log.w("VoicePack", it) },
         )
     }
@@ -202,17 +208,15 @@ val ttsEngineModule = module {
         SupertonicEngine(
             modelDir = { manager.modelDir },
             steps = { settings.supertonicSteps },
+            // Mirrored Android x86_64 measurements: two threads were ~13% faster than four,
+            // with identical PCM. Keep the existing four-thread cap on unmeasured ARM phones.
+            intraOpThreads = minOf(
+                if (android.os.Build.SUPPORTED_ABIS.orEmpty().firstOrNull() == "x86_64") 2 else 4,
+                Runtime.getRuntime().availableProcessors().coerceAtLeast(1),
+            ),
             memory = AndroidMemoryProbe,
             log = { Log.i("Supertonic", it) },
         ).also { engine -> manager.beforeDelete = { engine.release() } }
-    }
-
-    single {
-        val manager = get<AlignmentModelManager>()
-        Wav2Vec2ClipAligner(
-            modelFor = { language -> manager.filesFor(language) },
-            log = { Log.i("WordAlign", it) },
-        ).also { aligner -> manager.beforeDelete = { aligner.release() } }
     }
 
     single {
@@ -229,14 +233,39 @@ val ttsEngineModule = module {
 
     single { TtsEngineRegistry(listOf(get<StreamingSpeechEngine>(), get<CachingSpeechSynthesizer>())) }
 
+    /** Frase → WAV → tiempos por palabra con Supertonic; lo comparten el lector y la generación de libros enteros. */
+    single {
+        val settings = get<EngineSettingsHolder>()
+        SentenceClipPipeline(
+            synthesizer = get<CachingSpeechSynthesizer>(),
+            parameters = { mapOf("steps" to settings.supertonicSteps.toString()) },
+            normalizer = speechNormalizer(settings),
+        )
+    }
+
     single { switchingController(androidContext(), get(), get(), get(), get(), get(), get(), get()) } binds
         arrayOf(ReaderAudioController::class, TtsEngineSelector::class, NarrationSelector::class)
+
+    /** Audio de un libro entero en segundo plano; espera mientras el lector reproduce. */
+    single {
+        val reader = get<ReaderAudioController>()
+        BookAudioService(
+            books = get<BookRepository>(), pipeline = get(), cache = get(), scope = get(),
+            busy = { reader.playbackState.map { it.isPlaying } },
+            log = { Log.i("BookAudio", it) },
+        )
+    }
 }
 
+private fun speechNormalizer(settings: EngineSettingsHolder) =
+    SwitchableNormalizer({ settings.normalizeSpeech }, RuleBasedSpeechNormalizer(AndroidIcuNumberSpeller))
+
 val viewModelModule = module {
+    viewModelOf(::OnlineLibraryViewModel)
     viewModelOf(::CatalogViewModel)
     viewModelOf(::ImportViewModel)
     viewModelOf(::BookEditViewModel)
+    viewModelOf(::BookDetailViewModel)
     viewModelOf(::DeviceDocumentsViewModel)
     viewModelOf(::OnboardingViewModel)
     viewModelOf(::ReaderViewModel)
@@ -244,8 +273,8 @@ val viewModelModule = module {
     viewModelOf(::PdfViewerViewModel)
     viewModelOf(::SettingsViewModel)
     viewModelOf(::TtsSettingsViewModel)
-    viewModelOf(::WordAlignmentViewModel)
-    viewModelOf(::TranslationViewModel)
+    viewModelOf(::LanguagesViewModel)
+    singleOf(::LanguageInstaller)
     viewModelOf(::LibraryViewModel)
     viewModelOf(::PacksViewModel)
     viewModelOf(::ScanViewModel)
@@ -262,20 +291,18 @@ private fun switchingController(
     supertonic: CachingSpeechSynthesizer,
     registry: TtsEngineRegistry,
     settings: EngineSettingsHolder,
-    aligner: Wav2Vec2ClipAligner,
     cache: FileAudioCache,
+    supertonicPipeline: SentenceClipPipeline,
 ): SwitchingReaderAudioController {
     val main = Dispatchers.Main.immediate
-    val normalizer = SwitchableNormalizer({ settings.normalizeSpeech }, RuleBasedSpeechNormalizer(AndroidIcuNumberSpeller))
+    val normalizer = speechNormalizer(settings)
     val rendered = RenderedReaderAudioController(
         synthesizer = supertonic,
         player = LazyClipPlayer { Media3ClipPlayer(context, handleAudioFocus = true) },
         snippetPlayer = LazyClipPlayer { Media3ClipPlayer(context, handleAudioFocus = false) },
         dispatcher = main,
-        parameters = { mapOf("steps" to settings.supertonicSteps.toString()) },
         pauses = { settings.pauses },
-        aligner = aligner,
-        normalizer = normalizer,
+        pipeline = supertonicPipeline,
     )
     // Android TTS lee con el mismo flujo que Supertonic (frase a frase a la caché de disco, con los tiempos por
     // palabra que da el propio motor al generar). Un motor que solo sabe reproducir (el falso de los tests) sigue
@@ -289,7 +316,6 @@ private fun switchingController(
             // El tono forma parte de la clave de caché: otro tono es otro audio.
             parameters = { AndroidTtsEngine.pitchParameters(settings.ttsPitch) },
             pauses = { settings.pauses },
-            aligner = aligner, // solo si el motor instalado no da marcas y hay modelo de alineación
             normalizer = normalizer,
         )
     } ?: StreamingReaderAudioController(streaming, focus, main) { settings.pauses }

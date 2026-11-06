@@ -114,6 +114,8 @@ fun CatalogScreen(
     onOpenSettings: () -> Unit,
     onEditBook: (String) -> Unit,
     onOpenDeviceDocuments: () -> Unit = {},
+    onOpenLibrary: (String) -> Unit = {},
+    onOpenLanguages: () -> Unit = {},
     onViewOriginal: (bookId: String, title: String) -> Unit = { _, _ -> },
     onViewPdf: (uri: String) -> Unit = {},
     vm: CatalogViewModel = koinViewModel(),
@@ -124,7 +126,6 @@ fun CatalogScreen(
     val foundDocuments by vm.foundDocuments.collectAsStateWithLifecycle()
     val importState by importVm.state.collectAsStateWithLifecycle()
     var pendingDelete by remember { mutableStateOf<CatalogItem?>(null) }
-    var chooseMode by remember { mutableStateOf<CatalogItem?>(null) }
     var newCollectionFor by remember { mutableStateOf<String?>(null) }
     var showSearch by remember { mutableStateOf(false) }
     val drawer = rememberDrawerState(DrawerValue.Closed)
@@ -141,7 +142,6 @@ fun CatalogScreen(
         picker.launch(arrayOf("*/*"))
     }
     var importMenu by remember { mutableStateOf(false) }
-    var askUrl by remember { mutableStateOf(false) }
     var whatsAppHelp by remember { mutableStateOf(false) }
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
@@ -154,14 +154,6 @@ fun CatalogScreen(
             },
             onSearch = { whatsAppHelp = false; pick(PickerStart.WHATSAPP) },
             onDismiss = { whatsAppHelp = false },
-        )
-    }
-
-    if (askUrl) {
-        UrlDialog(
-            initial = clipboard.getText()?.text?.trim()?.takeIf { it.startsWith("http://") || it.startsWith("https://") }.orEmpty(),
-            onConfirm = { url -> askUrl = false; importVm.start(ImportRequest.WebPage(url)) },
-            onDismiss = { askUrl = false },
         )
     }
 
@@ -186,18 +178,6 @@ fun CatalogScreen(
         )
     }
 
-    chooseMode?.let { item ->
-        OpenModeSheet(
-            item = item,
-            onChoose = { mode, remember ->
-                chooseMode = null
-                if (remember) vm.setOriginalOpenMode(mode)
-                if (mode == OriginalOpenMode.ORIGINAL) onViewOriginal(item.summary.id, item.summary.title) else onOpenBook(item.summary.id)
-            },
-            onDismiss = { chooseMode = null },
-        )
-    }
-
     pendingDelete?.let { item ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
@@ -219,6 +199,8 @@ fun CatalogScreen(
                 onVocabulary = { scope.launch { drawer.close() }; onOpenVocabulary() },
                 onSettings = { scope.launch { drawer.close() }; onOpenSettings() },
                 onDeviceDocuments = { scope.launch { drawer.close() }; onOpenDeviceDocuments() },
+                onLibrary = { scope.launch { drawer.close() }; onOpenLibrary("") },
+                onLanguages = { scope.launch { drawer.close() }; onOpenLanguages() },
             )
         },
     ) {
@@ -253,6 +235,10 @@ fun CatalogScreen(
                             }
                             DropdownMenu(expanded = importMenu, onDismissRequest = { importMenu = false }) {
                                 DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.online_library)) },
+                                    onClick = { importMenu = false; onOpenLibrary((state.section as? LibrarySection.Learn)?.language.orEmpty()) },
+                                )
+                                DropdownMenuItem(
                                     text = { Text(stringResource(R.string.catalog_import_from_file)) },
                                     onClick = { importMenu = false; pick(PickerStart.ANY) },
                                 )
@@ -263,10 +249,6 @@ fun CatalogScreen(
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.catalog_import_from_telegram)) },
                                     onClick = { importMenu = false; pick(PickerStart.TELEGRAM) },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.catalog_import_from_web)) },
-                                    onClick = { importMenu = false; askUrl = true },
                                 )
                                 // El portapapeles se lee solo al pulsar: leerlo al abrir el menú hace que
                                 // Android avise de que la app ha accedido a él.
@@ -295,7 +277,7 @@ fun CatalogScreen(
                     search = state.filters.search,
                     language = searchLanguage(state),
                     // En «Aprender otros idiomas» el idioma ya se elige con sus chips; en «Aprender inglés»… es fijo.
-                    languages = if (state.section == LibrarySection.LearnOther) emptyList() else state.sectionLanguages,
+                    languages = state.sectionLanguages,
                     resultCount = state.items.size,
                     onSearch = vm::setSearch,
                     onLanguage = vm::setOtherLanguage,
@@ -312,16 +294,8 @@ fun CatalogScreen(
                         onClear = vm::clearSearch,
                     )
                 }
-                val onOpen = { item: CatalogItem ->
-                    if (!item.trashed) {
-                        when {
-                            item.original?.viewable != true -> onOpenBook(item.summary.id)
-                            state.originalOpenMode == OriginalOpenMode.READER -> onOpenBook(item.summary.id)
-                            state.originalOpenMode == OriginalOpenMode.ORIGINAL -> onViewOriginal(item.summary.id, item.summary.title)
-                            else -> chooseMode = item
-                        }
-                    }
-                }
+                // Pulsar un libro abre su ficha (datos, traducción y audio en segundo plano, «Leer» / «Leer y escuchar»).
+                val onOpen = { item: CatalogItem -> if (!item.trashed) onOpenBook(item.summary.id) }
                 val onShare = { item: CatalogItem ->
                     scope.launch {
                         val uri = vm.exportForSharing(item.summary.id) ?: return@launch
@@ -428,16 +402,14 @@ fun CatalogScreen(
     }
 }
 
-/** Idioma elegido en la búsqueda (fuera de «Aprender otros idiomas», donde es el de sus chips). */
-private fun searchLanguage(state: CatalogUiState): String? =
-    state.filters.language.takeIf { state.section != LibrarySection.LearnOther }
+/** Idioma elegido en la búsqueda. */
+private fun searchLanguage(state: CatalogUiState): String? = state.filters.language
 
 @Composable
 private fun sectionTitle(section: LibrarySection, shelves: List<Shelf>): String = when (section) {
     LibrarySection.Reading -> stringResource(R.string.section_reading)
     LibrarySection.Books -> stringResource(R.string.section_books)
     is LibrarySection.Learn -> stringResource(R.string.section_learn, Languages.nameInSentence(section.language))
-    LibrarySection.LearnOther -> stringResource(R.string.section_learn_other)
     is LibrarySection.OnShelf -> shelves.firstOrNull { it.id == section.id }?.let { Labels.shelf(it) } ?: stringResource(R.string.section_books)
     LibrarySection.Collections -> stringResource(R.string.section_collections)
     LibrarySection.Trash -> stringResource(R.string.section_trash)
@@ -457,7 +429,7 @@ private fun sectionEmptyMessage(section: LibrarySection): String = stringResourc
         LibrarySection.Trash -> R.string.catalog_empty_trash
         is LibrarySection.OnShelf -> R.string.catalog_empty_shelf
         LibrarySection.Collections -> R.string.catalog_empty_collections
-        is LibrarySection.Learn, LibrarySection.LearnOther -> R.string.catalog_empty_language
+        is LibrarySection.Learn -> R.string.catalog_empty_language
         else -> R.string.catalog_empty_generic
     }
 )
@@ -470,6 +442,8 @@ private fun LibraryDrawer(
     onVocabulary: () -> Unit,
     onSettings: () -> Unit,
     onDeviceDocuments: () -> Unit,
+    onLibrary: () -> Unit,
+    onLanguages: () -> Unit,
 ) {
     ModalDrawerSheet {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 12.dp)) {
@@ -494,11 +468,18 @@ private fun LibraryDrawer(
             fun res(id: Int): @Composable () -> Unit = { Icon(painterResource(id), contentDescription = null) }
             item(LibrarySection.Reading, stringResource(R.string.section_reading), res(R.drawable.ic_history))
             item(LibrarySection.Books, stringResource(R.string.section_books), res(R.drawable.ic_library_books))
+            NavigationDrawerItem(
+                label = { Text(stringResource(R.string.online_library)) }, icon = res(R.drawable.ic_language),
+                selected = false, onClick = onLibrary, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+            )
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
-            LibrarySection.LEARN_LANGUAGES.forEach { tag ->
+            state.learningLanguages.forEach { tag ->
                 item(LibrarySection.Learn(tag), stringResource(R.string.section_learn, Languages.nameInSentence(tag))) { LanguageBadge(tag) }
             }
-            item(LibrarySection.LearnOther, stringResource(R.string.section_learn_other), res(R.drawable.ic_language))
+            NavigationDrawerItem(
+                label = { Text(stringResource(R.string.section_learn_other)) }, icon = res(R.drawable.ic_add),
+                selected = false, onClick = onLanguages, modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+            )
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             state.systemShelves.forEach { shelf ->
                 val icon = when (shelf.kind) {
@@ -571,16 +552,6 @@ private fun SubFilterBar(state: CatalogUiState, vm: CatalogViewModel) {
     }
     when (state.section) {
         is LibrarySection.Learn -> { levels(); translateTo() }
-        LibrarySection.LearnOther -> {
-            if (state.otherLanguages.size > 1) chips {
-                FilterChip(selected = f.language == null, onClick = { vm.setOtherLanguage(null) }, label = { Text(stringResource(R.string.catalog_all_languages)) })
-                state.otherLanguages.forEach { tag ->
-                    FilterChip(selected = f.language == tag, onClick = { vm.setOtherLanguage(tag) }, label = { Text(Languages.name(tag)) })
-                }
-            }
-            levels()
-            translateTo()
-        }
         LibrarySection.Collections -> if (state.collections.isNotEmpty()) {
             chips {
                 FilterChip(selected = f.collectionId == null, onClick = { vm.setCollection(null) }, label = { Text(stringResource(R.string.catalog_all_collections)) })
@@ -732,7 +703,7 @@ private fun BookCover(
 
 /** Portada para libros sin imagen: color estable por título y el título en grande, como una cubierta de tela. */
 @Composable
-private fun GeneratedCover(title: String, language: String) {
+internal fun GeneratedCover(title: String, language: String) {
     val palette = listOf(
         Color(0xFF2E5E6E), Color(0xFF7A3E3E), Color(0xFF4F6B3A), Color(0xFF5B4A7A),
         Color(0xFF8A6A2F), Color(0xFF3D4F7A), Color(0xFF6E3F5E), Color(0xFF2F6B5B),
@@ -824,7 +795,7 @@ sealed interface TranslationAction {
 }
 
 @Composable
-private fun TranslationPausedRow(bookId: String, pause: ImportedBookRepository.TranslationPause, onAction: (TranslationAction) -> Unit) {
+internal fun TranslationPausedRow(bookId: String, pause: ImportedBookRepository.TranslationPause, onAction: (TranslationAction) -> Unit) {
     val language = Languages.nameInSentence(pause.target)
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         val fraction = if (pause.total == 0) 0f else pause.done.toFloat() / pause.total
@@ -839,7 +810,7 @@ private fun TranslationPausedRow(bookId: String, pause: ImportedBookRepository.T
 }
 
 @Composable
-private fun TranslationJobRow(bookId: String, job: BookTranslationState, onAction: (TranslationAction) -> Unit) {
+internal fun TranslationJobRow(bookId: String, job: BookTranslationState, onAction: (TranslationAction) -> Unit) {
     val language = Languages.nameInSentence(job.target)
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         when (job) {

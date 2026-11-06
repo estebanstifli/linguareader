@@ -7,9 +7,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.linguareader.data.content.PendingImports
+import com.linguareader.ui.catalog.BookDetailScreen
 import com.linguareader.ui.catalog.BookEditScreen
 import com.linguareader.ui.catalog.CatalogScreen
 import com.linguareader.ui.catalog.DeviceDocumentsScreen
+import com.linguareader.ui.languages.LanguagesScreen
+import com.linguareader.ui.library.OnlineLibraryScreen
 import com.linguareader.ui.reader.ReaderScreen
 import com.linguareader.ui.settings.SettingsPage
 import com.linguareader.ui.settings.SettingsScreen
@@ -18,9 +21,17 @@ import com.linguareader.ui.vocabulary.VocabularyScreen
 import kotlinx.serialization.Serializable
 
 @Serializable object CatalogRoute
-/** [original]: abrir directamente el PDF original (con voz y traducción) en lugar del texto. */
-@Serializable data class ReaderRoute(val bookId: String, val original: Boolean = false)
+@Serializable data class OnlineLibraryRoute(val language: String = "")
+/**
+ * [original]: abrir directamente el PDF original (con voz y traducción) en lugar del texto.
+ * [listen]: «Leer y escuchar»: empezar a leer en voz alta nada más abrir.
+ */
+@Serializable data class ReaderRoute(val bookId: String, val original: Boolean = false, val listen: Boolean = false)
+/** Ficha del libro: datos, traducción y audio en segundo plano, y los botones para leerlo. */
+@Serializable data class BookDetailRoute(val bookId: String)
 @Serializable object VocabularyRoute
+/** Idiomas que se aprenden y nativo («Aprender otros idiomas»; la misma pantalla que Ajustes › Idiomas). */
+@Serializable object LanguagesRoute
 /** [page]: nombre de una [SettingsPage] para abrir directamente esa subpantalla; null = índice. */
 @Serializable data class SettingsRoute(val page: String? = null)
 @Serializable object DeviceDocumentsRoute
@@ -38,14 +49,27 @@ fun AppNavHost(pendingImports: PendingImports) {
     NavHost(navController = nav, startDestination = CatalogRoute) {
         composable<CatalogRoute> {
             CatalogScreen(
-                onOpenBook = { nav.navigate(ReaderRoute(it)) },
+                onOpenBook = { nav.navigate(BookDetailRoute(it)) },
                 onOpenVocabulary = { nav.navigate(VocabularyRoute) },
                 onOpenSettings = { nav.navigate(SettingsRoute()) },
                 onEditBook = { nav.navigate(BookEditRoute(it)) },
                 onOpenDeviceDocuments = { nav.navigate(DeviceDocumentsRoute) },
+                onOpenLibrary = { nav.navigate(OnlineLibraryRoute(it)) },
+                onOpenLanguages = { nav.navigate(LanguagesRoute) },
                 // El original de un libro importado se abre en el lector: con voz, resaltado y traducción al tocar.
                 onViewOriginal = { id, _ -> nav.navigate(ReaderRoute(id, original = true)) },
                 onViewPdf = { uri -> nav.navigate(PdfViewerRoute(uri = uri)) },
+            )
+        }
+        composable<OnlineLibraryRoute> {
+            OnlineLibraryScreen(onBack = { nav.popBackStack() }, onOpenBook = { nav.navigate(BookDetailRoute(it)) })
+        }
+        composable<BookDetailRoute> {
+            BookDetailScreen(
+                onBack = { nav.popBackStack() },
+                onRead = { id, listen -> nav.navigate(ReaderRoute(id, listen = listen)) },
+                onViewOriginal = { id, _ -> nav.navigate(ReaderRoute(id, original = true)) },
+                onOpenVoiceSettings = { nav.navigate(SettingsRoute(SettingsPage.VOICE.name)) },
             )
         }
         composable<ReaderRoute> { entry ->
@@ -56,6 +80,7 @@ fun AppNavHost(pendingImports: PendingImports) {
             )
         }
         composable<VocabularyRoute> { VocabularyScreen(onBack = { nav.popBackStack() }) }
+        composable<LanguagesRoute> { LanguagesScreen(onBack = { nav.popBackStack() }) }
         composable<SettingsRoute> { entry ->
             val page = entry.toRoute<SettingsRoute>().page?.let { name -> SettingsPage.entries.firstOrNull { it.name == name } }
             SettingsScreen(onBack = { nav.popBackStack() }, onOpenDocuments = {

@@ -21,8 +21,13 @@ enum class AppPurpose { READ, LEARN, BOTH }
 enum class ScreenOrientation { PORTRAIT, LANDSCAPE, AUTO }
 
 data class UserPreferences(
-    /** Idioma que se aprende (elegido en la primera apertura); idioma por defecto de lo importado. null = sin elegir. */
+    /**
+     * Idioma principal que se aprende (el primero de [learningLanguages]); idioma por defecto de lo importado y de la
+     * voz. null = sin elegir.
+     */
     val readingLanguage: String? = null,
+    /** Idiomas que se aprenden, en el orden en que se eligieron (cada uno tiene su apartado en el menú). */
+    val learningLanguages: List<String> = emptyList(),
     /** Idioma nativo del usuario, al que se traduce. Por defecto, el del móvil (lo resuelve el repositorio). */
     val translationLanguage: String = "es",
     val displayMode: DisplayMode = DisplayMode.TRANSLATION_ON_TAP,
@@ -84,6 +89,10 @@ data class UserPreferences(
     val textJustification: TextJustification = TextJustification.JUSTIFIED_HYPHENATED,
     /** Seguir leyendo en voz alta con la pantalla bloqueada (servicio en primer plano con notificación). */
     val readWithScreenOff: Boolean = true,
+    /** Seguir generando el audio de un libro (ficha) con la pantalla apagada: servicio en primer plano con notificación. */
+    val generateAudioScreenOff: Boolean = true,
+    /** Ya se preguntó, al pulsar «Generar audio», si seguir con la pantalla apagada («No volver a preguntar»). */
+    val generateAudioScreenOffChosen: Boolean = false,
     /** Impedir que la pantalla se apague sola mientras el lector está abierto (el botón de encendido sigue funcionando). */
     val keepScreenOn: Boolean = true,
     /** En horizontal, en pantallas anchas (tablet), dos páginas una junto a otra como un libro abierto. */
@@ -93,6 +102,12 @@ data class UserPreferences(
     /** Al abrir un documento que se puede ver con su formato (PDF): preguntar, modo lectura o ver el original. */
     val originalOpenMode: OriginalOpenMode = OriginalOpenMode.ASK,
 ) {
+    /** Deja [learningLanguages] como lista de idiomas que se aprenden y [readingLanguage] como su primero. */
+    fun withLearningLanguages(languages: List<String>): UserPreferences {
+        val list = languages.distinct()
+        return copy(learningLanguages = list, readingLanguage = list.firstOrNull())
+    }
+
     companion object {
         const val MIN_SPEECH_RATE = 0.5f
         const val MAX_SPEECH_RATE = 1.5f

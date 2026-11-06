@@ -57,7 +57,7 @@
 
     <!-- Biblioteca (ui/catalog/CatalogScreen.kt) -->
     <string name="section_reading">Leyendo ahora</string>
-    <string name="section_books">Libros</string>
+    <string name="section_books">Mis libros</string>
     <string name="section_learn">Aprender %1$s</string>
     <string name="section_learn_other">Aprender otros idiomas</string>
     <string name="section_collections">Colecciones</string>
@@ -419,11 +419,11 @@
     <string name="player_speed">Velocidad %1$s</string>
     <string name="player_no_audio">Sin audio</string>
     <string name="player_generating_audio">Generando audio…</string>
-    <string name="player_sync_supertonic_word">Voz sintética (Supertonic) · sincronía por palabra (alineación forzada)</string>
-    <string name="player_sync_supertonic_sentence">Voz sintética (Supertonic) · sincronía por frase: el motor no da tiempos por palabra</string>
-    <string name="player_sync_word">Sincronía por palabra (eventos del motor)</string>
-    <string name="player_sync_sentence_here">Sincronía por frase en esta frase</string>
-    <string name="player_sync_sentence">Sincronía por frase (el motor no envía tiempos por palabra)</string>
+    <string name="player_sync_supertonic_word">Voz sintética · resaltado por palabra</string>
+    <string name="player_sync_supertonic_sentence">Voz sintética · resaltado por frase</string>
+    <string name="player_sync_word">Resaltado por palabra</string>
+    <string name="player_sync_sentence_here">Resaltado por frase</string>
+    <string name="player_sync_sentence">Resaltado por frase</string>
     <string name="player_ready">Listo</string>
     <string name="player_sentence_status">Frase %1$d de %2$d · %3$s</string>
     <string name="player_voice">Voz</string>
@@ -583,7 +583,7 @@
     <string name="voice_quality_low">Calidad baja</string>
     <string name="tts_engine_system">Voz del sistema (Android TTS)</string>
     <string name="tts_engine_system_detail">Sin descargas. Resaltado por palabra si el motor instalado envía eventos.</string>
-    <string name="tts_engine_supertonic_detail">Voz neuronal sin conexión en la CPU del móvil. Descarga única de %1$s. Resaltado por frase; por palabra con un modelo de alineación opcional (más abajo).</string>
+    <string name="tts_engine_supertonic_detail">Voz neuronal sin conexión en la CPU del móvil. Descarga única de %1$s. Incluye resaltado por palabra. Si no hay tiempos disponibles, se resalta la frase.</string>
     <string name="tts_model_title">Modelo Supertonic 3</string>
     <string name="tts_model_wifi_hint">Se recomienda Wi‑Fi. Se guarda en el almacenamiento de la app y se borra al desinstalarla.</string>
     <string name="tts_model_verifying">Verificando integridad (sha256)…</string>
@@ -609,13 +609,6 @@
     <string name="tts_metrics_steps">Pasos: %1$d · Voz %2$s · Memoria del proceso (PSS): %3$s MB</string>
     <string name="tts_metrics_average">Media de RTF en %1$d síntesis: %2$s</string>
 
-    <!-- Sincronía por palabra (ui/settings/WordAlignmentSection.kt) -->
-    <string name="alignment_title">Sincronía por palabra (voz Supertonic)</string>
-    <string name="alignment_intro">Supertonic no entrega tiempos por palabra. Con un modelo de alineación instalado para el idioma de lectura, la app alinea cada frase en segundo plano y resalta la palabra que suena. Sin modelo, o si la alineación no es fiable, se resalta la frase entera. Opcional; se usa solo con la voz Supertonic.</string>
-    <string name="alignment_current_language">%1$s · idioma de lectura actual</string>
-    <string name="alignment_model_license">%1$s · licencia %2$s</string>
-    <string name="alignment_non_commercial">Licencia no comercial: solo para uso personal y no comercial.</string>
-    <string name="alignment_footer">Los modelos son redes wav2vec2 de Meta (%1$s), convertidas a ONNX y cuantizadas a int8 con el script del proyecto. Licencias: %2$s. Se guardan en el almacenamiento de la app.</string>
 
     <!-- Bibliotecas (ui/settings/LibrarySection.kt) -->
     <string name="libraries_title">Bibliotecas de lecturas graduadas</string>
@@ -628,9 +621,9 @@
 
     <!-- Paquetes (ui/settings/PacksSection.kt) -->
     <string name="packs_title">Descarga de paquetes</string>
-    <string name="packs_intro">Voces pregeneradas y modelos de alineación se descargan de github.com/%1$s (release %2$s). Es público: no hace falta ninguna cuenta ni token.</string>
+    <string name="packs_intro">Las voces pregeneradas y las bibliotecas se descargan de %1$s. No hace falta ninguna cuenta ni token.</string>
     <string name="packs_voices_title">Paquete de voces (Supertonic)</string>
-    <string name="packs_voices_detail">Muestras de cada voz y frases de «preparando la lectura» ya sintetizadas. Se descarga solo al instalar el modelo.</string>
+    <string name="packs_voices_detail">Muestras de cada voz y frases de «preparando la lectura» ya sintetizadas, un paquete por idioma (4–7 MB). El del idioma que aprendes se descarga solo al instalar el modelo; los demás, al probar una voz en ese idioma.</string>
 
     <!-- Traducción (ui/settings/TranslationSection.kt) -->
     <string name="translation_wifi_only">Descargar solo con Wi-Fi</string>
@@ -673,4 +666,96 @@
     <string name="about_licenses_intro">Esta app usa los siguientes componentes. Toca uno para leer su licencia.</string>
     <string name="about_licenses_downloadable">Descargas opcionales</string>
     <string name="about_content_licenses">Lecturas graduadas: adaptaciones propias de obras de dominio público. Los libros que importas se quedan solo en tu dispositivo.</string>
+
+    <!-- Online library -->
+    <string name="online_library">Biblioteca</string>
+    <string name="online_add_title">Añadir a Mis libros</string>
+    <string name="online_add_message">¿Añadir «%1$s» a Mis libros? El libro se descargará para leer sin conexión.</string>
+    <string name="online_add_read">Añadir y leer</string>
+    <string name="online_add_only">Solo añadir</string>
+    <string name="online_book_details">Ficha del libro</string>
+    <string name="online_downloading">Descargando y preparando el libro…</string>
+    <string name="online_already_added">Guardado en Mis libros</string>
+    <string name="online_read">Leer ahora</string>
+    <string name="online_import_error">No se pudo añadir el libro. Comprueba la conexión e inténtalo de nuevo.</string>
+    <string name="online_unavailable">No hay una edición disponible para descargar.</string>
+    <string name="online_summary">Resumen</string>
+    <string name="online_no_summary">Este libro todavía no tiene un resumen disponible.</string>
+    <string name="online_reading_level">Nivel de lectura</string>
+    <string name="online_estimated_level">Nivel MCER estimado: %1$s</string>
+    <string name="online_choose_level">Elige un nivel para Mis libros</string>
+    <string name="online_discover">Encuentra tu próxima lectura</string>
+    <string name="online_intro">Explora libros gratuitos y guarda tus favoritos para leer sin conexión.</string>
+    <string name="online_search">Buscar libros o autores</string>
+    <string name="online_categories">Categorías</string>
+    <string name="online_all_categories">Todas las categorías</string>
+    <string name="online_languages">Idiomas</string>
+    <string name="online_all_languages">Todos los idiomas</string>
+    <string name="online_all_levels">Todos los niveles</string>
+    <string name="online_popular">Más populares</string>
+    <string name="online_empty">No hay libros con estos filtros. Prueba otra búsqueda o idioma.</string>
+    <string name="online_more">Cargar más</string>
+    <string name="online_connection_error">No se pudo conectar con la biblioteca. Comprueba la conexión y reinténtalo.</string>
+
+    <!-- Ficha del libro: traducción y audio en segundo plano -->
+    <string name="book_detail_words">%1$d palabras</string>
+    <string name="book_detail_passages">%1$d pasajes</string>
+    <string name="book_detail_read">Leer</string>
+    <string name="book_detail_continue">Seguir leyendo</string>
+    <string name="book_detail_read_listen">Leer y escuchar</string>
+    <string name="book_detail_translation_included">Este libro incluye esta traducción.</string>
+    <string name="book_detail_translation_done">Traducido entero al %1$s: las traducciones aparecen al instante mientras lees.</string>
+    <string name="book_detail_translation_on_tap">Las frases se traducen a medida que las lees.</string>
+    <string name="book_detail_translation_hint">Traduce ahora el libro entero para que ninguna frase tenga que esperar mientras lees. Se hace en segundo plano y se puede detener y continuar.</string>
+    <string name="book_detail_translate_start">Traducir el libro entero</string>
+    <string name="book_audio_title">Audio del libro</string>
+    <string name="book_audio_needs_supertonic">Con la voz Supertonic puedes preparar de antemano el audio de todo el libro, para que la reproducción nunca espere en móviles más lentos. Ahora está elegida la voz del sistema: habla a medida que lees.</string>
+    <string name="book_audio_open_voice_settings">Ajustes de voz</string>
+    <string name="book_audio_model_missing">El modelo de la voz Supertonic aún no está descargado.</string>
+    <string name="book_audio_language_unsupported">La voz Supertonic no admite el idioma de este libro.</string>
+    <string name="book_audio_hint_words">Genera en segundo plano la voz y los tiempos palabra a palabra de cada frase. Mientras tanto puedes seguir usando la app.</string>
+    <string name="book_audio_hint_sentences">Genera en segundo plano la voz de cada frase. Se resalta la frase cuando la voz no proporciona tiempos por palabra.</string>
+    <string name="book_audio_preparing">Preparando…</string>
+    <string name="book_audio_running">Generando audio: %1$d %% (%2$d/%3$d frases)</string>
+    <string name="book_audio_waiting">En espera mientras se lee en voz alta: %1$d %% (%2$d/%3$d frases)</string>
+    <string name="book_audio_cancel">Detener</string>
+    <string name="book_audio_complete">Audio listo: %1$d frases (%2$s)</string>
+    <string name="book_audio_partial">Audio generado: %1$d %% (%2$d/%3$d frases, %4$s)</string>
+    <string name="book_audio_none">Aún no hay audio generado (%1$d frases).</string>
+    <string name="book_audio_start">Generar audio</string>
+    <string name="book_audio_continue">Continuar generando</string>
+    <string name="book_audio_delete">Borrar audio</string>
+    <string name="book_audio_delete_confirm">Se eliminarán del móvil el audio generado y los tiempos de palabra de este libro. Podrás generarlos de nuevo más adelante.</string>
+    <string name="book_audio_dialog_title">Generar el audio del libro</string>
+    <string name="book_audio_dialog_message">No hace falta esperar a todo el libro: puedes leer y escuchar en cualquier momento, y la generación sigue mientras reproduces. Cuanto más audio haya listo, más margen tiene el móvil para que la reproducción no se pare, sobre todo en móviles de gama media o baja.</string>
+    <string name="book_audio_screen_off_option">Seguir generando aunque se apague la pantalla</string>
+    <string name="book_audio_dont_ask_again">No volver a preguntar</string>
+    <string name="book_audio_other_running_title">Ya se está generando otro libro</string>
+    <string name="book_audio_other_running_message">Se está generando el audio de «%1$s». Solo se puede generar un libro a la vez. ¿Detenerlo y generar este? Lo ya hecho se conserva.</string>
+    <string name="book_audio_other_running_confirm">Generar este</string>
+    <string name="settings_generate_audio_screen_off">Seguir generando el audio de los libros con la pantalla apagada</string>
+    <string name="notification_channel_audio_generation">Generación de audio de libros</string>
+    <string name="notification_generating_audio">Generando audio: %1$s</string>
+    <string name="notification_generating_audio_progress">%1$d de %2$d frases</string>
+    <string name="notification_generating_audio_waiting">En espera mientras se lee en voz alta</string>
+    <string name="book_audio_narration_ready">Audio listo: narración de estudio con tiempos por palabra (%1$s)</string>
+    <string name="book_audio_narration_ready_hint">Este libro trae una narración profesional descargada de la biblioteca. No hay nada que generar en el móvil.</string>
+    <string name="book_audio_narration_available">Este libro trae una narración profesional con tiempos por palabra (%1$s). Se descarga al abrir el libro, o ahora mismo.</string>
+    <string name="book_audio_narration_download">Descargar ahora</string>
+    <string name="book_audio_narration_downloading">Descargando la narración…</string>
+    <string name="packs_voices_none">Aún no hay ningún paquete de voces descargado.</string>
+    <string name="packs_voices_delete_all">Quitar todos los paquetes de voces</string>
+    <string name="tts_test_downloading_pack">Descargando las voces de %1$s…</string>
+    <string name="tts_test_pack_installed">Voces descargadas</string>
+    <string name="common_add">Añadir</string>
+    <string name="settings_page_languages">Idiomas</string>
+    <string name="settings_summary_languages">Tu idioma: %1$s · aprendes %2$s</string>
+    <string name="languages_learning_title">Idiomas que aprendes</string>
+    <string name="languages_add_title">Añadir un idioma</string>
+    <string name="languages_coming_soon">Libros próximamente · voz y traducción disponibles</string>
+    <string name="languages_none">Aún no has elegido ningún idioma.</string>
+    <string name="languages_remove_books">Quitar libros</string>
+    <string name="onboarding_languages_title">¿Qué idiomas quieres aprender?</string>
+    <string name="onboarding_languages_body">Elige uno o varios, y tu idioma, al que se traducirán palabras y frases. Descargaremos las lecturas graduadas (A1 a B2), el traductor sin conexión y la voz de cada idioma. Podrás añadir más idiomas después desde el menú.</string>
+    <string name="languages_show_more">Mostrar %1$d idiomas más (voz y traducción; libros próximamente)</string>
 </resources>

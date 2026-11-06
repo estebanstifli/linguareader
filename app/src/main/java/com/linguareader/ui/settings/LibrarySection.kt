@@ -58,28 +58,9 @@ private fun mb(bytes: Long) = "%.1f MB".format(Locale.ROOT, bytes / 1_000_000.0)
 @Composable
 private fun summary(info: LibraryInfo) = "${pluralStringResource(R.plurals.common_books, info.books, info.books)} · ${mb(info.sizeBytes)}"
 
-/** Ajustes → Bibliotecas: descargar, actualizar o borrar la biblioteca de cada idioma. */
+/** Ficha de la biblioteca de un idioma (estado y acciones). */
 @Composable
-fun LibrarySection(vm: LibraryViewModel = koinViewModel()) {
-    val catalog by vm.catalog.collectAsStateWithLifecycle()
-    val states by vm.states.collectAsStateWithLifecycle()
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(stringResource(R.string.libraries_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
-        Text(
-            stringResource(R.string.libraries_intro),
-            style = MaterialTheme.typography.bodySmall,
-        )
-        if (catalog.isEmpty()) {
-            Text(stringResource(R.string.libraries_none), style = MaterialTheme.typography.bodyMedium)
-        }
-        catalog.toSortedMap().forEach { (lang, info) ->
-            LibraryRow(lang, info, states[lang] ?: LibraryPackState.NotInstalled, onDownload = { vm.download(lang) }, onDelete = { vm.delete(lang) })
-        }
-    }
-}
-
-@Composable
-private fun LibraryRow(lang: String, info: LibraryInfo, state: LibraryPackState, onDownload: () -> Unit, onDelete: () -> Unit) {
+fun LibraryRow(lang: String, info: LibraryInfo, state: LibraryPackState, onDownload: () -> Unit, onDelete: () -> Unit) {
     Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(Languages.name(lang), style = MaterialTheme.typography.titleSmall)
@@ -117,8 +98,9 @@ private fun LibraryRow(lang: String, info: LibraryInfo, state: LibraryPackState,
     }
 }
 
+/** Barra y texto de progreso de la descarga o instalación de una biblioteca. */
 @Composable
-private fun LibraryProgress(state: LibraryPackState) {
+fun LibraryProgress(state: LibraryPackState) {
     when (state) {
         is LibraryPackState.Downloading -> {
             LinearProgressIndicator(progress = { state.bytes.toFloat() / state.total.coerceAtLeast(1) }, modifier = Modifier.fillMaxWidth())

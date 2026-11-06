@@ -44,7 +44,11 @@ TalkBack: acciones «Página siguiente», «Página anterior», «Mostrar u ocul
    de visualización. Hay dos modos: «Traducción al tocar» (solo el texto; la traducción sale en la ficha) y «Traducción bajo cada frase».
 2. `paginate` mide cada bloque una sola vez con `TextMeasurer` al ancho de la página (fuera del hilo principal).
 3. `PageBuilder` (puro, con tests de JVM) corta por líneas enteras: los pasajes fluyen en la misma página, cada
-   capítulo empieza en página nueva y una imagen que no cabe pasa a la siguiente.
+   capítulo empieza en página nueva y una imagen que no cabe pasa a la siguiente. En modo bilingüe,
+   la frase original y su traducción forman una unidad: pasan juntas a la siguiente página si no caben.
+   La separación entre ambas es de 3 dp y entre parejas de 14 dp. Si una sola pareja supera la altura
+   de una página vacía (por ejemplo, letra muy grande), se conserva entera en una página con desplazamiento
+   vertical; no se reduce la fuente ni se oculta contenido.
 4. Cada página guarda dónde empieza en el texto (`TextPos`: pasaje + offset). Al cambiar tamaño de letra,
    interlineado, modo, orientación, ilustraciones o al llegar traducciones, se vuelve a paginar y el lector
    sigue en la misma posición del texto.
@@ -75,15 +79,35 @@ Justificación sin descuadres:
 
 ## Biblioteca
 
-- **Menú lateral** (☰): Leyendo ahora · Libros · Aprender inglés · Aprender francés · Aprender otros idiomas ·
+El audio generado por Supertonic incluye marcas internas por palabra con inicio y final. Se almacenan en la
+caché con el WAV y se reutilizan al abrir el lector o generar libros completos. No hay descarga de alineadores
+por idioma; las narraciones pregrabadas conservan sus propios tiempos. Si el motor no entrega marcas válidas,
+la frase se mantiene como unidad de resaltado. Ver [SUPERTONIC.md](SUPERTONIC.md).
+
+- **Menú lateral** (☰): Leyendo ahora · Libros · Biblioteca · «Aprender <idioma>» por cada idioma que se aprende ·
+  Aprender otros idiomas (abre la pantalla de Idiomas) ·
   Favoritos · Para leer · Leídos · Colecciones · Papelera · Vocabulario · Ajustes, con el número de libros de cada
   apartado. Cada apartado es la misma biblioteca filtrada, con su título arriba y subfiltros: procedencia (Todos /
-  De la app / Importados) en Libros; niveles A1–C2 y «Traducir al» en Aprender…; idioma en otros idiomas; colección
+  De la app / Importados) en Libros; niveles A1–C2 y «Traducir al» en Aprender…; colección
   en Colecciones.
 - **Vista**: icono arriba para alternar lista (fichas) y cuadrícula de portadas (`libraryGrid`, persistente). La
   cuadrícula usa columnas adaptables (≥104 dp): 3 en un móvil en vertical, más en horizontal o en tablet. Los
   libros sin portada llevan una generada con el título; cada portada tiene nivel, progreso y un ⋮ con estanterías,
   traducción y papelera.
+- **Ficha del libro**: pulsar un libro (lista o cuadrícula) abre su ficha con portada, título, autor, idioma · nivel,
+  duración, palabras, pasajes, descripción y progreso. Debajo, dos tarjetas de trabajo en segundo plano: **Traducción**
+  (al idioma elegido: incluida / traducir el libro entero / en curso con barra y «Cancelar» / en pausa con «Continuar») y
+  **Audio del libro** (si el libro trae **narración pregrabada** del servidor, la tarjeta la muestra como audio listo
+  al 100 % con tiempos por palabra, o la ofrece descargar ahora, y no propone generar nada; si no, solo con Supertonic:
+  generar, en curso, en espera mientras se lee en voz alta, parcial con
+  «Continuar generando», listo con «Borrar audio»; si la voz del sistema está activa o el idioma no se admite, lo explica
+  y enlaza a Ajustes › Voz). Al pulsar «Generar audio» un diálogo explica que no hace falta esperar a todo el audio
+  (se puede leer y escuchar mientras se genera; cuanto más haya listo, más margen en móviles modestos) con dos casillas:
+  **«Seguir generando aunque se apague la pantalla»** (servicio en primer plano con notificación de progreso y botón
+  «Detener»; se cambia en Ajustes › Voz) y «No volver a preguntar». **Solo se genera un libro a la vez**: si otro está en
+  marcha, un aviso ofrece detenerlo (lo hecho se conserva) y generar este. Botones **Leer** (o «Seguir leyendo») y
+  **Leer y escuchar**; los PDF con visor respetan la elección de Ajustes › Archivos (o preguntan) en «Leer», y tienen
+  «Ver original».
 - Estanterías fijas (Favoritos, Para leer, Leídos) y colecciones propias; papelera. Room v3 (`collections`,
   `collection_books`, `trash`), migración automática.
 - En la biblioteca: filtro por estantería y Papelera, con Restaurar y Borrar definitivamente (solo importados;

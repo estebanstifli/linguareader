@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -16,6 +17,7 @@ import com.linguareader.BuildConfig
 import com.linguareader.core.model.TextJustification
 import com.linguareader.data.db.DeviceDocumentDao
 import com.linguareader.engine.supertonic.SupertonicModel
+import com.linguareader.ui.languages.LanguagesSection
 import kotlinx.coroutines.flow.map
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
@@ -89,8 +92,7 @@ class SettingsViewModel(
 
 /** Subpantallas de Ajustes, una por tema. */
 enum class SettingsPage(@StringRes val title: Int, val icon: Int) {
-    LANGUAGE(R.string.settings_page_language, R.drawable.ic_translate),
-    LIBRARIES(R.string.settings_page_libraries, R.drawable.ic_library_books),
+    LANGUAGES(R.string.settings_page_languages, R.drawable.ic_language),
     FILES(R.string.scan_title, R.drawable.ic_find_in_page),
     READING(R.string.settings_page_reading, R.drawable.ic_menu_book),
     APPEARANCE(R.string.settings_page_appearance, R.drawable.ic_palette),
@@ -146,8 +148,11 @@ fun SettingsScreen(
 private fun SettingsIndex(prefs: UserPreferences, documentCount: Int, modifier: Modifier, onOpen: (SettingsPage) -> Unit) {
     @Composable
     fun summary(page: SettingsPage): String = when (page) {
-        SettingsPage.LANGUAGE -> stringResource(R.string.settings_summary_language, Languages.name(prefs.translationLanguage))
-        SettingsPage.LIBRARIES -> stringResource(R.string.settings_summary_libraries)
+        SettingsPage.LANGUAGES -> stringResource(
+            R.string.settings_summary_languages,
+            Languages.name(prefs.translationLanguage),
+            prefs.learningLanguages.joinToString(", ") { Languages.nameInSentence(it) }.ifEmpty { "—" },
+        )
         SettingsPage.FILES ->
             if (documentCount > 0) pluralStringResource(R.plurals.onboarding_found_on_phone, documentCount, documentCount)
             else stringResource(R.string.settings_summary_files)
@@ -169,7 +174,7 @@ private fun SettingsIndex(prefs: UserPreferences, documentCount: Int, modifier: 
         SettingsPage.ABOUT -> stringResource(R.string.settings_summary_about, BuildConfig.VERSION_NAME)
     }
     val groups = listOf(
-        R.string.settings_group_content to listOf(SettingsPage.LANGUAGE, SettingsPage.LIBRARIES, SettingsPage.FILES),
+        R.string.settings_group_content to listOf(SettingsPage.LANGUAGES, SettingsPage.FILES),
         R.string.settings_group_reading to listOf(SettingsPage.READING, SettingsPage.APPEARANCE, SettingsPage.VOICE),
         R.string.settings_group_app to listOf(SettingsPage.ABOUT),
     )
@@ -209,8 +214,7 @@ private fun SettingsPageContent(
 ) {
     val context = LocalContext.current
     when (page) {
-        SettingsPage.LANGUAGE -> TranslationSection()
-        SettingsPage.LIBRARIES -> LibrarySection()
+        SettingsPage.LANGUAGES -> LanguagesSection()
         SettingsPage.FILES -> {
             OriginalOpenOptions(prefs, onUpdate)
             ScanFilesSection(onOpenDocuments = onOpenDocuments)
@@ -221,7 +225,6 @@ private fun SettingsPageContent(
             VoiceOptions(prefs, onUpdate)
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             TtsEngineSection()
-            WordAlignmentSection()
             PacksSection()
         }
         SettingsPage.ABOUT -> AboutSection()
@@ -340,13 +343,21 @@ private fun OriginalOpenOptions(prefs: UserPreferences, onUpdate: ((UserPreferen
 @Composable
 private fun AppearanceOptions(prefs: UserPreferences, onUpdate: ((UserPreferences) -> UserPreferences) -> Unit) {
     SectionTitle(stringResource(R.string.settings_theme))
-    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-        ThemeMode.entries.forEachIndexed { i, mode ->
-            SegmentedButton(
-                selected = prefs.theme == mode,
-                onClick = { onUpdate { it.copy(theme = mode) } },
-                shape = SegmentedButtonDefaults.itemShape(i, ThemeMode.entries.size),
-            ) { Text(Labels.theme(mode)) }
+    // Full-width options keep translated labels readable at large system font scales.
+    Column(Modifier.fillMaxWidth().selectableGroup()) {
+        ThemeMode.entries.forEach { mode ->
+            Row(
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(
+                    selected = prefs.theme == mode,
+                    onClick = { onUpdate { it.copy(theme = mode) } },
+                    role = Role.RadioButton,
+                ).padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                RadioButton(selected = prefs.theme == mode, onClick = null)
+                Text(Labels.theme(mode), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            }
         }
     }
 
@@ -377,6 +388,9 @@ private fun AppearanceOptions(prefs: UserPreferences, onUpdate: ((UserPreference
 private fun VoiceOptions(prefs: UserPreferences, onUpdate: ((UserPreferences) -> UserPreferences) -> Unit) {
     SwitchRow(stringResource(R.string.settings_tts_mode), prefs.ttsMode) { v -> onUpdate { it.copy(ttsMode = v, ttsModeChosen = true) } }
     SwitchRow(stringResource(R.string.settings_read_screen_off), prefs.readWithScreenOff) { v -> onUpdate { it.copy(readWithScreenOff = v) } }
+    SwitchRow(stringResource(R.string.settings_generate_audio_screen_off), prefs.generateAudioScreenOff) { v ->
+        onUpdate { it.copy(generateAudioScreenOff = v, generateAudioScreenOffChosen = true) }
+    }
 
     SectionTitle(stringResource(R.string.settings_pauses))
     LabeledSlider(stringResource(R.string.settings_pause_sentences), prefs.sentencePauseMs / 1000f, 0.2f..1.5f, "%.1f s".format(Locale.ROOT, prefs.sentencePauseMs / 1000f)) { v ->

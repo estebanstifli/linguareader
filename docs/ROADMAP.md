@@ -61,6 +61,21 @@ Leyenda: ✅ hecho y verificado · 🟡 parcial · ⬜ pendiente
   ordinales, horas, %, moneda y abreviaturas (es/en/fr; enteros en el resto) con ICU del sistema, léxico y forma
   hablada del autor en el manifiesto, mapa token → habla para la alineación. Pendiente: escucharlo en dispositivo.
 - ✅ Pausas controladas entre frases y párrafos (configurables) y recorte de silencios de Supertonic.
+- ✅ **Ficha del libro** (al pulsar un libro): portada, datos, progreso, traducción completa en segundo plano
+  (empezar / continuar / cancelar) y, con Supertonic instalado y seleccionado para un idioma que admite, **Generar
+  audio** del libro entero (TTS + alineación por palabra si hay modelo) con progreso por frases, cancelar, continuar y
+  borrar. Botones «Leer» y «Leer y escuchar» (arranca la voz al abrir). `BookAudioService`; clips fijados en la caché
+  por libro, fuera del LRU ([ARCHITECTURE.md](ARCHITECTURE.md#audio-de-un-libro-entero-en-segundo-plano-ficha-del-libro)).
+  Un libro a la vez (aviso para detener el otro); diálogo al generar (no hace falta esperar a todo el audio) con
+  «Seguir generando aunque se apague la pantalla» y «No volver a preguntar»; servicio en primer plano con notificación
+  de progreso y «Detener» (`AudioGenerationService`). Probado en emulador API 36. Los libros con narración pregrabada
+  (p. ej. *The Three Little Pigs* en inglés) muestran el audio como listo al 100 % o «Descargar ahora», sin generar.
+- ✅ Ajustes › Voz: «Probar voz» en los 31 idiomas de Supertonic y la fila de idiomas de la voz del sistema con los que
+  declara el motor instalado (scroll lateral). **Paquete de voces por idioma** (`voices-<lang>-v1.zip`, 31 generados y
+  publicados): se descarga solo el del idioma que se aprende y el que se prueba en Ajustes. Descargas trasladadas de
+  GitHub Releases a `https://files.lingoaudiobook.eu` (R2 público; `tools/publish_packs.py`).
+- ⬜ Comprimir los clips fijados tras alinearlos (AAC con `MediaCodec`, ~10× menos espacio) y reanudar la generación de
+  audio al reabrir la app (hoy se continúa desde la ficha).
 - ⬜ Cuantización int8/fp16 del modelo para reducir descarga y RAM (exige validar la calidad).
 - ⬜ Descarga en segundo plano con WorkManager (hoy continúa mientras el proceso vive y se reanuda al volver).
 
@@ -99,8 +114,8 @@ Leyenda: ✅ hecho y verificado · 🟡 parcial · ⬜ pendiente
 - ✅ Decisión: PdfBox-Android va siempre incluido en el APK (no como pack descargable). Pendiente
   opcional: activar R8 en release para reducir su código.
 - ✅ Bibliotecas descargables por idioma (zip de EPUB con portada en la release `library-v1`, sha256 por
-  libro, ids estables entre versiones): primera apertura «¿Qué idioma quieres aprender?» y Ajustes →
-  Bibliotecas. Ver [CONTENT_FORMAT.md](CONTENT_FORMAT.md#bibliotecas-por-idioma-packs-descargables).
+  libro, ids estables entre versiones): primera apertura «¿Qué idiomas quieres aprender?» (varios, con el nativo)
+  y Ajustes › Idiomas (la misma pantalla que «Aprender otros idiomas» del menú; 06-11-2026). Ver [CONTENT_FORMAT.md](CONTENT_FORMAT.md#bibliotecas-por-idioma-packs-descargables).
 - ✅ Traducción automática en el dispositivo con ML Kit tras `FallbackTranslationEngine` (caché en Room,
   configuración inicial, modelos en Ajustes, pretraducción de libros importados). Ver [TRANSLATION.md](TRANSLATION.md).
 - ⬜ Pretraducción con WorkManager (hoy sigue mientras el proceso vive y se reanuda al reabrir la app).

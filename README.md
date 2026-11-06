@@ -32,14 +32,16 @@ Nombre en Google Play: **LingoAudioBook** (`com.lingoaudiobook.app`). En el cód
   Desde Android 11 busca solo en las carpetas que el usuario elige con el selector del sistema (sin permisos); hasta
   Android 10, también en todo el dispositivo con el permiso de lectura. No se pide «Acceso a todos los archivos»
   (`MANAGE_EXTERNAL_STORAGE`), que Google Play no permite a un lector.
-- **Primera apertura según el uso**: «Leer mis libros», «Aprender un idioma» o «Las dos cosas». Leer busca los
-  documentos del móvil; aprender pregunta idioma, idioma propio y nivel, y descarga en segundo plano la biblioteca y
-  los dos traductores y comprueba la voz del sistema. Termina con un resumen de lo preparado y abre la app en
-  «Aprender <idioma>» filtrado por nivel, con un «¿Por dónde empiezo?». Cerrar a medias retoma el paso pendiente.
+- **Primera apertura** (la app es para aprender idiomas): una pantalla de idiomas con el idioma propio y los que se
+  quieren aprender (uno o varios; primero los que tienen biblioteca, el resto de los 31 de Supertonic como
+  «próximamente»), el nivel, y un resumen de lo que se descarga en segundo plano: biblioteca, traductores y voz de
+  cada idioma. Abre la app en «Aprender <idioma>» filtrado por nivel, con un «¿Por dónde empiezo?». Cerrar a medias
+  retoma el paso pendiente. La misma pantalla de idiomas vuelve a salir en «Aprender otros idiomas» del menú y en
+  Ajustes › Idiomas, para añadir o quitar idiomas (cada uno con su apartado en el menú) o cambiar el nativo.
 - **Búsqueda en la biblioteca** (lupa de la cabecera, en todos los apartados): título o autor sin tildes, estado de
   lectura, idioma y orden (título, autor, nivel, leídos hace poco, más cortos).
-- **Ajustes por temas**: índice (Idioma y traducción, Bibliotecas, Examinar archivos, Lectura, Texto y tema, Voz y
-  audio, Acerca de) con una subpantalla por tema.
+- **Ajustes por temas**: índice (Idiomas, Examinar archivos, Lectura, Texto y tema, Voz y audio, Acerca de) con una
+  subpantalla por tema.
 - **Tokens tocables**: ficha con palabra, lema, traducción, expresión que la contiene (phrasal
   verbs, contracciones, elisiones francesas), ejemplos, frase traducida, audio de la palabra,
   «leer desde aquí» y guardar en vocabulario. Pulsación larga: traducción de la frase.

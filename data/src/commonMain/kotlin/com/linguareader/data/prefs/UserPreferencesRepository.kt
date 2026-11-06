@@ -30,6 +30,7 @@ class UserPreferencesRepository(
 ) {
     private object Keys {
         val readingLanguage = stringPreferencesKey("reading_language")
+        val learningLanguages = stringPreferencesKey("learning_languages")
         val translationLanguage = stringPreferencesKey("translation_language")
         val displayMode = stringPreferencesKey("display_mode")
         val highlightStyle = stringPreferencesKey("highlight_style")
@@ -63,6 +64,8 @@ class UserPreferencesRepository(
         val orientation = stringPreferencesKey("orientation")
         val textJustification = stringPreferencesKey("text_justification")
         val readWithScreenOff = booleanPreferencesKey("read_with_screen_off")
+        val generateAudioScreenOff = booleanPreferencesKey("generate_audio_screen_off")
+        val generateAudioScreenOffChosen = booleanPreferencesKey("generate_audio_screen_off_chosen")
         val keepScreenOn = booleanPreferencesKey("keep_screen_on")
         val doublePage = booleanPreferencesKey("double_page")
         val libraryGrid = booleanPreferencesKey("library_grid")
@@ -81,6 +84,7 @@ class UserPreferencesRepository(
             val next = transform(fromPreferences(stored))
             if (next.readingLanguage == null) stored.remove(Keys.readingLanguage)
             else stored[Keys.readingLanguage] = next.readingLanguage!!
+            stored[Keys.learningLanguages] = next.learningLanguages.joinToString(RECORD)
             stored[Keys.translationLanguage] = next.translationLanguage
             stored[Keys.displayMode] = next.displayMode.name
             stored[Keys.highlightStyle] = next.highlightStyle.name
@@ -114,6 +118,8 @@ class UserPreferencesRepository(
             stored[Keys.orientation] = next.orientation.name
             stored[Keys.textJustification] = next.textJustification.name
             stored[Keys.readWithScreenOff] = next.readWithScreenOff
+            stored[Keys.generateAudioScreenOff] = next.generateAudioScreenOff
+            stored[Keys.generateAudioScreenOffChosen] = next.generateAudioScreenOffChosen
             stored[Keys.keepScreenOn] = next.keepScreenOn
             stored[Keys.doublePage] = next.doublePage
             stored[Keys.libraryGrid] = next.libraryGrid
@@ -126,8 +132,11 @@ class UserPreferencesRepository(
 
     private fun fromPreferences(p: Preferences): UserPreferences {
         val d = UserPreferences()
+        val reading = p[Keys.readingLanguage]
         return UserPreferences(
-            readingLanguage = p[Keys.readingLanguage],
+            readingLanguage = reading,
+            // Instalaciones anteriores a la lista: el único idioma que se aprendía.
+            learningLanguages = p[Keys.learningLanguages]?.split(RECORD)?.filter { it.isNotEmpty() } ?: listOfNotNull(reading),
             translationLanguage = p[Keys.translationLanguage] ?: deviceLanguage(),
             // Los modos retirados (solo texto, bilingüe, ilustrado) pasan al modo por defecto.
             displayMode = enumOr(p[Keys.displayMode], d.displayMode),
@@ -162,6 +171,8 @@ class UserPreferencesRepository(
             orientation = enumOr(p[Keys.orientation], d.orientation),
             textJustification = enumOr(p[Keys.textJustification], d.textJustification),
             readWithScreenOff = p[Keys.readWithScreenOff] ?: d.readWithScreenOff,
+            generateAudioScreenOff = p[Keys.generateAudioScreenOff] ?: d.generateAudioScreenOff,
+            generateAudioScreenOffChosen = p[Keys.generateAudioScreenOffChosen] ?: d.generateAudioScreenOffChosen,
             keepScreenOn = p[Keys.keepScreenOn] ?: d.keepScreenOn,
             doublePage = p[Keys.doublePage] ?: d.doublePage,
             libraryGrid = p[Keys.libraryGrid] ?: d.libraryGrid,
