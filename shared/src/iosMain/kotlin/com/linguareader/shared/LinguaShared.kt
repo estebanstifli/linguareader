@@ -923,7 +923,7 @@ object LinguaShared {
     }
 
     /** Versión del código compartido que ve la app (para la pantalla «Acerca de» y los logs de Device Farm). */
-    const val VERSION = "0.4.2-ios"
+    const val VERSION = "0.4.3-ios"
 
     // Frases de prueba en el idioma de la voz (las mismas que SystemTtsProbe en Android).
     private val VOICE_SAMPLES = mapOf(

@@ -1,4 +1,5 @@
 import Foundation
+import LinguaShared
 
 /// Web pública de la app (lingoaudiobook.eu), ayuda y contacto; los mismos enlaces que
 /// `legal/AppLinks.kt` en Android.

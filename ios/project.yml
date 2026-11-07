@@ -91,7 +91,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.lingoaudiobook.ios
         # iPhone e iPad (fase 6: doble página en horizontal, rejillas adaptativas, giro libre en iPad).
         TARGETED_DEVICE_FAMILY: "1,2"
-        MARKETING_VERSION: "0.4.2"
+        MARKETING_VERSION: "0.4.3"
         CURRENT_PROJECT_VERSION: "6"
         # El compilador emite .stringsdata con las claves de las vistas SwiftUI; CI los vuelca al catálogo.
         SWIFT_EMIT_LOC_STRINGS: YES
