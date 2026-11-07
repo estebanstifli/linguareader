@@ -76,9 +76,15 @@ final class ImportTests: XCTestCase {
         let path = try await LinguaShared.shared.originalPdfPath(bookId: id)
         XCTAssertNotNil(path, "The original PDF should be copied next to the book")
         let book = try await LinguaShared.shared.books.loadBook(bookId: id)
+        if let path {
+            let words = try await PdfKitWordExtractor.shared.extract(path: path) { _, _ in }
+            NSLog("PDFKit words: %d — %@", words.count, words.prefix(12).map { "\($0.text)@p\($0.page)[\($0.left),\($0.top)]" }.joined(separator: " "))
+            XCTAssertGreaterThan(words.count, 30, "the two pages hold more than 30 words")
+        }
         let layout = try await LinguaShared.shared.pdfWordLayout(bookId: id) { _, _ in }
         XCTAssertNotNil(layout)
         if let layout {
+            NSLog("PDF layout: %d tokens of %d, coverage %.2f", layout.tokenCount, book.wordCount, layout.coverage(book: book))
             XCTAssertGreaterThan(layout.coverage(book: book), 0.8, "most words should get a box on a page")
             XCTAssertNotNil(layout.firstTokenOn(page: 1))
         }

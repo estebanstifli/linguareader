@@ -8,10 +8,14 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import platform.Foundation.NSMakeRange
 import platform.Foundation.NSURL
 import platform.PDFKit.PDFDocument
 import platform.PDFKit.kPDFDisplayBoxCropBox
 import kotlin.math.abs
+
+/** Caja en espacio de página de PDFKit (origen abajo a la izquierda): [bottom] < [top]. */
+private class Box(val left: Double, val bottom: Double, val right: Double, val top: Double)
 
 /**
  * Palabras de cada página de un PDF con su caja, en el mismo orden en que [PdfKitExtractor] obtiene el texto
@@ -35,46 +39,35 @@ object PdfKitWordExtractor {
             val (cropX, cropY, cropW, cropH) = page.boundsForBox(kPDFDisplayBoxCropBox).useContents { listOf(origin.x, origin.y, size.width, size.height) }
             val width = cropW.takeIf { it > 0 } ?: 1.0
             val height = cropH.takeIf { it > 0 } ?: 1.0
-            var current: StringBuilder? = null
-            var left = 0.0; var top = 0.0; var right = 0.0; var bottom = 0.0
-            fun flush() {
-                val word = current ?: return
-                if (right > left && bottom > top) {
-                    words += PageWord(
-                        page = index, text = word.toString(),
-                        left = ((left - cropX) / width).coerceIn(0.0, 1.0).toFloat(),
-                        top = (1 - (bottom - cropY) / height).coerceIn(0.0, 1.0).toFloat(),
-                        right = ((right - cropX) / width).coerceIn(0.0, 1.0).toFloat(),
-                        bottom = (1 - (top - cropY) / height).coerceIn(0.0, 1.0).toFloat(),
-                    )
-                }
-                current = null
-            }
-            // El índice de carácter de PDFKit es UTF-16 (NSString): se recorre así.
+            // Palabras = tramos sin espacios de `string`; su caja sale de la selección del rango (lo que usa Vista Previa),
+            // y si viniera vacía, de las cajas de sus caracteres.
             var i = 0
             val utf16 = text.length
             while (i < utf16) {
-                val ch = text[i]
-                if (ch.isWhitespace()) {
-                    flush()
-                    i++
-                    continue
+                if (text[i].isWhitespace()) { i++; continue }
+                val start = i
+                while (i < utf16 && !text[i].isWhitespace()) i++
+                val length = i - start
+                var box = page.selectionForRange(NSMakeRange(start.toULong(), length.toULong()))?.boundsForPage(page)
+                    ?.useContents { Box(origin.x, origin.y, origin.x + size.width, origin.y + size.height) }
+                if (box == null || box.right <= box.left || box.top <= box.bottom) {
+                    var merged: Box? = null
+                    for (c in start until i) {
+                        val b = page.characterBoundsAtIndex(c.toLong()).useContents { Box(origin.x, origin.y, origin.x + size.width, origin.y + size.height) }
+                        if (b.right <= b.left || b.top <= b.bottom) continue
+                        merged = merged?.let { Box(minOf(it.left, b.left), minOf(it.bottom, b.bottom), maxOf(it.right, b.right), maxOf(it.top, b.top)) } ?: b
+                    }
+                    box = merged
                 }
-                val (x0, y0, w, h) = page.characterBoundsAtIndex(i.toLong()).useContents { listOf(origin.x, origin.y, size.width, size.height) }
-                if (w <= 0 || h <= 0) { i++; continue }
-                val x1 = x0 + w
-                val y1 = y0 + h
-                if (current == null) {
-                    current = StringBuilder().append(ch)
-                    left = x0; top = y0; right = x1; bottom = y1
-                } else {
-                    // Salto grande en x o y dentro de una «palabra» sin espacio (cambio de columna): se parte.
-                    if (abs(y0 - top) > h * 1.5 || x0 < left - w) { flush(); current = StringBuilder().append(ch); left = x0; top = y0; right = x1; bottom = y1 }
-                    else { current!!.append(ch); left = minOf(left, x0); top = minOf(top, y0); right = maxOf(right, x1); bottom = maxOf(bottom, y1) }
-                }
-                i++
+                if (box == null) continue
+                words += PageWord(
+                    page = index, text = text.substring(start, i),
+                    left = ((box.left - cropX) / width).coerceIn(0.0, 1.0).toFloat(),
+                    top = (1 - (box.top - cropY) / height).coerceIn(0.0, 1.0).toFloat(),
+                    right = ((box.right - cropX) / width).coerceIn(0.0, 1.0).toFloat(),
+                    bottom = (1 - (box.bottom - cropY) / height).coerceIn(0.0, 1.0).toFloat(),
+                )
             }
-            flush()
             onProgress(index + 1, total)
         }
         return words
