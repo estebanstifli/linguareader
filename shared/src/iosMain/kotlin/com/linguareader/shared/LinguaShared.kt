@@ -61,6 +61,7 @@ import com.linguareader.core.translation.WordLookupService
 import com.linguareader.data.content.CompositeBookRepository
 import com.linguareader.data.content.EmptyBookRepository
 import com.linguareader.data.content.ImportedBookRepository
+import com.linguareader.data.content.ImportDraft
 import com.linguareader.data.content.LocalBookImporter
 import com.linguareader.data.db.AppDatabase
 import com.linguareader.data.library.BookDeleter
@@ -603,6 +604,44 @@ object LinguaShared {
 
     /** Libro importado por el usuario o instalado desde una biblioteca (en iOS, todos los libros). */
     fun isImportedBook(bookId: String): Boolean = importedBooks.owns(bookId)
+
+    // MARK: Importar documentos del usuario (fichero, página web, texto), como BookImportService + ImportViewModel
+
+    private val importService: IosImportService get() = IosImportService(importer)
+
+    /** Extensiones que el importador reconoce (sin punto), para el selector de archivos y los mensajes. */
+    fun supportedImportExtensions(): List<String> = koin.get<ExtractorRegistry>().supportedExtensions.toList()
+
+    /** Fichero ya copiado a la caché de la app por Swift (selector de archivos, «Abrir en…»). */
+    suspend fun readDocument(path: String, displayName: String, mimeType: String?): ImportOutcome =
+        importService.readDocument(path, displayName, mimeType)
+
+    /** Página web (http/https): la única importación con red, iniciada por el usuario. */
+    suspend fun readWebPage(url: String): ImportOutcome = importService.readWebPage(url)
+
+    /** Texto pegado. */
+    suspend fun readText(text: String, title: String?): ImportOutcome = importService.readText(text, title)
+
+    /** Idiomas a ofrecer en la revisión: el detectado (o el de lectura) primero y después los habituales. */
+    suspend fun importLanguageOptions(detected: String?): List<String> {
+        val prefs = preferences.preferences.first()
+        val first = detected ?: prefs.readingLanguage ?: "en"
+        return (listOf(first) + IosImportService.COMMON_LANGUAGES).distinctBy { it.lowercase() }
+    }
+
+    /**
+     * Guarda el borrador revisado y devuelve el id del libro; con [translateNow] arranca la traducción completa al
+     * idioma del usuario si el par se puede traducir en el dispositivo (como `ImportViewModel.confirm`).
+     */
+    @Throws(Throwable::class)
+    suspend fun commitImport(draft: ImportDraft, title: String, author: String, language: String, level: CefrLevel, translateNow: Boolean): String {
+        val id = importer.commit(draft, title, author, language, level)
+        if (translateNow) {
+            val target = preferences.preferences.first().translationLanguage
+            if (!LanguageTags.sameLanguage(language, target) && translationModels?.code(language) != null) bookTranslations.start(id, target)
+        }
+        return id
+    }
 
     // MARK: Narración pregrabada (mp3 + tiempos por palabra), como en ReaderViewModel y BookDetailViewModel
 

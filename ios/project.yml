@@ -32,6 +32,51 @@ targets:
         UIBackgroundModes: [audio]
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         ITSAppUsesNonExemptEncryption: false
+        # Importar documentos del usuario («Abrir en LingoAudioBook» desde Archivos, Mail, WhatsApp, Safari…): la app
+        # recibe una URL con ámbito de seguridad y la copia a su caché (DocumentInbox). El PDF se añade con la fase 4.
+        LSSupportsOpeningDocumentsInPlace: true
+        UIFileSharingEnabled: true
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Book or document
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes:
+              - org.idpf.epub-container
+              - public.plain-text
+              - public.html
+              - public.rtf
+              - net.daringfireball.markdown
+              - org.openxmlformats.wordprocessingml.document
+              - org.oasis-open.opendocument.text
+              - com.lingoaudiobook.fb2
+              - com.lingoaudiobook.mobi
+              - com.lingoaudiobook.subrip
+              - com.lingoaudiobook.webvtt
+        UTImportedTypeDeclarations:
+          - UTTypeIdentifier: com.lingoaudiobook.fb2
+            UTTypeDescription: FictionBook
+            UTTypeConformsTo: [public.xml]
+            UTTypeTagSpecification:
+              public.filename-extension: [fb2, fbz]
+              public.mime-type: [application/x-fictionbook+xml, application/x-fictionbook]
+          - UTTypeIdentifier: com.lingoaudiobook.mobi
+            UTTypeDescription: Mobipocket book
+            UTTypeConformsTo: [public.data]
+            UTTypeTagSpecification:
+              public.filename-extension: [mobi, prc, azw, azw3]
+              public.mime-type: [application/x-mobipocket-ebook]
+          - UTTypeIdentifier: com.lingoaudiobook.subrip
+            UTTypeDescription: SubRip subtitles
+            UTTypeConformsTo: [public.plain-text]
+            UTTypeTagSpecification:
+              public.filename-extension: [srt]
+              public.mime-type: [application/x-subrip]
+          - UTTypeIdentifier: com.lingoaudiobook.webvtt
+            UTTypeDescription: WebVTT subtitles
+            UTTypeConformsTo: [public.plain-text]
+            UTTypeTagSpecification:
+              public.filename-extension: [vtt]
+              public.mime-type: [text/vtt]
     dependencies:
       - framework: ../shared/build/XCFrameworks/debug/LinguaShared.xcframework
         embed: true

@@ -60,13 +60,15 @@ struct CatalogView: View {
     @EnvironmentObject private var store: AppStore
     @State private var section: CatalogSection? = .books
     @State private var columns = NavigationSplitViewVisibility.doubleColumn
+    @StateObject private var importModel = ImportModel()
+    @State private var path = NavigationPath()
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columns) {
             SectionsList(selection: $section)
         } detail: {
-            NavigationStack {
-                BookListView(section: section ?? .books)
+            NavigationStack(path: $path) {
+                BookListView(section: section ?? .books, importModel: importModel)
                     .navigationDestination(for: CatalogDestination.self) { $0.view }
             }
         }
@@ -74,6 +76,25 @@ struct CatalogView: View {
             // Tras la primera apertura, la biblioteca del primer idioma que se aprende es la pantalla de inicio.
             if let lang = store.learningLanguages.first, section == .books, store.books.isEmpty == false || store.libraryStates.isEmpty == false {
                 section = .learn(lang)
+            }
+        }
+        .sheet(isPresented: Binding(get: { importModel.isPresented }, set: { if !$0 { importModel.dismiss() } })) {
+            ImportSheet(model: importModel) { bookId in
+                // El libro importado se abre en su ficha, dentro de «Books».
+                section = .books
+                path = NavigationPath()
+                path.append(CatalogDestination.detail(bookId))
+            }
+        }
+        .onChange(of: store.openedDocument) { _, url in
+            guard let url else { return }
+            store.openedDocument = nil
+            importModel.start(.file(url), translationTarget: store.prefs?.translationLanguage ?? "en")
+        }
+        .task {
+            if let url = store.openedDocument {
+                store.openedDocument = nil
+                importModel.start(.file(url), translationTarget: store.prefs?.translationLanguage ?? "en")
             }
         }
     }
@@ -238,10 +259,11 @@ struct CatalogSearch: Equatable {
     }
 }
 
-/// Lista o cuadrícula de libros de un apartado, con filtros de nivel, búsqueda y menú por libro.
+/// Lista o cuadrícula de libros de un apartado, con filtros de nivel, búsqueda, importación y menú por libro.
 struct BookListView: View {
     @EnvironmentObject private var store: AppStore
     let section: CatalogSection
+    @ObservedObject var importModel: ImportModel
     @State private var level: CefrLevel?
     @State private var collection: Int64?
     @State private var search = CatalogSearch()
@@ -308,6 +330,7 @@ struct BookListView: View {
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if case .learn(let lang) = section { translateToMenu(lang) }
+                if section != .trash { ImportMenu(model: importModel) }
                 if section != .trash {
                     Button { showSearch = true } label: { Image(systemName: search.isActive ? "line.3.horizontal.decrease.circle.fill" : "magnifyingglass") }
                         .accessibilityLabel(search.isActive ? Text("Search (a search is active)") : Text("Search"))
@@ -449,7 +472,7 @@ struct BookListView: View {
         if case .learn(let lang) = section, store.libraryCatalog[lang] != nil {
             return String(localized: "Download the \(Languages.name(lang)) library in Settings › Languages.")
         }
-        return String(localized: "Books you add will appear here.")
+        return String(localized: "Books you add will appear here. Use + to import a file, a web page or copied text.")
     }
 }
 

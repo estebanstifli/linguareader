@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+<description>
+<title-info>
+<genre>prose</genre>
+<author><first-name>Lucía</first-name><last-name>Prueba</last-name></author>
+<book-title>El jardín tranquilo</book-title>
+<lang>es</lang>
+</title-info>
+</description>
+<body>
+<section>
+<title><p>Capítulo uno</p></title>
+<p>Ana abrió la verja y entró en el jardín. La hierba estaba mojada y el aire olía a lluvia.</p>
+<p>Un pájaro pequeño estaba sobre el muro y la miraba. «Buenos días», dijo ella.</p>
+</section>
+<section>
+<title><p>Capítulo dos</p></title>
+<p>Por la tarde salió el sol. Ana se sentó en el banco viejo y leyó su libro, una frase cada vez.</p>
+</section>
+</body>
+</FictionBook>

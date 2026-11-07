@@ -12,6 +12,7 @@ import com.linguareader.importer.ExtractorRegistry
 import com.linguareader.importer.ImportException
 import com.linguareader.importer.ImportOptions
 import com.linguareader.importer.ImportedBookBuilder
+import com.linguareader.importer.extract.TextExtractor
 import kotlinx.coroutines.withContext
 import okio.FileSystem
 import okio.Path
@@ -91,6 +92,14 @@ class LocalBookImporter(
     suspend fun delete(bookId: String) {
         repository.delete(bookId)
         narrations.delete(bookId)
+    }
+
+    /** Texto pegado o compartido desde otra app (un artículo copiado, un correo...). */
+    suspend fun readText(text: String, title: String?): ImportDraft {
+        val name = title?.takeIf { it.isNotBlank() } ?: text.trim().lineSequence().firstOrNull()?.take(60).orEmpty().ifBlank { "Text" }
+        val document = TextExtractor().parse(text, name)
+        if (document.paragraphCount == 0) throw ImportException(ImportException.Reason.NO_TEXT, "The shared text is empty")
+        return draft(Hashing.sha256Hex(text), name, document)
     }
 
     suspend fun draft(hash: String, name: String, document: ExtractedDocument): ImportDraft {

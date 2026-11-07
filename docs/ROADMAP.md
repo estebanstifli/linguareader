@@ -189,17 +189,26 @@ en un iPhone real antes de prometerlo.
     About con privacidad, web, contacto y licencias (`AppLinks.swift`), ajustes de mano y reducir movimiento.
     String Catalog en/es/fr/de/it/pt (31-10-2026): 140 claves de las vistas SwiftUI traducidas; CI extrae las
     claves con `xcstringstool` (artefacto `ios-string-catalog`). Pendiente: pretraducción de libros en la UI, resto
-    de páginas de ajustes, textos que aún viajan como `String` (errores, estado del reproductor), y Apple
-    `Translation` (iOS 18) como segundo adaptador. No aplican a iOS: elección automática del motor de voz (motores TTS de Android), «Añadir archivos»
+    de páginas de ajustes, textos que aún viajan como `String` (errores, estado del reproductor) — cubierto en las
+    fases 1 y 2 de la paridad —, y Apple `Translation` (iOS 18) como segundo adaptador. No aplican a iOS: elección automática del motor de voz (motores TTS de Android), «Añadir archivos»
     del escaneo de almacenamiento (iOS aún no importa archivos del usuario) y reglas de copia de seguridad.
   - 🟡 **Paridad completa con Android 0.4.2 por fases** (inventario y plan aprobados el 7-11-2026). Fase 0 ✅: árbol
     Android 0.4.2 subido e iOS en 0.4.2 (6) con los enlaces de lingoaudiobook.eu, Ayuda y la voz preparada solo al
     reproducir (no al abrir). Fase 1 ✅ (7-11-2026): varios idiomas a la vez (primera apertura con casillas), Ajustes ›
     Idiomas y «Aprender otros idiomas», apartados «Learn X» por idioma, «¿Por dónde empiezo?», banner de descarga,
     ficha del libro con «Leer y escuchar», traducción completa (empezar / cancelar / continuar, fila en la lista y menú)
-    y narración pregrabada en el lector (`BookDetailView.swift`, `LanguagesView.swift`). Pendientes: 2 lector y catálogo al detalle (hoja de frase, popup de palabra, Marcador, ilustraciones,
-    búsqueda ordenada, ajustes que faltan, copia de seguridad, textos `String` al catálogo); 3 importar documentos del
-    usuario (`fileImporter`, «Abrir en», pegar texto, página web, portadas en disco); 4 PDF con PDFKit (extractor,
+    y narración pregrabada en el lector (`BookDetailView.swift`, `LanguagesView.swift`). Fase 2 ✅ (7-11-2026): popup de
+    palabra y hoja de frase por pulsación larga con «Listen to sentence» y «Machine translation», estilo Marcador real,
+    ilustraciones por pasaje, overlay «Preparing to read…», banners de traductor y de error de audio, menú ⋮ (compartir
+    texto, añadir a estanterías, papelera, «About this document» completo), acciones de VoiceOver, búsqueda del catálogo
+    con estado / idioma / orden y barra de búsqueda activa, chips de colecciones y «Eliminar colección», iconos rápidos
+    Para leer / Leídos / Favorito, Ajustes: ilustraciones, velocidad, tono, pausa entre párrafos, voces por idioma con
+    «Oír muestra», caché de audio (uso, límite, vaciar); copia de iCloud como `backup_rules.xml`; todos los textos por
+    `String(localized:)` (`WordPopup.swift`, `ReaderView.swift`, `CatalogView.swift`, `ReadingPreferences.swift`).
+    Fase 3 ✅ (7-11-2026): importar documentos del usuario (menú «+»: archivo, página web, texto pegado; «Abrir en
+    LingoAudioBook» desde otras apps; hoja de revisión con idioma, nivel y traducir ahora / mientras leo; errores
+    tipados) y portadas en disco con «página de texto» para los importados (`Import/ImportModel.swift`,
+    `ImportSheet.swift`, `CoverThumbnails.swift`, `IosImport.kt`; tests `ImportTests.swift`). Pendientes: 4 PDF con PDFKit (extractor,
     visor, «Ver original» con resaltado); 5 catálogo online movido a `domain` común; 6 iPad, giro y doble página;
     7 Supertonic en iPhone tras un spike de rendimiento con ONNX Runtime por cinterop. No aplican a iOS: motores TTS
     del sistema, escaneo del dispositivo, ayudas de WhatsApp/Telegram y servicios en primer plano.

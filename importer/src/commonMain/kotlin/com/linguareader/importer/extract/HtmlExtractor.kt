@@ -31,6 +31,10 @@ class HtmlExtractor : DocumentExtractor {
      * y comentarios, y se lee solo el contenido principal (estilo "modo lectura").
      * Para un HTML local (un capítulo, un libro guardado) se lee todo el cuerpo.
      */
+    /** Página web ya descargada: decodifica los bytes, resuelve enlaces contra [url] y se queda con el contenido principal. */
+    fun fromWebPage(bytes: ByteArray, url: String, fallbackTitle: String?): ExtractedDocument =
+        fromDocument(Ksoup.parse(TextDecoding.decodeMarkup(bytes), url), fallbackTitle, webPage = true)
+
     fun fromDocument(document: Document, fallbackTitle: String?, webPage: Boolean = false): ExtractedDocument {
         val walker = HtmlContentWalker(resolveImage = ::dataUri)
         val chapters = walker.walk(if (webPage) mainContent(document) else document.body())

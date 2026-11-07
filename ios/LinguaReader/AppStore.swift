@@ -20,6 +20,8 @@ final class AppStore: ObservableObject {
     /// Último libro cuya narración quedó descargada (la ficha se refresca con él).
     @Published var narrationReady: String?
     @Published var status: String = ""
+    /// Fichero que otra app ha pedido abrir con LingoAudioBook («Abrir en…»); el catálogo lo importa y lo vacía.
+    @Published var openedDocument: URL?
 
     /// Traductor ML Kit (solo en la app de iPhone: los pods no tienen rebanada arm64 de simulador, ver ios/Podfile);
     /// vive lo que la app porque ML Kit avisa de las descargas por notificaciones.
@@ -32,7 +34,6 @@ final class AppStore: ObservableObject {
     }()
 
     private var watchers: [FlowWatcher] = []
-    private var covers: [String: UIImage] = [:]
 
     /// Argumentos de lanzamiento de los tests de UI: `-skipOnboarding`, `-resetOnboarding`, `-importSample`.
     private let arguments = Set(ProcessInfo.processInfo.arguments)
@@ -134,7 +135,12 @@ final class AppStore: ObservableObject {
 
     func canDeleteForever(_ bookId: String) -> Bool { LinguaShared.shared.library.canDeleteForever(bookId: bookId) }
 
-    func deleteForever(_ bookId: String) { Task { try? await LinguaShared.shared.library.deleteForever(bookId: bookId) } }
+    func deleteForever(_ bookId: String) {
+        Task {
+            try? await LinguaShared.shared.library.deleteForever(bookId: bookId)
+            await CoverThumbnails.shared.forget(bookId)
+        }
+    }
 
     func setLibraryGrid(_ grid: Bool) { Task { try? await LinguaShared.shared.setLibraryGrid(grid: grid) } }
 
@@ -151,14 +157,10 @@ final class AppStore: ObservableObject {
 
     func deleteVocabulary(_ id: Int64) { Task { try? await LinguaShared.shared.deleteVocabulary(id: id) } }
 
-    /// Portada reducida, con caché en memoria; nil si el libro no la tiene (se dibuja una generada).
+    /// Portada reducida (caché en disco y memoria): la del libro o, para los documentos importados sin portada, una
+    /// página de texto dibujada; nil para los pocos casos restantes (se dibuja un degradado con el título).
     func cover(for book: BookSummary) async -> UIImage? {
-        if let cached = covers[book.id] { return cached }
-        guard let ref = book.cover,
-              let data = try? await LinguaShared.shared.loadCover(bookId: book.id, cover: ref),
-              let image = UIImage(data: data)?.preparingThumbnail(of: CGSize(width: 240, height: 360)) else { return nil }
-        covers[book.id] = image
-        return image
+        await CoverThumbnails.shared.load(book, textPage: !isLibraryBook(book.id))
     }
 
     // MARK: Muestra (tests de UI)
