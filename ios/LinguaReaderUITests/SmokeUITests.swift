@@ -53,6 +53,15 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(english.waitForExistence(timeout: 30), "The bundled libraries catalog should list English")
         english.tap()
 
+        // El simulador está en inglés: «tu idioma» sería el mismo que el que se aprende (Continue deshabilitado), así
+        // que se elige español en el selector, como haría un usuario.
+        let native = app.descendants(matching: .any).matching(identifier: "onboarding.native").firstMatch
+        XCTAssertTrue(native.waitForExistence(timeout: 10))
+        native.tap()
+        let spanish = app.buttons["Spanish"]
+        XCTAssertTrue(spanish.waitForExistence(timeout: 10), "The native-language menu should list Spanish")
+        spanish.tap()
+
         let cont = app.buttons["onboarding.continue"]
         XCTAssertTrue(cont.waitForExistence(timeout: 10))
         cont.tap()
