@@ -231,6 +231,9 @@ struct ReaderSettingsSheet: View {
                         Picker("Audio mode", selection: Binding(get: { model.engineId }, set: { id in Task { await model.selectEngine(id) } })) {
                             Text("Live voice").tag("apple-tts")
                             Text("Cached audio (experimental)").tag("apple-tts-cached")
+                            if LinguaShared.shared.neuralSupported {
+                                Text("Neural voice (Supertonic)").tag(LinguaShared.shared.neuralEngineId)
+                            }
                         }
                         .accessibilityIdentifier("settings.engine")
                         NavigationLink("Audio diagnostics") { DiagnosticsView() }

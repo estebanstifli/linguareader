@@ -42,6 +42,7 @@ final class AppStore: ObservableObject {
         let support = Self.applicationSupportDirectory()
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("LinguaReader", isDirectory: true)
         let catalog = Bundle.main.url(forResource: "libraries", withExtension: "json").flatMap { try? String(contentsOf: $0, encoding: .utf8) }
+        NeuralRuntime.install()
         LinguaShared.shared.start(appSupportDir: support.path, cacheDir: caches.path, librariesCatalogJson: catalog,
                                   packsBaseUrl: "https://files.lingoaudiobook.eu", packsTag: "packs-v1", libraryTag: "library-v1",
                                   translator: translator)

@@ -55,15 +55,21 @@ enum ThirdPartyNotices {
             ThirdPartyNotice("nanopb", "Petteri Aimonen", "zlib License", "https://github.com/nanopb/nanopb/blob/master/LICENSE.txt"),
         ]
         #endif
+        #if canImport(onnxruntime_objc)
+        list += [ThirdPartyNotice("ONNX Runtime", "Microsoft Corporation", "MIT License", "https://github.com/microsoft/onnxruntime/blob/main/LICENSE")]
+        #endif
         return list
     }()
 
     /// Modelos que la app no incluye y que el usuario descarga si quiere.
     static let downloadable: [ThirdPartyNotice] = {
+        var list: [ThirdPartyNotice] = []
         #if canImport(MLKitTranslate)
-        return [ThirdPartyNotice("ML Kit translation models (about 30 MB per language)", "Google", "ML Kit Terms of Service", "https://developers.google.com/ml-kit/terms")]
-        #else
-        return []
+        list.append(ThirdPartyNotice("ML Kit translation models (about 30 MB per language)", "Google", "ML Kit Terms of Service", "https://developers.google.com/ml-kit/terms"))
         #endif
+        #if canImport(onnxruntime_objc)
+        list.append(ThirdPartyNotice("Supertonic 3 voice model (about 400 MB)", "Supertone Inc.", LinguaShared.shared.neuralLicenseName, LinguaShared.shared.neuralLicenseUrl))
+        #endif
+        return list
     }()
 }

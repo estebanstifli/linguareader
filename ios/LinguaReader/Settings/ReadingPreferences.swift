@@ -205,6 +205,7 @@ struct ReadingSettingsView: View {
                 ForEach(store.learningLanguages, id: \.self) { lang in
                     VoiceListSection(p: p, language: lang)
                 }
+                NeuralVoiceSection(p: p)
                 AudioCacheSection(p: p)
             }
         }

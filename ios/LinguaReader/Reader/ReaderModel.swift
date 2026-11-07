@@ -145,7 +145,11 @@ final class ReaderModel: ObservableObject {
         watchers = [
             LinguaShared.shared.watchPlayback { [weak self] state in self?.onPlayback(state) },
             LinguaShared.shared.watchBookmarks(bookId: bookId) { [weak self] list in self?.bookmarks = list },
-            LinguaShared.shared.watchSelectedEngine { [weak self] id in self?.engineId = id },
+            LinguaShared.shared.watchSelectedEngine { [weak self] id in
+                guard let self, self.engineId != id else { return }
+                self.engineId = id
+                Task { await self.refreshVoices() }
+            },
             LinguaShared.shared.watchNarrationReady { [weak self] id in self?.narrationBecameReady(id) },
         ]
         do {
@@ -167,7 +171,7 @@ final class ReaderModel: ObservableObject {
             let offset = progress.map { Int($0.charOffset) } ?? 0
             await open(passageIndex: index, offset: offset, autoplay: listenOnOpen, scroll: true)
             setupRemoteCommands()
-            voices = (try? await LinguaShared.shared.listVoices(languageTag: loaded.learningLanguage)) ?? []
+            await refreshVoices()
         } catch {
             self.error = error.localizedDescription
         }
@@ -385,9 +389,21 @@ final class ReaderModel: ObservableObject {
         }
     }
 
+    /// Voz del motor activo: la neural tiene sus propias voces (F1–F5, M1–M5), como `voiceFor` en Android.
     private var voiceId: String? {
         guard let book, let prefs else { return nil }
+        if usesNeuralVoice { return prefs.supertonicVoice }
         return prefs.voiceByLanguage[Languages.primary(book.learningLanguage)]
+    }
+
+    private var usesNeuralVoice: Bool { engineId == LinguaShared.shared.neuralEngineId }
+
+    /// Voces del menú del reproductor según el motor activo.
+    private func refreshVoices() async {
+        guard let book else { return }
+        voices = usesNeuralVoice
+            ? ((try? await LinguaShared.shared.neuralVoices(languageTag: book.learningLanguage)) ?? [])
+            : ((try? await LinguaShared.shared.listVoices(languageTag: book.learningLanguage)) ?? [])
     }
 
     /// Al pedir audio: si el libro trae narración y no está descargada, la baja en segundo plano (una vez por sesión);
@@ -683,7 +699,11 @@ final class ReaderModel: ObservableObject {
         guard let book else { return }
         let wasPlaying = isPlaying
         if wasPlaying { try? await audio.pause() }
-        try? await LinguaShared.shared.setVoice(languageTag: book.learningLanguage, voiceId: id)
+        if usesNeuralVoice {
+            try? await LinguaShared.shared.setNeuralVoice(voice: id ?? "F1")
+        } else {
+            try? await LinguaShared.shared.setVoice(languageTag: book.learningLanguage, voiceId: id)
+        }
         guard let passage else { return }
         try? await audio.load(passage: passage, languageTag: book.learningLanguage, voiceId: id, startOffset: playback?.resumeOffset ?? 0)
         if wasPlaying { try? await audio.play() }

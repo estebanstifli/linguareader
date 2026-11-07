@@ -9,6 +9,9 @@ use_frameworks!
 target 'LinguaReader' do
   # Traducción en el dispositivo, mismos modelos (~30 MB por idioma) que la app Android.
   pod 'GoogleMLKit/Translate', '8.0.0'
+  # Voz neural Supertonic 3 (fase 7): ONNX Runtime estático con su API Objective-C (`Speech/OrtBridge.swift`).
+  # La 1.31 de Android no está publicada para iOS; la 1.30 lee los mismos modelos.
+  pod 'onnxruntime-objc', '1.30.0'
 end
 
 post_install do |installer|

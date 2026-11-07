@@ -76,6 +76,17 @@ import com.linguareader.engine.packs.LibraryPackState
 import com.linguareader.engine.translation.BookTranslationService
 import com.linguareader.engine.translation.BookTranslationState
 import com.linguareader.engine.supertonic.SupertonicModel
+import com.linguareader.engine.supertonic.SupertonicModelManager
+import com.linguareader.engine.supertonic.SupertonicEngine
+import com.linguareader.engine.supertonic.SupertonicStats
+import com.linguareader.engine.supertonic.ModelState
+import com.linguareader.engine.supertonic.IosMemoryProbe
+import com.linguareader.engine.supertonic.iosPhysicalMemoryBytes
+import com.linguareader.engine.onnx.IosOnnx
+import com.linguareader.core.reader.SentenceClipPipeline
+import com.linguareader.core.text.speech.RuleBasedSpeechNormalizer
+import com.linguareader.core.text.speech.SwitchableNormalizer
+import org.koin.core.qualifier.named
 import com.linguareader.engine.supertonic.SupertonicSampleTexts
 import com.linguareader.shared.pdf.PdfKitExtractor
 import com.linguareader.shared.pdf.PdfWordLayout
@@ -144,6 +155,8 @@ object LinguaShared {
         val root = appSupportDir.toPath()
         appRoot = root
         val cache = cacheDir.toPath()
+        cacheRoot = cache
+        neuralSupported = IosOnnx.available && iosPhysicalMemoryBytes >= NEURAL_MIN_MEMORY
         val fs = FileSystem.SYSTEM
         fs.createDirectories(root)
         fs.createDirectories(cache)
@@ -224,7 +237,40 @@ object LinguaShared {
                     single<AudioFocusGate> { AppleAudioFocusGate() }
                     single { FileAudioCache(root / "audio-cache", maxBytesProvider = { get<EngineSettings>().audioCacheBytes }, fileSystem = fs) }
                     single { CachingSpeechSynthesizer(get<CachedAppleVoice>(), get(), log = { Diagnostics.log("AudioCache", it) }) }
-                    single { TtsEngineRegistry(listOf(get<StreamingSpeechEngine>(), get<CachingSpeechSynthesizer>())) }
+                    // Voz neural Supertonic 3 (fase 7), como ttsEngineModule en Android: ONNX Runtime llega por el puente
+                    // de la app (pod onnxruntime-objc). Solo se ofrece si el puente está (no en el simulador sin pods) y
+                    // el aparato tiene memoria para el modelo; si no, ni se crea.
+                    single { SupertonicModelManager(fs, root, get(), log = { Diagnostics.log("SupertonicModel", it) }) }
+                    single {
+                        val manager = get<SupertonicModelManager>()
+                        val settings = get<EngineSettings>()
+                        SupertonicEngine(
+                            modelDir = { manager.modelDir },
+                            steps = { settings.supertonicSteps },
+                            memory = IosMemoryProbe,
+                            log = { Diagnostics.log("Supertonic", it) },
+                            intraOpThreads = NSProcessInfo.processInfo.activeProcessorCount.toInt().coerceIn(1, 4),
+                        ).also { engine -> manager.beforeDelete = { engine.release() } }
+                    }
+                    single(named(NEURAL)) { CachingSpeechSynthesizer(get<SupertonicEngine>(), get(), log = { Diagnostics.log("AudioCache", it) }) }
+                    single(named(NEURAL)) {
+                        val settings = get<EngineSettings>()
+                        SentenceClipPipeline(
+                            synthesizer = get<CachingSpeechSynthesizer>(named(NEURAL)),
+                            parameters = { mapOf("steps" to settings.supertonicSteps.toString()) },
+                            normalizer = SwitchableNormalizer({ settings.normalizeSpeech }, RuleBasedSpeechNormalizer(AppleNumberSpeller)),
+                            fileSystem = fs,
+                        )
+                    }
+                    single {
+                        TtsEngineRegistry(
+                            listOfNotNull(
+                                get<StreamingSpeechEngine>(),
+                                get<CachingSpeechSynthesizer>(),
+                                if (neuralSupported) get<CachingSpeechSynthesizer>(named(NEURAL)) else null,
+                            ),
+                        )
+                    }
                     single {
                         val settings = get<EngineSettings>()
                         val main = Dispatchers.Main
@@ -240,8 +286,22 @@ object LinguaShared {
                         )
                         val engine = get<StreamingSpeechEngine>()
                         val cached = get<CachingSpeechSynthesizer>()
+                        val neural = if (neuralSupported) {
+                            val synthesizer = get<CachingSpeechSynthesizer>(named(NEURAL))
+                            synthesizer.id to RenderedReaderAudioController(
+                                synthesizer = synthesizer,
+                                player = LazyClipPlayer { AudioEngineClipPlayer() },
+                                snippetPlayer = LazyClipPlayer { AudioEngineClipPlayer() },
+                                dispatcher = main,
+                                pauses = { settings.pauses },
+                                fileSystem = fs,
+                                pipeline = get(named(NEURAL)),
+                            )
+                        } else {
+                            null
+                        }
                         SwitchingReaderAudioController(
-                            controllers = mapOf(engine.id to live, cached.id to rendered),
+                            controllers = mapOf(engine.id to live, cached.id to rendered) + listOfNotNull(neural),
                             engines = get(),
                             defaultEngineId = engine.id,
                             dispatcher = main,
@@ -256,6 +316,11 @@ object LinguaShared {
             )
         }.koin
         Diagnostics.log("App", "shared $VERSION on iOS ${NSProcessInfo.processInfo.operatingSystemVersionString}")
+        Diagnostics.log(
+            "Supertonic",
+            "ONNX Runtime ${if (IosOnnx.available) "linked" else "not linked"}, memory ${iosPhysicalMemoryBytes / 1_000_000} MB, " +
+                "${NSProcessInfo.processInfo.activeProcessorCount} cores → neural voice ${if (neuralSupported) "offered" else "not offered"}",
+        )
         // Cambios de estado de la reproducción (sin la posición), para saber en el iPhone por qué no suena o no marca.
         koin.get<CoroutineScope>().launch {
             koin.get<ReaderAudioController>().playbackState
@@ -271,6 +336,8 @@ object LinguaShared {
                 settings.autoContinue = p.autoContinue
                 settings.audioCacheBytes = p.audioCacheMb * 1024L * 1024
                 settings.ttsPitch = p.ttsPitch
+                settings.supertonicSteps = p.supertonicSteps
+                settings.normalizeSpeech = p.normalizeSpeech
             }
         }
         // Instalaciones anteriores de iOS guardaban solo readingLanguage y dejaban vacía la lista de idiomas que se aprenden.
@@ -575,6 +642,69 @@ object LinguaShared {
         engineSelector.selectEngine(id)
     }
 
+    // MARK: Voz neural Supertonic 3 (fase 7), como TtsSettingsViewModel en Android
+
+    /** true si este iPhone puede usar la voz neural: ONNX Runtime enlazado y memoria suficiente (≥ 4 GB). */
+    var neuralSupported: Boolean = false
+        private set
+    val neuralEngineId: String get() = SupertonicModel.ENGINE_ID
+    val neuralLicenseName: String get() = SupertonicModel.LICENSE_NAME
+    val neuralLicenseUrl: String get() = SupertonicModel.LICENSE_URL
+    val neuralDownloadBytes: Long get() = SupertonicModel.TOTAL_BYTES
+    private val neuralModel: SupertonicModelManager get() = koin.get()
+    private val neuralEngine: SupertonicEngine get() = koin.get()
+
+    fun watchNeuralModel(block: (ModelState) -> Unit): FlowWatcher = watch(neuralModel.state, block)
+    fun watchNeuralStats(block: (SupertonicStats) -> Unit): FlowWatcher = watch(neuralEngine.stats, block)
+
+    /** Descarga (o continúa) el modelo, ~400 MB con verificación sha256 por fichero; el estado llega por [watchNeuralModel]. */
+    fun downloadNeuralModel() = neuralModel.download()
+    fun cancelNeuralDownload() = neuralModel.cancel()
+    fun verifyNeuralModel() = neuralModel.verify()
+
+    /** Borra el modelo; si la voz neural era el modo de audio, vuelve a la voz de Apple. */
+    @Throws(Throwable::class)
+    suspend fun deleteNeuralModel() {
+        if (engineSelector.selectedEngineId.value == SupertonicModel.ENGINE_ID) engineSelector.selectEngine(speech.id)
+        neuralModel.delete()
+    }
+
+    @Throws(Throwable::class) suspend fun setNeuralVoice(voice: String) = preferences.update { it.copy(supertonicVoice = voice) }
+    @Throws(Throwable::class) suspend fun setNeuralSteps(steps: Int) = preferences.update { it.copy(supertonicSteps = steps.coerceIn(2, 16)) }
+    @Throws(Throwable::class) suspend fun setNormalizeSpeech(enabled: Boolean) = preferences.update { it.copy(normalizeSpeech = enabled) }
+
+    /**
+     * Prueba y medición en el iPhone (el «spike» de la fase 7): sintetiza la frase de muestra del idioma con la voz
+     * neural (la primera vez carga el modelo) y devuelve tiempos, factor de tiempo real y memoria, con el WAV para
+     * oírlo. Se registra también en Diagnostics.
+     */
+    @Throws(Throwable::class)
+    suspend fun testNeuralVoice(languageTag: String, voiceId: String?): NeuralVoiceTest {
+        val target = cacheRoot / "neural-voice-test.wav"
+        val request = SpeechRequest(
+            text = SupertonicSampleTexts.sample(languageTag), languageTag = languageTag, voiceId = voiceId, speed = 1f,
+            parameters = mapOf("steps" to koin.get<EngineSettings>().supertonicSteps.toString()),
+        )
+        val outcome = neuralEngine.synthesizeTo(request, target)
+        val stats = neuralEngine.stats.value
+        val m = stats.lastSynthesis
+        val result = when {
+            outcome is SynthesisOutcome.Written && m != null -> NeuralVoiceTest(
+                loadMs = m.loadMs ?: -1, synthMs = m.synthMs, audioMs = m.audioMs, steps = m.steps,
+                memoryMb = m.memoryMb ?: stats.lastLoad?.memoryAfterMb ?: -1, threads = stats.lastLoad?.threads ?: 0,
+                wavPath = target.toString(), error = null,
+            )
+            outcome is SynthesisOutcome.Failed -> NeuralVoiceTest(error = outcome.failure.message.ifBlank { outcome.failure.reason.name })
+            else -> NeuralVoiceTest(error = stats.lastError ?: "No audio")
+        }
+        Diagnostics.log("Supertonic", "voice test ($languageTag): $result")
+        return result
+    }
+
+    /** Voces de la voz neural para un idioma (F1–F5, M1–M5). */
+    @Throws(Throwable::class)
+    suspend fun neuralVoices(languageTag: String): List<VoiceInfo> = neuralEngine.listVoices(languageTag)
+
     /** Registro de diagnóstico en pantalla (Ajustes › Acerca de › Diagnostics): texto completo con cada cambio. */
     fun watchDiagnostics(block: (String) -> Unit): FlowWatcher = watch(Diagnostics.text, block)
     fun clearDiagnostics() = Diagnostics.clear()
@@ -721,6 +851,10 @@ object LinguaShared {
     // MARK: PDF original (visor y «Ver original» en el lector), como PdfViewerViewModel + PdfTextLayouts en Android
 
     private lateinit var appRoot: okio.Path
+    private lateinit var cacheRoot: okio.Path
+    private const val NEURAL = "supertonic"
+    /** iPhones de 4 GB declaran algo menos (3,7–3,9 GB); los de 3 GB se quedan fuera (jetsam ≈ 1,4 GB). */
+    private const val NEURAL_MIN_MEMORY = 3_400_000_000L
     private val pdfLayouts = HashMap<String, PdfWordLayout>()
 
     private fun originalPath(root: okio.Path, bookId: String): okio.Path = root / "originals" / "$bookId.pdf"

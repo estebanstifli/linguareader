@@ -215,11 +215,16 @@ en un iPhone real antes de prometerlo.
     (`PdfKitWords.kt` + `WordBoxAligner`, `ReaderPdfView.swift`); «Open PDFs as» (preguntar / lectura / original) en la
     ficha y en Ajustes. Fase 5 ✅ (7-11-2026): catálogo online movido a código común (`domain/.../data/catalog/` sobre
     `HttpTransport`; Android usa las mismas clases) y pantalla «Library» en iOS (`OnlineLibraryView.swift`: búsqueda,
-    filtros, populares, ficha, «Add to My Books»). Pendientes: 6 iPad, giro y doble página;
-    7 Supertonic en iPhone tras un spike de rendimiento con ONNX Runtime por cinterop. No aplican a iOS: motores TTS
-    del sistema, escaneo del dispositivo, ayudas de WhatsApp/Telegram y servicios en primer plano.
-  - ⬜ Binding de `onnxruntime-c`, medir Supertonic y wav2vec2 en iPhone; descargas con `URLSession` en segundo plano;
-    `AVAudioEngine` y Now Playing.
+    filtros, populares, ficha, «Add to My Books»). Fase 6 ✅ (7-11-2026): iPhone + iPad, libro abierto (dos caras) en
+    horizontal ≥ 840 pt, orientación elegible en iPhone (Ajustes y botón del lector), giro libre en iPad, humo y
+    capturas en un iPad Pro 13" en CI. Fase 7, primer tramo (7-11-2026): voz neural Supertonic 3 con ONNX Runtime 1.30
+    (pod `onnxruntime-objc` + puente Swift `OnnxNativeBridge`, sin cinterop), descarga del modelo, voces, pasos,
+    deletreo de números con `NSNumberFormatter` y «Test the voice» con RTF y memoria medidos en el iPhone (go/no-go).
+    Pendientes de la fase 7: paquetes de voces por idioma (muestras, «preparando»), audio del libro entero con la app
+    abierta. No aplican a iOS: motores TTS del sistema, escaneo del dispositivo, ayudas de WhatsApp/Telegram y
+    servicios en primer plano.
+  - ⬜ Medir Supertonic en un iPhone de 4 GB y en uno reciente (RTF < 1, `phys_footprint` < 1,5 GB); descargas con
+    `URLSession` en segundo plano si TestFlight muestra descargas abandonadas.
 - ⬜ **Fase 2:** app SwiftUI (lector con TextKit 2, catálogo, ajustes, onboarding, visor PDF con PDFKit, String Catalog).
 
 ## Deuda técnica conocida
