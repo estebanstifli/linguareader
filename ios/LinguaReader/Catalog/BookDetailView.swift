@@ -52,7 +52,7 @@ struct BookDetailView: View {
                     }
                 }
             }
-            if let description = book.description, !description.isEmpty { Text(description).font(.body) }
+            if let description = book.description_, !description.isEmpty { Text(description).font(.body) }
 
             HStack(spacing: 10) {
                 NavigationLink(value: CatalogDestination.reader(book.id, false)) {
