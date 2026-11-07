@@ -194,8 +194,10 @@ en un iPhone real antes de prometerlo.
     del escaneo de almacenamiento (iOS aún no importa archivos del usuario) y reglas de copia de seguridad.
   - 🟡 **Paridad completa con Android 0.4.2 por fases** (inventario y plan aprobados el 7-11-2026). Fase 0 ✅: árbol
     Android 0.4.2 subido e iOS en 0.4.2 (6) con los enlaces de lingoaudiobook.eu, Ayuda y la voz preparada solo al
-    reproducir (no al abrir). Pendientes: 1 varios idiomas + pantalla Idiomas + ficha del libro + pretraducción +
-    narración pregrabada; 2 lector y catálogo al detalle (hoja de frase, popup de palabra, Marcador, ilustraciones,
+    reproducir (no al abrir). Fase 1 ✅ (7-11-2026): varios idiomas a la vez (primera apertura con casillas), Ajustes ›
+    Idiomas y «Aprender otros idiomas», apartados «Learn X» por idioma, «¿Por dónde empiezo?», banner de descarga,
+    ficha del libro con «Leer y escuchar», traducción completa (empezar / cancelar / continuar, fila en la lista y menú)
+    y narración pregrabada en el lector (`BookDetailView.swift`, `LanguagesView.swift`). Pendientes: 2 lector y catálogo al detalle (hoja de frase, popup de palabra, Marcador, ilustraciones,
     búsqueda ordenada, ajustes que faltan, copia de seguridad, textos `String` al catálogo); 3 importar documentos del
     usuario (`fileImporter`, «Abrir en», pegar texto, página web, portadas en disco); 4 PDF con PDFKit (extractor,
     visor, «Ver original» con resaltado); 5 catálogo online movido a `domain` común; 6 iPad, giro y doble página;
