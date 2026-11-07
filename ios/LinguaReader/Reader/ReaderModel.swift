@@ -75,6 +75,9 @@ final class ReaderModel: ObservableObject {
     var chapter: Chapter? { book.map { b in chapterIndex < b.chapters.count ? b.chapters[chapterIndex] : nil } ?? nil }
     var isPlaying: Bool { playback?.status == .playing }
     var ttsMode: Bool { prefs?.ttsMode ?? true }
+    /// Como en Android: abrir un libro para leer no prepara voz; solo se genera audio cuando el usuario lo pide
+    /// (reproducir, «leer desde aquí»). Pasar páginas antes de eso no sintetiza ni precarga nada.
+    private var audioRequested = false
     var translationLanguage: String { prefs?.translationLanguage ?? "es" }
     var pageCount: Int { max(1, pageOffsets.count) }
     var hasNextPassage: Bool { book.map { passageIndex + 1 < $0.passages.count } ?? false }
@@ -266,10 +269,11 @@ final class ReaderModel: ObservableObject {
             try await audio.load(passage: passage, languageTag: book.learningLanguage, voiceId: voiceId, startOffset: Int32(offset))
             await persist(passage: passage, offset: offset)
             if autoplay && ttsMode {
+                audioRequested = true
                 if !continuation { _ = try? await audio.warmUp(passage: passage, languageTag: book.learningLanguage, voiceId: voiceId, policy: WarmUpPolicy(targetDurationMs: 15_000, maxSentences: 1), fromSentence: 0) }
                 try await audio.play()
             }
-            if ttsMode {
+            if audioRequested && ttsMode {
                 let upcoming = PrefetchWindow.shared.after(passages: book.passages, currentIndex: Int32(index), ahead: ReaderAudioControllerKt.PREFETCH_PAGES_AHEAD)
                 if !upcoming.isEmpty { try? await audio.prefetch(passages: upcoming, languageTag: book.learningLanguage, voiceId: voiceId) }
             }
@@ -365,6 +369,7 @@ final class ReaderModel: ObservableObject {
         guard ttsMode else { try? await LinguaShared.shared.setTtsMode(enabled: true); return }
         do {
             if isPlaying { try await audio.pause(); await persist() } else {
+                audioRequested = true
                 if let passage, let book, playback?.passageId != passage.id {
                     try await audio.load(passage: passage, languageTag: book.learningLanguage, voiceId: voiceId, startOffset: 0)
                 }
@@ -425,6 +430,7 @@ final class ReaderModel: ObservableObject {
     func readFrom(chapterOffset: Int) async {
         guard let layout, let loc = layout.location(chapterOffset: chapterOffset) else { return }
         wordCard = nil
+        audioRequested = true
         if !ttsMode { try? await LinguaShared.shared.setTtsMode(enabled: true) }
         if loc.passageIndex != passageIndex {
             await open(passageIndex: loc.passageIndex, offset: loc.offset, autoplay: true, scroll: false)

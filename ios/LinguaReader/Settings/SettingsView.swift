@@ -104,7 +104,8 @@ struct AboutView: View {
             }.themedRows()
             Section {
                 Link(destination: AppLinks.privacyPolicy) { LinkRow("Privacy policy", AppLinks.privacyPolicy.absoluteString, icon: "hand.raised") }
-                Link(destination: AppLinks.website) { LinkRow("Website and help", AppLinks.website.absoluteString, icon: "globe") }
+                Link(destination: AppLinks.website) { LinkRow("Website", AppLinks.website.absoluteString, icon: "globe") }
+                Link(destination: AppLinks.help) { LinkRow("Help", AppLinks.help.absoluteString, icon: "questionmark.circle") }
                 Link(destination: AppLinks.contact(subject: "LingoAudioBook \(shortVersion): feedback")) {
                     LinkRow("Contact and suggestions", AppLinks.contactEmail, icon: "envelope")
                 }

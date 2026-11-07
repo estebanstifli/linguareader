@@ -41,8 +41,8 @@ targets:
         # App ID registrado en el programa de desarrolladores (equivale a com.lingoaudiobook.app en Android).
         PRODUCT_BUNDLE_IDENTIFIER: com.lingoaudiobook.ios
         TARGETED_DEVICE_FAMILY: "1"
-        MARKETING_VERSION: "0.4.1"
-        CURRENT_PROJECT_VERSION: "5"
+        MARKETING_VERSION: "0.4.2"
+        CURRENT_PROJECT_VERSION: "6"
         # El compilador emite .stringsdata con las claves de las vistas SwiftUI; CI los vuelca al catálogo.
         SWIFT_EMIT_LOC_STRINGS: YES
       configs:

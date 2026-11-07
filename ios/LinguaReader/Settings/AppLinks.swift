@@ -1,11 +1,12 @@
 import Foundation
 
-/// Web pública de la app (GitHub Pages, repositorio estebanstifli/lingoaudiobook) y contacto; los mismos enlaces que
+/// Web pública de la app (lingoaudiobook.eu), ayuda y contacto; los mismos enlaces que
 /// `legal/AppLinks.kt` en Android.
 enum AppLinks {
-    static let website = URL(string: "https://estebanstifli.github.io/lingoaudiobook/")!
-    static let privacyPolicy = URL(string: "https://estebanstifli.github.io/lingoaudiobook/privacy/")!
-    static let contactEmail = "estebandezafra@gmail.com"
+    static let website = URL(string: "https://lingoaudiobook.eu/")!
+    static let privacyPolicy = URL(string: "https://lingoaudiobook.eu/privacy/")!
+    static let help = URL(string: "https://lingoaudiobook.eu/help/")!
+    static let contactEmail = "wpbotwriter@gmail.com"
 
     static func contact(subject: String) -> URL {
         var components = URLComponents()
