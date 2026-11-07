@@ -68,7 +68,13 @@ struct CatalogView: View {
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columns) {
-            SectionsList(selection: $section)
+            // Las pantallas de la barra lateral (idiomas, Library, vocabulario, ajustes) se abren en la pila del detalle:
+            // con dos destinos para el mismo tipo, en iPad la ficha del libro acababa en la barra lateral oculta.
+            SectionsList(selection: $section) { destination in
+                if section == nil { section = .books }
+                path = NavigationPath()
+                path.append(destination)
+            }
         } detail: {
             NavigationStack(path: $path) {
                 BookListView(section: section ?? .books, importModel: importModel)
@@ -106,6 +112,7 @@ struct CatalogView: View {
 private struct SectionsList: View {
     @EnvironmentObject private var store: AppStore
     @Binding var selection: CatalogSection?
+    let open: (CatalogDestination) -> Void
     @State private var deleteCollection: Shelf?
 
     var body: some View {
@@ -118,11 +125,11 @@ private struct SectionsList: View {
                 ForEach(store.learningLanguages, id: \.self) { lang in
                     row(.learn(lang), String(localized: "Learn \(Languages.name(lang))"), "character.book.closed", count: store.books.filter { Languages.primary($0.learningLanguage) == lang && !trashed($0.id) }.count)
                 }
-                NavigationLink(value: CatalogDestination.languages) { Label("Learn other languages", systemImage: "globe") }
+                screenRow(.languages, "Learn other languages", "globe")
                     .accessibilityIdentifier("section.learn-other")
             }.themedRows()
             Section {
-                NavigationLink(value: CatalogDestination.online) { Label("Library", systemImage: "building.columns") }
+                screenRow(.online, "Library", "building.columns")
                     .accessibilityIdentifier("section.online")
             } footer: {
                 Text("Free books online: search, add them to your library and read them offline.")
@@ -144,15 +151,14 @@ private struct SectionsList: View {
                 row(.trash, String(localized: "Trash"), "trash", count: store.shelves?.trash.count ?? 0)
             }.themedRows()
             Section {
-                NavigationLink(value: CatalogDestination.vocabulary) { Label("Vocabulary", systemImage: "textformat.abc") }
+                screenRow(.vocabulary, "Vocabulary", "textformat.abc")
                     .accessibilityIdentifier("nav.vocabulary")
-                NavigationLink(value: CatalogDestination.settings) { Label("Settings", systemImage: "gearshape") }
+                screenRow(.settings, "Settings", "gearshape")
                     .accessibilityIdentifier("nav.settings")
             }.themedRows()
         }
         .themedScreen()
         .navigationTitle("LingoAudioBook")
-        .navigationDestination(for: CatalogDestination.self) { $0.view }
         .confirmationDialog(Text("Delete the collection “\(deleteCollection?.name ?? "")”? The books stay in the library."), isPresented: Binding(get: { deleteCollection != nil }, set: { if !$0 { deleteCollection = nil } }), titleVisibility: .visible) {
             Button("Delete collection", role: .destructive) {
                 if let shelf = deleteCollection {
@@ -165,6 +171,13 @@ private struct SectionsList: View {
     }
 
     private func trashed(_ bookId: String) -> Bool { store.shelves?.trashedIds.contains(bookId) ?? false }
+
+    /// Fila que abre una pantalla en la columna de detalle (no es un apartado del catálogo).
+    private func screenRow(_ destination: CatalogDestination, _ title: LocalizedStringKey, _ icon: String) -> some View {
+        Button { open(destination) } label: {
+            Label { Text(title).foregroundStyle(Color.primary) } icon: { Image(systemName: icon) }
+        }
+    }
 
     private func row(_ section: CatalogSection, _ title: String, _ icon: String, count: Int) -> some View {
         NavigationLink(value: section) {
