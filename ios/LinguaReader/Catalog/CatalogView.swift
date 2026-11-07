@@ -523,9 +523,10 @@ struct CatalogSearchSheet: View {
     }
 
     private func group<Content: View>(_ title: LocalizedStringKey, @ViewBuilder _ chips: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        let content = chips()
+        return VStack(alignment: .leading, spacing: 6) {
             Text(title).font(.subheadline.bold()).foregroundStyle(.tint)
-            FlowChips { chips() }
+            FlowLayout(spacing: 8) { content }
         }
     }
 
@@ -541,14 +542,6 @@ struct CatalogSearchSheet: View {
 }
 
 /// Chips en filas que saltan de línea cuando no caben (como `FlowRow`).
-struct FlowChips<Content: View>: View {
-    @ViewBuilder let content: () -> Content
-
-    var body: some View {
-        FlowLayout(spacing: 8) { content() }
-    }
-}
-
 struct FlowLayout: Layout {
     var spacing: CGFloat = 8
 
