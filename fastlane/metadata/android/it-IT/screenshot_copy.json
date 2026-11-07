@@ -1,0 +1,42 @@
+{
+  "language": "ITALIANO",
+  "example": "Esempio di lettura: inglese + italiano",
+  "cards": [
+    [
+      "bilingual",
+      "LIBRI BILINGUI",
+      "Una storia.\nDue lingue.",
+      "Impara con il testo originale e la sua traduzione."
+    ],
+    [
+      "finger",
+      "LEGGI E ASCOLTA",
+      "Ascolta. Segui.\nImpara.",
+      "Segui le parole con il dito di lettura."
+    ],
+    [
+      "translate",
+      "TOCCA PER TRADURRE",
+      "Una parola nuova?\nToccala.",
+      "Scopri il significato senza lasciare la storia."
+    ],
+    [
+      "library",
+      "LETTURE PER LIVELLO",
+      "La tua prossima\nstoria ti aspetta.",
+      "Esplora libri in inglese, spagnolo e francese."
+    ],
+    [
+      "vocabulary",
+      "PAROLE NEL CONTESTO",
+      "Fai tue\nnuove parole.",
+      "Consulta la frase. Salva le parole da ripassare."
+    ],
+    [
+      "comfort",
+      "LEGGI A MODO TUO",
+      "Un po’ di lettura.\nOgni giorno.",
+      "Seppia, modalità scura e testo regolabile."
+    ]
+  ]
+}

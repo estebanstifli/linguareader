@@ -1,0 +1,1 @@
+Melhoramos o seletor de tema para manter as opções legíveis em telas pequenas e com fontes maiores.

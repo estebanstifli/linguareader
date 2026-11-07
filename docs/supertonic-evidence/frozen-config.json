@@ -1,0 +1,56 @@
+{
+  "heads": [
+    [
+      3,
+      2
+    ],
+    [
+      3,
+      7
+    ]
+  ],
+  "steps": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "length_power": 0.5,
+  "start_offset": -0.04,
+  "end_offset": -0.04,
+  "edge_db": -25.0,
+  "trim_gaps": true,
+  "version": "attention-v1-dev-frozen",
+  "fit_split": "dev",
+  "dev_ids": [
+    "es_01",
+    "es_02",
+    "es_03",
+    "es_04",
+    "es_05",
+    "es_06",
+    "es_07",
+    "es_08",
+    "en_01",
+    "en_02",
+    "en_03",
+    "en_04",
+    "en_05",
+    "en_06",
+    "en_07",
+    "en_08",
+    "fr_01",
+    "fr_02",
+    "fr_03",
+    "fr_04",
+    "fr_05",
+    "fr_06",
+    "fr_07",
+    "fr_08"
+  ],
+  "comparator": "results\\whisper-vad.json",
+  "comparator_sha256": "b9b7a5ac736f8e3953687d028607773dc312a780b7576c795236f06ab50fb5e1",
+  "corpus_sha256": "f62056a1b9567d88ea03c45839b12e452898b424c6e00f26fa72a83a5e2cad61",
+  "candidate_count": 72,
+  "warning": "Selected against automatic comparator, not human ground truth."
+}

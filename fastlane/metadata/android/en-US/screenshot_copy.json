@@ -1,0 +1,42 @@
+{
+  "language": "ENGLISH",
+  "example": "Reading example: French + English",
+  "cards": [
+    [
+      "bilingual",
+      "BILINGUAL BOOKS",
+      "One story.\nTwo languages.",
+      "Learn with the original text and its translation."
+    ],
+    [
+      "finger",
+      "READ & LISTEN",
+      "Hear it. See it.\nLearn it.",
+      "Follow the words with the reading finger."
+    ],
+    [
+      "translate",
+      "TRANSLATION ON TAP",
+      "A new word?\nJust tap.",
+      "Explore its meaning without leaving the story."
+    ],
+    [
+      "library",
+      "GRADED READERS",
+      "Your next chapter\nstarts here.",
+      "Explore stories in English, Spanish and French."
+    ],
+    [
+      "vocabulary",
+      "WORDS IN CONTEXT",
+      "Make new words\nyour own.",
+      "Explore the sentence. Save words to revisit."
+    ],
+    [
+      "comfort",
+      "READ YOUR WAY",
+      "A little reading.\nEvery day.",
+      "Enjoy sepia, dark mode and adjustable text."
+    ]
+  ]
+}

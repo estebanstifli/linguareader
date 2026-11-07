@@ -554,7 +554,8 @@
     <string name="tts_cache_clear">Cache leeren</string>
     <string name="tts_license_note">Code: MIT. Gewichte: %1$s (Nutzungsbeschränkungen). Von Supertone archiviertes Projekt, ohne Support. Das erzeugte Audio ist eine synthetische Stimme.</string>
     <string name="tts_license_title">Modelllizenz</string>
-    <string name="tts_license_text">Die Gewichte von Supertonic 3 werden unter der Lizenz %1$s verbreitet. Mit dem Herunterladen akzeptierst du ihre Nutzungsbeschränkungen (Anhang A), darunter: sie nicht für illegale Zwecke zu nutzen, nicht um Minderjährigen zu schaden, nicht um Personen ohne ihre Zustimmung nachzuahmen, nicht um schädliche Desinformation zu verbreiten oder zu belästigen; und das erzeugte Audio nicht so darzustellen, als wäre es nicht maschinell erzeugt.\n\nQuelle: huggingface.co/%2$s (Revision %3$s). Größe: %4$s. Volltext: %5$s</string>
+    <string name="tts_license_text">Supertonic 3 von Supertone Inc. (%2$s). Mit dem Download akzeptierst du die Lizenz %1$s einschlie?lich ihrer Nutzungsbeschr?nkungen (Abschnitt 5 und Anhang A). Die Stimme wird mit KI erzeugt.</string>
+    <string name="tts_license_read">Vollst?ndige Lizenz lesen</string>
     <string name="tts_license_accept">Akzeptieren und herunterladen</string>
     <string name="tts_metrics_load">Modell geladen: %1$d ms (Prüfung %2$d ms, %3$d Threads)</string>
     <string name="tts_metrics_synthesis">Synthese: %1$d ms · Audio: %2$s s · RTF %3$s</string>
@@ -593,7 +594,8 @@
     <string name="about_version">Version %1$s (%2$d)</string>
     <string name="about_tagline">Sprachen lernen durch Lesen und Hören: Stufenlektüren, eine Stimme, die jedes Wort hervorhebt, und Übersetzung beim Antippen, alles offline.</string>
     <string name="about_privacy_policy">Datenschutzerklärung</string>
-    <string name="about_website">Website und Hilfe</string>
+    <string name="about_website">Website</string>
+    <string name="about_help">Hilfe</string>
     <string name="about_contact">Kontakt und Vorschläge</string>
     <string name="about_email_subject">%1$s %2$s: Feedback</string>
     <string name="about_privacy_summary">Kein Konto, keine Werbung und kein Tracking durch die App. Deine Bücher, dein Fortschritt und deine Vokabeln bleiben auf deinem Handy. Die App verbindet sich nur mit dem Internet, um herunterzuladen, was du anforderst (Bibliotheken, Übersetzer, Stimmen), und um Webseiten zu importieren.</string>

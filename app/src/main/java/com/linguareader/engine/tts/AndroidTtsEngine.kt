@@ -166,6 +166,14 @@ class AndroidTtsEngine(
         }
     }
 
+    /** Idiomas (subetiqueta primaria) para los que el motor elegido tiene voz, ordenados alfabéticamente por etiqueta. */
+    suspend fun availableLanguages(): List<String> {
+        val t = engine() ?: return emptyList()
+        return withContext(Dispatchers.Main) {
+            runCatching { t.availableLanguages.orEmpty().map { it.language.lowercase() }.filter { it.isNotBlank() }.distinct().sorted() }.getOrDefault(emptyList())
+        }
+    }
+
     /** Si el motor [enginePackage] tiene voz para [languageTag], con una instancia propia que no toca la que lee. */
     suspend fun hasLanguage(enginePackage: String, languageTag: String): Boolean {
         val t = withContext(Dispatchers.Main) { create(enginePackage) } ?: return false

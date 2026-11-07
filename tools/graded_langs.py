@@ -93,6 +93,27 @@ LANGS = {
         "chapter": "अध्याय N: शीर्षक", "end": "समाप्त",
         "readability": "Sílabas/palabra (orientativo; sin índice estándar)",
     },
+    "tr": {
+        "name": "turco", "title": "Türkçe çeviriler (tr)",
+        "variety": "turco estándar de Estambul (*sen* en familia y amigos, *siz* con desconocidos y mayores)",
+        "dialogue": "raya (`—`) al inicio del diálogo: `— Yedi! diye bağırır. — Bir vuruşta yedi!`; citas y carteles con “…”",
+        "chapter": "Bölüm N: Başlık", "end": "Son",
+        "readability": "Ateşman (90-100 çok kolay, 70-89 kolay, 50-69 orta)",
+    },
+    "el": {
+        "name": "griego", "title": "Μεταφράσεις στα ελληνικά (el)",
+        "variety": "griego moderno estándar (monotónico; *εσύ* en familia y amigos, *εσείς* con desconocidos)",
+        "dialogue": "comillas «…» con inciso: `«Επτά!» λέει. «Επτά με μια χτυπιά!»`; interrogación con `;`, nunca `?`",
+        "chapter": "Κεφάλαιο N: Τίτλος", "end": "Τέλος",
+        "readability": "Sílabas/palabra (orientativo; sin índice estándar)",
+    },
+    "uk": {
+        "name": "ucraniano", "title": "Переклади українською мовою (uk)",
+        "variety": "ucraniano estándar (*ти* en familia y amigos, *ви* con desconocidos; apóstrofo ’ en м’ясо, сім’я)",
+        "dialogue": "raya (`—`) al inicio del diálogo: `— Сім! — каже він. — Сім одним ударом!`; citas y carteles con «…»",
+        "chapter": "Розділ N: Назва", "end": "Кінець",
+        "readability": "Sílabas/palabra (orientativo; sin índice estándar)",
+    },
 }
 
 # Los 16 libros con los que arranca cada idioma nuevo (slugs ingleses, en orden de trabajo).

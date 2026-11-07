@@ -53,6 +53,45 @@ class MarkTimingsTest {
     }
 
     @Test
+    fun `explicit boundaries preserve trailing silence and confidence`() {
+        val t = tokens("Tom", "is", "eight")
+        val marks = listOf(SpokenMark(0, 3, 50, 250, .8f), SpokenMark(4, 6, 400, 480, .7f), SpokenMark(7, 12, 600, 900, .9f))
+        val timed = MarkTimings.toTimed(t, MarkTimings.spokenSpans("Tom is eight", t.map { it.text }), marks, 1200)
+        assertEquals(listOf(50L to 250L, 400L to 480L, 600L to 900L), timed.map { it.startMs to it.endMs })
+        assertEquals(listOf(.8f, .7f, .9f), timed.map { it.confidence })
+        val timeline = AlignmentTimeline(timed, holdInGaps = false)
+        assertEquals("t0", timeline.tokenAt(249)!!.tokenId)
+        assertNull(timeline.tokenAt(250))
+        assertNull(timeline.tokenAt(350))
+        assertNull(timeline.tokenAt(901))
+    }
+
+    @Test
+    fun `explicit spoken pieces merge for one displayed number without inventing subword boundaries`() {
+        val t = tokens("42", "cats")
+        val marks = listOf(SpokenMark(0, 5, 100, 300, .9f), SpokenMark(6, 9, 350, 480, .7f), SpokenMark(10, 14, 600, 900, .8f))
+        val timed = MarkTimings.toTimed(t, MarkTimings.spokenSpans("forty two cats", listOf("forty two", "cats")), marks, 1000)
+        assertEquals(listOf(100L to 480L, 600L to 900L), timed.map { it.startMs to it.endMs })
+        assertEquals(.7f, timed.first().confidence)
+        val ambiguous = MarkTimings.toTimed(tokens("forty", "two"), listOf(0 until 5, 6 until 9), listOf(SpokenMark(0, 9, 100, 480)), 1000)
+        assertTrue(ambiguous.isEmpty())
+    }
+
+    @Test
+    fun `invalid explicit times or mixed contracts cannot turn into fabricated estimates`() {
+        val t = tokens("one", "two")
+        val spans = listOf(0 until 3, 4 until 7)
+        for (bad in listOf(
+            listOf(SpokenMark(0, 3, 100, 400), SpokenMark(4, 7, 300, 500)),
+            listOf(SpokenMark(0, 3, 100, 100)),
+            listOf(SpokenMark(0, 3, -1, 100)),
+            listOf(SpokenMark(0, 3, 100, 1100)),
+            listOf(SpokenMark(0, 3, 100, 400), SpokenMark(4, 7, 500)),
+            listOf(SpokenMark(0, 3, 100, 400, Float.NaN)),
+        )) assertTrue(MarkTimings.toTimed(t, spans, bad, 1000).isEmpty())
+    }
+
+    @Test
     fun `wav silence is trimmed in place and the removed lead is reported`() {
         val rate = 1000
         val samples = ShortArray(1000) { i -> if (i in 300 until 600) 10_000 else 0 }

@@ -5,16 +5,18 @@ package com.linguareader.engine.supertonic
 data class ModelFile(val path: String, val sizeBytes: Long, val sha256: String)
 
 /**
- * Supertonic 3 tal y como lo publica el archivo oficial en Hugging Face, fijado a una revisión
- * inmutable. Código de ejemplo: MIT. Pesos: BigScience OpenRAIL-M (ver [LICENSE_URL]).
+ * Supertonic 3 del archivo oficial de Supertone en Hugging Face, fijado a una revisión inmutable.
+ * R2 distribuye una copia byte a byte con los mismos hashes. Código de ejemplo: MIT.
+ * Pesos: BigScience OpenRAIL-M (ver [LICENSE_URL]).
  */
 object SupertonicModel {
     const val ENGINE_ID = "supertonic-3"
     const val DISPLAY_NAME = "Supertonic 3 (local, ONNX)"
     const val REPO = "supertone-oss-archive/supertonic-3"
     const val REVISION = "aafc6e32416a594460b32413efc49d7fe4ce6d46"
-    const val BASE_URL = "https://huggingface.co/$REPO/resolve/$REVISION"
-    const val LICENSE_URL = "https://huggingface.co/$REPO/blob/$REVISION/LICENSE"
+    const val DOWNLOAD_ORIGIN = "https://files.lingoaudiobook.eu"
+    const val BASE_URL = "$DOWNLOAD_ORIGIN/models/$ENGINE_ID/$REVISION"
+    const val LICENSE_URL = "$BASE_URL/LICENSE"
     const val LICENSE_NAME = "BigScience OpenRAIL-M"
     const val MARKER = ".verified"
 
@@ -53,5 +55,5 @@ object SupertonicModel {
      * Versión para la clave de caché: cambia si cambian los pesos o el posprocesado del audio
      * (`trim1` = silencios iniciales/finales recortados).
      */
-    val MODEL_VERSION: String = "s3@${REVISION.take(12)}-trim1"
+    val MODEL_VERSION: String = "s3@${REVISION.take(12)}-trim1-attn1-unicode1"
 }

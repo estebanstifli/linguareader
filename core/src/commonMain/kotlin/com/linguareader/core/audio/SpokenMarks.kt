@@ -11,7 +11,15 @@ import okio.Path.Companion.toPath
  * [ms] milisegundos del clip (Android TTS: `onRangeStart` con la posición en frames del audio).
  */
 @Serializable
-data class SpokenMark(val start: Int, val end: Int, val ms: Long)
+data class SpokenMark(
+    val start: Int,
+    val end: Int,
+    val ms: Long,
+    /** Fin acústico cuando el motor proporciona ambos límites; null para callbacks Android TTS antiguos. */
+    val endMs: Long? = null,
+    /** Puntuación opcional del motor; no representa una probabilidad calibrada de exactitud. */
+    val confidence: Float? = null,
+)
 
 @Serializable
 private data class SpokenMarksData(val marks: List<SpokenMark>, val v: Int = 1)
@@ -32,7 +40,7 @@ object SpokenMarksSidecar {
         json.decodeFromString(SpokenMarksData.serializer(), fileSystem.read(f) { readUtf8() }).takeIf { it.v == 1 }?.marks
     }.getOrNull()
 
-    /** Escritura atómica; si falla, el clip simplemente se resaltará por frase (o con el alineador). */
+    /** Escritura atómica; si falla, el clip simplemente se resaltará por frase. */
     fun write(fileSystem: FileSystem, wav: Path, marks: List<SpokenMark>) {
         writeAtomically(fileSystem, fileFor(wav), json.encodeToString(SpokenMarksData.serializer(), SpokenMarksData(marks)))
     }

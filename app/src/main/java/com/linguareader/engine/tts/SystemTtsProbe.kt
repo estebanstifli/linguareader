@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import com.linguareader.engine.supertonic.SupertonicSampleTexts
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -30,7 +31,7 @@ class SystemTtsProbe(private val context: Context) {
     suspend fun wordMarks(enginePackage: String, languageTag: String): Result {
         val tts = withContext(Dispatchers.Main) { create(enginePackage) } ?: return Result.Failed
         try {
-            val text = SAMPLE[languageTag.substringBefore('-')] ?: SAMPLE.getValue("en")
+            val text = SAMPLE[languageTag.substringBefore('-')] ?: SupertonicSampleTexts.sample(languageTag)
             val done = CompletableDeferred<Boolean>()
             var marks = 0
             val id = "probe|${System.nanoTime()}"

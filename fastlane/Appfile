@@ -1,0 +1,3 @@
+# The private key stays outside the repository. Configure this user environment variable.
+json_key_file(ENV.fetch("PLAY_STORE_JSON_KEY"))
+package_name("com.lingoaudiobook.app")

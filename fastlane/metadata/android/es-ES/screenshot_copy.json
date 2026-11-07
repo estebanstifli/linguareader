@@ -1,0 +1,42 @@
+{
+  "language": "ESPAÑOL",
+  "example": "Ejemplo de lectura: inglés + español",
+  "cards": [
+    [
+      "bilingual",
+      "LIBROS BILINGÜES",
+      "Una historia.\nDos idiomas.",
+      "Aprende con el texto original y su traducción."
+    ],
+    [
+      "finger",
+      "LEE Y ESCUCHA",
+      "Escucha. Sigue.\nAprende.",
+      "Sigue las palabras con el dedo de lectura."
+    ],
+    [
+      "translate",
+      "TRADUCCIÓN AL TOCAR",
+      "¿Una palabra nueva?\nTócala.",
+      "Descubre su significado sin salir de la historia."
+    ],
+    [
+      "library",
+      "LECTURAS POR NIVELES",
+      "Tu próxima historia\nempieza aquí.",
+      "Explora libros en inglés, español y francés."
+    ],
+    [
+      "vocabulary",
+      "PALABRAS EN CONTEXTO",
+      "Haz tuyas\nnuevas palabras.",
+      "Consulta la frase. Guarda palabras para repasar."
+    ],
+    [
+      "comfort",
+      "LEE A TU MANERA",
+      "Un poco de lectura.\nCada día.",
+      "Disfruta del sepia, modo oscuro y texto ajustable."
+    ]
+  ]
+}

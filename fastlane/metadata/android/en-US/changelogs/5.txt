@@ -1,0 +1,1 @@
+Improved the theme selector so options remain readable on small screens and with larger font sizes.

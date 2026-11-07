@@ -118,7 +118,9 @@ class PagedBook(val pages: List<Page>) {
  * Corta los bloques en páginas de [pageHeight] px. Los bloques de texto se parten por líneas (nunca a mitad de
  * línea); si no cabe ni una línea en lo que queda de página, pasa a la siguiente. Cada título de capítulo abre
  * página. Una imagen que no cabe en lo que queda pasa a la siguiente (y si es más alta que la página, se limita).
- * Entre bloques se deja [blockSpacing] px; tras un título, [titleSpacing].
+ * Entre bloques se deja [blockSpacing] px; tras un título, [titleSpacing]. Cada pareja original/traducción
+ * se coloca entera con [translationSpacing] entre ambos. Si supera una página vacía, se mantiene en una
+ * sola página que la vista permite desplazar verticalmente (sin reducir la letra ni perder contenido).
  */
 object PageBuilder {
 
@@ -128,6 +130,7 @@ object PageBuilder {
         pageHeight: Float,
         blockSpacing: Float,
         titleSpacing: Float,
+        translationSpacing: Float = blockSpacing / 4f,
     ): List<Page> {
         val pages = mutableListOf<Page>()
         var items = mutableListOf<PageItem>()
@@ -151,7 +154,33 @@ object PageBuilder {
             used += height + spacing
         }
 
-        for (block in blocks) {
+        var skipTranslation = false
+        for ((index, block) in blocks.withIndex()) {
+            if (skipTranslation) { skipTranslation = false; continue }
+            val translation = (blocks.getOrNull(index + 1) as? LayoutBlock.Translation)
+                ?.takeIf { block is LayoutBlock.Original && it.chapter == block.chapter &&
+                    it.passage == block.passage && it.position == block.end }
+            if (block is LayoutBlock.Original && translation != null) {
+                val originalMetrics = measure(block)
+                val translatedMetrics = measure(translation)
+                if (originalMetrics != null && translatedMetrics != null &&
+                    originalMetrics.lineCount > 0 && translatedMetrics.lineCount > 0) {
+                    val originalHeight = originalMetrics.lineBottom(originalMetrics.lineCount - 1) - originalMetrics.lineTop(0)
+                    val translatedHeight = translatedMetrics.lineBottom(translatedMetrics.lineCount - 1) - translatedMetrics.lineTop(0)
+                    val pairHeight = originalHeight + translationSpacing + translatedHeight
+                    if (items.isNotEmpty() && used + pairHeight > pageHeight) flush()
+                    place(PageItem.Original(block.passage, block.start, block.end, block.start, block.end,
+                        0, originalMetrics.lineCount - 1), originalHeight, translationSpacing,
+                        TextPos(block.passage, block.start), block.chapter)
+                    place(PageItem.Translation(translation.passage, translation.text, 0, translatedMetrics.lineCount - 1),
+                        translatedHeight, blockSpacing, TextPos(block.passage, block.end), block.chapter)
+                    lastPos = TextPos(block.passage, block.end)
+                    skipTranslation = true
+                    // An oversized pair remains one page; PageColumn lets the reader scroll it.
+                    if (pairHeight > pageHeight) flush()
+                    continue
+                }
+            }
             when (block) {
                 is LayoutBlock.ChapterTitle -> {
                     flush()

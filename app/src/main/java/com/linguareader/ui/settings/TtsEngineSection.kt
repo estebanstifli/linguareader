@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,9 +26,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -42,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -65,6 +64,7 @@ import com.linguareader.engine.packs.VoicePackManager
 import com.linguareader.engine.supertonic.ModelState
 import com.linguareader.engine.supertonic.SupertonicEngine
 import com.linguareader.engine.supertonic.SupertonicModel
+import com.linguareader.engine.supertonic.SupertonicSampleTexts
 import com.linguareader.engine.supertonic.SupertonicModelManager
 import com.linguareader.engine.supertonic.SupertonicStats
 import com.linguareader.engine.supertonic.SynthesisMetrics
@@ -75,6 +75,7 @@ import com.linguareader.ui.common.Languages
 import com.linguareader.ui.common.voiceDetail
 import com.linguareader.ui.common.voiceTitle
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -94,7 +95,9 @@ sealed interface VoiceTestState {
     data class Running(val language: String) : VoiceTestState
     data class Done(val metrics: SynthesisMetrics) : VoiceTestState
     /** Se reprodujo la muestra pregenerada del paquete de voces (sin cargar el modelo). */
-    data class Played(val language: String) : VoiceTestState
+    data class Played(val language: String, val voice: String) : VoiceTestState
+    /** Bajando el paquete de voces del idioma antes de reproducir su muestra. */
+    data class DownloadingPack(val language: String) : VoiceTestState
     data class Failed(val message: String) : VoiceTestState
 }
 
@@ -119,10 +122,13 @@ class TtsSettingsViewModel(
 
     val preferences: StateFlow<UserPreferences> = repo.preferences.stateIn(viewModelScope, SharingStarted.Eagerly, UserPreferences())
     val modelState: StateFlow<ModelState> = manager.state
-    val voicePackState: StateFlow<ModelState> = voicePacks.state
+    /** Paquete de voces pregeneradas por idioma (instalado, bajando, no instalado). */
+    val voicePackStates: StateFlow<Map<String, ModelState>> = voicePacks.states
     val stats: StateFlow<SupertonicStats> = engine.stats
     val cacheBytes = MutableStateFlow(0L)
     val test = MutableStateFlow<VoiceTestState>(VoiceTestState.Idle)
+    val previewLanguage = MutableStateFlow<String?>(null)
+    private var previewJob: Job? = null
     private var player: Media3ClipPlayer? = null
 
     // ---- Voz del sistema (Android TTS) ----
@@ -131,6 +137,8 @@ class TtsSettingsViewModel(
     val engines = MutableStateFlow<List<SystemTtsEngine>>(emptyList())
     /** Idioma cuyas voces se muestran (el de lectura por defecto). */
     val voiceLanguage = MutableStateFlow("en")
+    /** Idiomas con voz en el motor del sistema elegido (si no responde, los de las bibliotecas). */
+    val systemLanguages = MutableStateFlow(VOICE_LANGUAGES)
     val systemVoices = MutableStateFlow<List<VoiceInfo>>(emptyList())
     /** Tiempos por palabra por motor (clave: paquete) para [voiceLanguage]. */
     val wordTiming = MutableStateFlow<Map<String, WordTimingState>>(emptyMap())
@@ -142,8 +150,16 @@ class TtsSettingsViewModel(
         viewModelScope.launch {
             val lang = repo.preferences.map { it.readingLanguage }.distinctUntilChanged().first()
             if (lang != null) voiceLanguage.value = LanguageTags.primary(lang)
+            if (previewLanguage.value == null) {
+                previewLanguage.value = lang?.let(LanguageTags::primary)?.takeIf { it in SupertonicModel.LANGUAGES } ?: "en"
+            }
         }
         viewModelScope.launch { engines.value = systemTts?.engines().orEmpty() }
+        viewModelScope.launch {
+            repo.preferences.map { it.systemTtsEngine }.distinctUntilChanged().collect {
+                systemLanguages.value = systemTts?.availableLanguages().orEmpty().ifEmpty { VOICE_LANGUAGES }
+            }
+        }
         viewModelScope.launch {
             combine(repo.preferences.map { it.systemTtsEngine }.distinctUntilChanged(), voiceLanguage) { pkg, lang -> pkg to lang }
                 .collect { (_, lang) ->
@@ -156,8 +172,10 @@ class TtsSettingsViewModel(
     private fun update(t: (UserPreferences) -> UserPreferences) = viewModelScope.launch { repo.update(t) }
 
     fun selectEngine(id: String) = update { it.copy(ttsEngineId = id) }
-    fun setVoice(voice: String) = update { it.copy(supertonicVoice = voice) }
-    fun setSteps(steps: Int) = update { it.copy(supertonicSteps = steps) }
+    fun setVoice(voice: String) = viewModelScope.launch {
+        repo.update { it.copy(supertonicVoice = voice) }
+        previewLanguage.value?.let { runTest(it, voice) }
+    }
     fun setCacheLimit(mb: Int) = update { it.copy(audioCacheMb = mb) }.invokeOnCompletion { refreshCache() }
 
     fun setSystemEngine(packageName: String?) = update { it.copy(systemTtsEngine = packageName) }
@@ -215,32 +233,51 @@ class TtsSettingsViewModel(
 
     private fun refreshCache() = viewModelScope.launch(Dispatchers.IO) { cacheBytes.value = cache.sizeBytes() }
 
-    /** Prueba funcional: sintetiza una frase corta, la reproduce y muestra tiempos, RTF y memoria. */
-    fun runTest(language: String) = viewModelScope.launch {
-        val p = preferences.value
-        // Muestra pregenerada: suena al instante, sin cargar el modelo.
-        voicePacks.clip(language, p.supertonicVoice, VoiceClip.SAMPLE)?.let { clip ->
-            val pl = player ?: Media3ClipPlayer(context, handleAudioFocus = true).also { player = it }
-            pl.clear(); pl.enqueue(0, clip.toString()); pl.play()
-            test.value = VoiceTestState.Played(language)
-            return@launch
-        }
+    /**
+     * Prueba de voz en [language]: la muestra pregenerada si está (sin cargar el modelo); si el paquete del idioma
+     * no está, se descarga primero (unos MB) y se reproduce al llegar; si no hay paquete o falla, se sintetiza.
+     */
+    fun runTest(language: String, voice: String? = null) {
+        previewLanguage.value = language
+        if (modelState.value !is ModelState.Installed) return
+        val previous = previewJob
+        previous?.cancel()
+        player?.clear()
         test.value = VoiceTestState.Running(language)
-        val out = File(context.cacheDir, "supertonic-test-$language.wav")
-        val result = engine.synthesizeTo(
-            SpeechRequest(TEST_TEXT.getValue(language), language, p.supertonicVoice, 1.0f, mapOf("steps" to "${p.supertonicSteps}")),
-            out.toOkioPath(),
-        )
-        when (result) {
-            is SynthesisOutcome.Written -> {
-                test.value = VoiceTestState.Done(engine.stats.value.lastSynthesis!!)
-                val pl = player ?: Media3ClipPlayer(context, handleAudioFocus = true).also { player = it }
-                pl.clear()
-                pl.enqueue(0, out.path)
-                pl.play()
+        previewJob = viewModelScope.launch {
+            previous?.join()
+            val selectedVoice = voice ?: repo.preferences.first().supertonicVoice
+            if (playSample(language, selectedVoice)) return@launch
+            if (!voicePacks.isInstalled(language) && voicePacks.ensure(language)) {
+                test.value = VoiceTestState.DownloadingPack(language)
+                voicePacks.states.map { it[language] }.first { it is ModelState.Installed || it is ModelState.Failed || it is ModelState.NotInstalled }
+                if (playSample(language, selectedVoice)) return@launch
             }
-            is SynthesisOutcome.Failed -> test.value = VoiceTestState.Failed(result.failure.message)
+            test.value = VoiceTestState.Running(language)
+            val out = File(context.cacheDir, "supertonic-test-$language.wav")
+            val result = engine.synthesizeTo(
+                SpeechRequest(SupertonicSampleTexts.sample(language), language, selectedVoice, 1.0f, mapOf("steps" to "${SupertonicEngine.DEFAULT_STEPS}")),
+                out.toOkioPath(),
+            )
+            when (result) {
+                is SynthesisOutcome.Written -> {
+                    test.value = VoiceTestState.Done(engine.stats.value.lastSynthesis!!)
+                    val pl = player ?: Media3ClipPlayer(context, handleAudioFocus = true).also { player = it }
+                    pl.clear()
+                    pl.enqueue(0, out.path)
+                    pl.play()
+                }
+                is SynthesisOutcome.Failed -> test.value = VoiceTestState.Failed(result.failure.message)
+            }
         }
+    }
+
+    private fun playSample(language: String, voice: String): Boolean {
+        val clip = voicePacks.clip(language, voice, VoiceClip.SAMPLE) ?: return false
+        val pl = player ?: Media3ClipPlayer(context, handleAudioFocus = true).also { player = it }
+        pl.clear(); pl.enqueue(0, clip.toString()); pl.play()
+        test.value = VoiceTestState.Played(language, voice)
+        return true
     }
 
     override fun onCleared() {
@@ -248,18 +285,20 @@ class TtsSettingsViewModel(
     }
 
     companion object {
-        // Frases de prueba en el idioma de la voz, no en el de la interfaz.
-        val TEST_TEXT = mapOf(
-            "en" to "Hello! This is a short test of the Supertonic voice, running offline on this phone.", // i18n-ignore
-            "fr" to "Bonjour ! Ceci est un court essai de la voix Supertonic, sans connexion.", // i18n-ignore
-            "es" to "¡Hola! Esta es una breve prueba de la voz Supertonic, sin conexión.", // i18n-ignore
-        )
-        /** Idiomas con voces que se pueden elegir en los ajustes (los de las bibliotecas). */
+        /** Idiomas de las bibliotecas: lista mínima si el motor del sistema no dice los suyos. */
         val VOICE_LANGUAGES = listOf("en", "es", "fr")
     }
 }
 
 private fun mb(bytes: Long) = "%d MB".format(Locale.ROOT, bytes / 1_000_000)
+
+/** [languages] sin repetidos, con el idioma de lectura (si está) delante y el resto por nombre en el idioma de la interfaz. */
+internal fun languagesFirstReading(languages: List<String>, readingLanguage: String?): List<String> {
+    val reading = readingLanguage?.let(LanguageTags::primary)
+    val primaries = languages.map(LanguageTags::primary).distinct()
+    val rest = primaries.filter { it != reading }.sortedBy { Languages.name(it) }
+    return listOfNotNull(reading?.takeIf { it in primaries }) + rest
+}
 
 /** «No instalado · 400 MB (descargados 120 MB, se reanudará)». */
 @Composable
@@ -275,6 +314,7 @@ internal fun modelNotInstalled(m: ModelState.NotInstalled): String =
 fun TtsEngineSection(vm: TtsSettingsViewModel = koinViewModel()) {
     val prefs by vm.preferences.collectAsStateWithLifecycle()
     var showLicense by remember { mutableStateOf(false) }
+    val uriHandler = LocalUriHandler.current
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(stringResource(R.string.tts_engine_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
@@ -304,16 +344,18 @@ fun TtsEngineSection(vm: TtsSettingsViewModel = koinViewModel()) {
             onDismissRequest = { showLicense = false },
             title = { Text(stringResource(R.string.tts_license_title)) },
             text = {
-                Text(
-                    stringResource(
-                        R.string.tts_license_text,
-                        SupertonicModel.LICENSE_NAME,
-                        SupertonicModel.REPO,
-                        SupertonicModel.REVISION.take(7),
-                        mb(SupertonicModel.TOTAL_BYTES),
-                        SupertonicModel.LICENSE_URL,
-                    ),
-                )
+                Column {
+                    Text(
+                        stringResource(
+                            R.string.tts_license_text,
+                            SupertonicModel.LICENSE_NAME,
+                            mb(SupertonicModel.TOTAL_BYTES),
+                        ),
+                    )
+                    TextButton(onClick = { uriHandler.openUri(SupertonicModel.LICENSE_URL) }) {
+                        Text(stringResource(R.string.tts_license_read))
+                    }
+                }
             },
             confirmButton = {
                 TextButton(onClick = { showLicense = false; vm.acceptLicenseAndDownload() }) { Text(stringResource(R.string.tts_license_accept)) }
@@ -370,7 +412,8 @@ private fun SystemVoiceCard(vm: TtsSettingsViewModel, prefs: UserPreferences) {
 
             // Idioma de las voces que se listan.
             Text(stringResource(R.string.tts_voice_language), style = MaterialTheme.typography.labelLarge)
-            val languages = (TtsSettingsViewModel.VOICE_LANGUAGES + listOfNotNull(prefs.readingLanguage?.let(LanguageTags::primary))).distinct()
+            val systemLanguages by vm.systemLanguages.collectAsStateWithLifecycle()
+            val languages = languagesFirstReading(systemLanguages + language, prefs.readingLanguage)
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 languages.forEach { lang ->
                     FilterChip(selected = language == lang, onClick = { vm.setVoiceLanguage(lang) }, label = { Text(Languages.name(lang)) })
@@ -517,29 +560,29 @@ private fun SupertonicCard(vm: TtsSettingsViewModel, prefs: UserPreferences, onS
             }
             Text(stringResource(R.string.tts_voices_hint), style = MaterialTheme.typography.bodySmall)
 
-            Text(stringResource(R.string.tts_quality), style = MaterialTheme.typography.labelLarge)
-            val stepOptions = listOf(5 to R.string.tts_quality_normal, 8 to R.string.tts_quality_high)
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                stepOptions.forEachIndexed { i, (steps, label) ->
-                    SegmentedButton(
-                        selected = prefs.supertonicSteps == steps,
-                        onClick = { vm.setSteps(steps) },
-                        shape = SegmentedButtonDefaults.itemShape(i, stepOptions.size),
-                    ) { Text("${stringResource(label)} ($steps)") }
-                }
-            }
-
             Text(stringResource(R.string.tts_test_voice), style = MaterialTheme.typography.labelLarge)
             val installed = model is ModelState.Installed
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("en", "fr", "es").forEach { lang ->
-                    OutlinedButton(onClick = { vm.runTest(lang) }, enabled = installed && test !is VoiceTestState.Running) {
-                        Text(lang.uppercase())
-                    }
+            val packs by vm.voicePackStates.collectAsStateWithLifecycle()
+            val testLanguage by vm.previewLanguage.collectAsStateWithLifecycle()
+            // Los 31 idiomas del motor, el de lectura primero; con marca los que ya tienen sus voces descargadas.
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                languagesFirstReading(SupertonicModel.LANGUAGES.toList(), prefs.readingLanguage).forEach { lang ->
+                    val hasPack = packs[lang] is ModelState.Installed
+                    FilterChip(
+                        selected = testLanguage == lang,
+                        onClick = { vm.runTest(lang) },
+                        enabled = installed,
+                        label = { Text(Languages.name(lang)) },
+                        leadingIcon = if (hasPack) ({ Icon(painterResource(R.drawable.ic_done_all), contentDescription = stringResource(R.string.tts_test_pack_installed), Modifier.size(16.dp)) }) else null,
+                    )
                 }
             }
             when (val t = test) {
                 VoiceTestState.Idle -> if (!installed) Text(stringResource(R.string.tts_test_install_first), style = MaterialTheme.typography.bodySmall)
+                is VoiceTestState.DownloadingPack -> Text(
+                    stringResource(R.string.tts_test_downloading_pack, Languages.name(t.language)),
+                    style = MaterialTheme.typography.bodySmall,
+                )
                 is VoiceTestState.Running -> Text(
                     stringResource(R.string.tts_test_running, Languages.name(t.language)),
                     style = MaterialTheme.typography.bodySmall,

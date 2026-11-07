@@ -3,6 +3,7 @@ package com.linguareader.engine.supertonic
 import okio.Path
 import com.linguareader.core.audio.FileSpeechSynthesizer
 import com.linguareader.core.audio.SynthesisOutcome
+import com.linguareader.core.audio.SpokenMark
 import com.linguareader.core.engine.EngineReadiness
 import com.linguareader.core.engine.EngineUnavailableReason
 import com.linguareader.core.engine.SpeechRequest
@@ -75,7 +76,8 @@ data class SupertonicStats(
  * - Toda la inferencia ocurre en un único hilo dedicado: nunca en el hilo principal.
  * - El modelo (~398 MB) se carga bajo demanda y se libera tras [idleReleaseMs] sin uso,
  *   o al llamar a [release] (p. ej. al cambiar de motor o con poca memoria).
- * - No proporciona tiempos por palabra ([TtsEngineInfo.providesWordTimings] = false).
+ * - Proporciona tiempos internos por palabra con cinco pasos; entradas ambiguas fallan de forma
+ *   segura a sincronía por frase, manteniendo el audio.
  */
 class SupertonicEngine(
     private val modelDir: () -> Path,
@@ -92,7 +94,7 @@ class SupertonicEngine(
         id = SupertonicModel.ENGINE_ID,
         displayName = SupertonicModel.DISPLAY_NAME,
         streaming = false,
-        providesWordTimings = false,
+        providesWordTimings = true,
         requiresModelDownload = true,
         offline = true,
         languages = SupertonicModel.LANGUAGES,
@@ -169,37 +171,51 @@ class SupertonicEngine(
         return try {
             withContext(dispatcher) {
                 idleJob?.cancel() // idleJob solo se toca en este hilo
-                val (rt, load) = ensureLoaded()
-                val voice = request.voiceId ?: SupertonicModel.DEFAULT_VOICE
-                val totalSteps = request.parameters["steps"]?.toIntOrNull() ?: steps()
-                val speed = BASE_SPEED * request.speed
-                val chunks = SupertonicTextProcessor.chunk(request.text, SupertonicTextProcessor.maxChunkLength(lang))
-                val ctx = coroutineContext
-                val t0 = TimeSource.Monotonic.markNow()
-                val parts = chunks.mapIndexed { i, chunk ->
-                    val audio = rt.infer(chunk, lang, voice, totalSteps, speed, seed = (request.hashCode() * 31L + i)) { ctx.ensureActive() }
-                    SupertonicAudio(AudioTrim.trim(audio.samples, audio.sampleRate), audio.sampleRate)
+                try {
+                    val (rt, load) = ensureLoaded()
+                    val voice = request.voiceId ?: SupertonicModel.DEFAULT_VOICE
+                    val totalSteps = request.parameters["steps"]?.toIntOrNull() ?: steps()
+                    val speed = BASE_SPEED * request.speed
+                    val chunks = SupertonicTextProcessor.chunkWithOffsets(request.text, SupertonicTextProcessor.maxChunkLength(lang))
+                    require(chunks.isNotEmpty()) { "Texto vacío" }
+                    val ctx = coroutineContext
+                    val t0 = TimeSource.Monotonic.markNow()
+                    val parts = chunks.mapIndexed { i, chunk ->
+                        val audio = rt.infer(chunk.text, lang, voice, totalSteps, speed, seed = (request.hashCode() * 31L + i)) { ctx.ensureActive() }
+                        trimWithTimings(audio, chunk.start)
+                    }
+                    val synthMs = t0.elapsedNow().inWholeMilliseconds
+                    val silence = (rt.sampleRate * CHUNK_SILENCE_SEC).toInt()
+                    val total = parts.sumOf { it.samples.size } + silence * (parts.size - 1)
+                    val samples = FloatArray(total)
+                    var pos = 0
+                    val timings = ArrayList<SupertonicWordTiming>()
+                    parts.forEachIndexed { i, p ->
+                        if (i > 0) pos += silence
+                        p.samples.copyInto(samples, pos)
+                        p.wordTimings.forEach { timings += it.copy(startSample = it.startSample + pos, endSample = it.endSample + pos) }
+                        pos += p.samples.size
+                    }
+                    // Never publish a partial set: the reader would otherwise interpolate missing words.
+                    val complete = parts.all { it.wordTimings.isNotEmpty() }
+                    val marks = if (complete) timings.map { timing ->
+                        SpokenMark(timing.start, timing.end, timing.startSample * 1000L / rt.sampleRate,
+                            endMs = timing.endSample * 1000L / rt.sampleRate, confidence = timing.confidence)
+                    }.takeIf { values -> values.all { it.endMs!! > it.ms } } else null
+                    WavWriter.write(target, samples, rt.sampleRate, fileSystem)
+                    val metrics = SynthesisMetrics(
+                        textChars = request.text.length, language = lang, voice = voice, steps = totalSteps,
+                        speed = speed, chunks = chunks.size, loadMs = load?.loadMs, synthMs = synthMs,
+                        audioMs = total * 1000L / rt.sampleRate, memoryMb = memory.usedBytes()?.div(MB),
+                    )
+                    _stats.update { it.copy(lastSynthesis = metrics, history = (listOf(metrics) + it.history).take(30)) }
+                    log("Supertonic: ${metrics.textChars} car. → ${metrics.audioMs} ms de audio en ${metrics.synthMs} ms (RTF ${formatFixed(metrics.rtf, 2)}, pasos $totalSteps, mem ${metrics.memoryMb} MB, marcas ${marks?.size ?: 0})")
+                    SynthesisOutcome.Written(metrics.audioMs, marks)
+                } finally {
+                    // Cancellation/error must not strand hundreds of MB after cancelling the old
+                    // idle timer. This is non-suspending and runs on the dedicated inference thread.
+                    if (runtime != null) scheduleIdleRelease()
                 }
-                val synthMs = t0.elapsedNow().inWholeMilliseconds
-                val silence = (rt.sampleRate * CHUNK_SILENCE_SEC).toInt()
-                val total = parts.sumOf { it.samples.size } + silence * (parts.size - 1)
-                val samples = FloatArray(total)
-                var pos = 0
-                parts.forEachIndexed { i, p ->
-                    if (i > 0) pos += silence
-                    p.samples.copyInto(samples, pos)
-                    pos += p.samples.size
-                }
-                WavWriter.write(target, samples, rt.sampleRate, fileSystem)
-                val metrics = SynthesisMetrics(
-                    textChars = request.text.length, language = lang, voice = voice, steps = totalSteps,
-                    speed = speed, chunks = chunks.size, loadMs = load?.loadMs, synthMs = synthMs,
-                    audioMs = total * 1000L / rt.sampleRate, memoryMb = memory.usedBytes()?.div(MB),
-                )
-                _stats.update { it.copy(lastSynthesis = metrics, history = (listOf(metrics) + it.history).take(30)) }
-                log("Supertonic: ${metrics.textChars} car. → ${metrics.audioMs} ms de audio en ${metrics.synthMs} ms (RTF ${formatFixed(metrics.rtf, 2)}, pasos $totalSteps, mem ${metrics.memoryMb} MB)")
-                scheduleIdleRelease()
-                SynthesisOutcome.Written(metrics.audioMs)
             }
         } catch (e: OutOfMemoryError) {
             release()
@@ -255,5 +271,18 @@ class SupertonicEngine(
         private const val MB = 1024L * 1024L
 
         fun defaultThreads(): Int = availableProcessors().coerceIn(1, 4)
+
+        /** Shift exact model-sample bounds together with the audio, before chunk concatenation. */
+        internal fun trimWithTimings(audio: SupertonicAudio, textOffset: Int): SupertonicAudio {
+            val slice = AudioTrim.bounds(audio.samples, audio.sampleRate)
+            val samples = if (slice.from == 0 && slice.to == audio.samples.size) audio.samples
+                else audio.samples.copyOfRange(slice.from, slice.to)
+            val timings = audio.wordTimings.map { timing ->
+                timing.copy(start = timing.start + textOffset, end = timing.end + textOffset,
+                    startSample = (timing.startSample - slice.from).coerceIn(0, samples.size),
+                    endSample = (timing.endSample - slice.from).coerceIn(0, samples.size))
+            }.takeIf { values -> values.all { it.endSample > it.startSample } } ?: emptyList()
+            return SupertonicAudio(samples, audio.sampleRate, timings)
+        }
     }
 }

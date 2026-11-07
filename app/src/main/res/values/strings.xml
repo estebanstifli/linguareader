@@ -595,7 +595,8 @@
     <string name="tts_cache_clear">Clear cache</string>
     <string name="tts_license_note">Code: MIT. Weights: %1$s (use restrictions). Project archived by Supertone, unsupported. The generated audio is a synthetic voice.</string>
     <string name="tts_license_title">Model license</string>
-    <string name="tts_license_text">The Supertonic 3 weights are distributed under the %1$s license. By downloading them you accept its use restrictions (Attachment A), including: not using it for illegal purposes, to harm minors, to impersonate people without their consent, to spread harmful misinformation or to harass; and not presenting the generated audio as if it weren\'t machine-generated.\n\nSource: huggingface.co/%2$s (revision %3$s). Size: %4$s. Full text: %5$s</string>
+    <string name="tts_license_text">Supertonic 3 by Supertone Inc. (%2$s). By downloading, you accept the %1$s license, including its use restrictions (section 5 and Attachment A). The voice is AI-generated.</string>
+    <string name="tts_license_read">Read full license</string>
     <string name="tts_license_accept">I accept and download</string>
     <string name="tts_metrics_load">Model load: %1$d ms (verification %2$d ms, %3$d threads)</string>
     <string name="tts_metrics_synthesis">Synthesis: %1$d ms · Audio: %2$s s · RTF %3$s</string>
@@ -651,7 +652,8 @@
     <string name="about_version">Version %1$s (%2$d)</string>
     <string name="about_tagline">Learn languages by reading and listening: graded readers, a voice that highlights each word, and translation on tap, all offline.</string>
     <string name="about_privacy_policy">Privacy policy</string>
-    <string name="about_website">Website and help</string>
+    <string name="about_website">Website</string>
+    <string name="about_help">Help</string>
     <string name="about_contact">Contact and suggestions</string>
     <string name="about_email_subject">%1$s %2$s: feedback</string>
     <string name="about_privacy_summary">No account, no ads and no tracking by the app. Your books, progress and vocabulary stay on your phone. The app only connects to the internet to download what you ask for (libraries, translators, voices) and to import web pages.</string>

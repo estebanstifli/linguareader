@@ -563,7 +563,8 @@
     <string name="tts_cache_clear">Svuota cache</string>
     <string name="tts_license_note">Codice: MIT. Pesi: %1$s (restrizioni d\'uso). Progetto archiviato da Supertone, senza supporto. L\'audio generato è una voce sintetica.</string>
     <string name="tts_license_title">Licenza del modello</string>
-    <string name="tts_license_text">I pesi di Supertonic 3 sono distribuiti con la licenza %1$s. Scaricandoli accetti le sue restrizioni d\'uso (Allegato A), tra cui: non usarlo per scopi illegali, per danneggiare minori, per impersonare persone senza il loro consenso, per diffondere disinformazione dannosa o per molestare; e non presentare l\'audio generato come se non fosse prodotto da una macchina.\n\nOrigine: huggingface.co/%2$s (revisione %3$s). Dimensione: %4$s. Testo completo: %5$s</string>
+    <string name="tts_license_text">Supertonic 3 di Supertone Inc. (%2$s). Scaricandolo accetti la licenza %1$s, comprese le restrizioni d?uso (sezione 5 e allegato A). La voce ? generata con intelligenza artificiale.</string>
+    <string name="tts_license_read">Leggi la licenza completa</string>
     <string name="tts_license_accept">Accetto e scarico</string>
     <string name="tts_metrics_load">Caricamento del modello: %1$d ms (verifica %2$d ms, %3$d thread)</string>
     <string name="tts_metrics_synthesis">Sintesi: %1$d ms · Audio: %2$s s · RTF %3$s</string>
@@ -602,7 +603,8 @@
     <string name="about_version">Versione %1$s (%2$d)</string>
     <string name="about_tagline">Impara le lingue leggendo e ascoltando: letture graduate, una voce che evidenzia ogni parola e traduzione al tocco, tutto offline.</string>
     <string name="about_privacy_policy">Informativa sulla privacy</string>
-    <string name="about_website">Sito web e assistenza</string>
+    <string name="about_website">Sito web</string>
+    <string name="about_help">Aiuto</string>
     <string name="about_contact">Contatti e suggerimenti</string>
     <string name="about_email_subject">%1$s %2$s: commenti</string>
     <string name="about_privacy_summary">Nessun account, nessuna pubblicità e nessun tracciamento da parte dell\'app. I tuoi libri, i progressi e il vocabolario restano sul telefono. L\'app si connette a internet solo per scaricare ciò che chiedi (biblioteche, traduttori, voci) e per importare pagine web.</string>

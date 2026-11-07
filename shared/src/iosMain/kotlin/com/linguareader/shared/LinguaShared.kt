@@ -68,7 +68,7 @@ import com.linguareader.data.library.LibraryRepository
 import com.linguareader.data.library.LibraryState
 import com.linguareader.data.narration.NarrationLibrary
 import com.linguareader.data.prefs.UserPreferencesRepository
-import com.linguareader.engine.packs.GithubPackSource
+import com.linguareader.engine.packs.PackSource
 import com.linguareader.engine.packs.LibraryInfo
 import com.linguareader.engine.packs.LibraryPackManager
 import com.linguareader.engine.packs.LibraryPackState
@@ -111,13 +111,13 @@ object LinguaShared {
      * @param appSupportDir carpeta persistente de la app (Application Support, excluida de la copia de seguridad).
      * @param cacheDir carpeta de caché (Caches): copias temporales de importación y zips de bibliotecas.
      * @param librariesCatalogJson contenido de `libraries.json` incluido en el bundle (catálogo de bibliotecas).
-     * @param packsRepo repositorio GitHub `usuario/repo` con las releases de paquetes; [packsTag] y [libraryTag] sus etiquetas.
+     * @param packsBaseUrl origen de los paquetes descargables (`https://files.lingoaudiobook.eu`); [packsTag] y [libraryTag] sus prefijos.
      */
     fun start(
         appSupportDir: String,
         cacheDir: String,
         librariesCatalogJson: String?,
-        packsRepo: String = "estebanstifli/linguareader",
+        packsBaseUrl: String = PackSource.DEFAULT_BASE_URL,
         packsTag: String = "packs-v1",
         libraryTag: String = "library-v1",
         translator: IosTranslator? = null,
@@ -159,7 +159,7 @@ object LinguaShared {
                     single { NarrationLibrary(fs, root, get(), log = { Diagnostics.log("Narration", it) }) }
                     single { LocalBookImporter(fs, cache / "import", get(), get(), get()) }
                     single { LibraryRepository(get(), get(), BookDeleter { get<LocalBookImporter>().delete(it) }) }
-                    single { GithubPackSource(packsRepo, packsTag) }
+                    single { PackSource(packsBaseUrl, packsTag) }
                     single {
                         LibraryPackManager(
                             fs, root, cache, get(), get(), get(), libraryTag,
@@ -511,7 +511,7 @@ object LinguaShared {
         )
 
     /** Versión del código compartido que ve la app (para la pantalla «Acerca de» y los logs de Device Farm). */
-    const val VERSION = "0.4.1-ios"
+    const val VERSION = "0.4.2-ios"
 }
 
 @OptIn(ExperimentalForeignApi::class)

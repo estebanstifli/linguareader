@@ -1,6 +1,160 @@
 {
-  "version": 1,
-  "asset": "voices.zip",
-  "sizeBytes": 12399022,
-  "sha256": "649c57a1e487da36979b24c6a6c366979e56c1496f2fc08f0bd94e164dce2e69"
+  "version": 2,
+  "languages": {
+    "ar": {
+      "asset": "voices-ar-v1.zip",
+      "sizeBytes": 5735780,
+      "sha256": "eb51f10bbe8592f196eb7fa80f02423b4e67e9ac6a80a8b4d3d75ad96dba2674"
+    },
+    "bg": {
+      "asset": "voices-bg-v1.zip",
+      "sizeBytes": 6130715,
+      "sha256": "e17430bb75a58b71304162ebd8075bba35fa9bebc83ace828e546cbd51c70519"
+    },
+    "cs": {
+      "asset": "voices-cs-v1.zip",
+      "sizeBytes": 5796387,
+      "sha256": "3664b5874771acfea5269837f7dc498cb949fbedacc1c7d8124e35fbfc9a067a"
+    },
+    "da": {
+      "asset": "voices-da-v1.zip",
+      "sizeBytes": 4570325,
+      "sha256": "63ef16843197615d71973da3ed68764fb4bbfb6399a6090e867b5bb2fbeac178"
+    },
+    "de": {
+      "asset": "voices-de-v1.zip",
+      "sizeBytes": 4969289,
+      "sha256": "c0d3154b7811ba46cf1c9440a9dc202dac2b9d68f3a63e45da9d6964f8240639"
+    },
+    "el": {
+      "asset": "voices-el-v1.zip",
+      "sizeBytes": 6792404,
+      "sha256": "352fd7060a236f5bcf13d063836fecc7cf4c6704fdfdf5018e32bc6777e29e43"
+    },
+    "en": {
+      "asset": "voices-en-v1.zip",
+      "sizeBytes": 4294149,
+      "sha256": "883d2289df49a2ffdcc18d9ec460e339f40818800d7206d8f8795acbb867adc7"
+    },
+    "es": {
+      "asset": "voices-es-v1.zip",
+      "sizeBytes": 3833740,
+      "sha256": "3e8b90d582091248d7a136aecc7f832ba0aec804f428ed63fd869909fc6aa622"
+    },
+    "et": {
+      "asset": "voices-et-v1.zip",
+      "sizeBytes": 6132061,
+      "sha256": "82efd2959af2b3f4d25b49589942e60ce463794d200bf9c05fddf6cb531c98c9"
+    },
+    "fi": {
+      "asset": "voices-fi-v1.zip",
+      "sizeBytes": 6090628,
+      "sha256": "e721606db5b5905a3b2adeee9da6edc77402591f48301bb3fd1fa3910ff77041"
+    },
+    "fr": {
+      "asset": "voices-fr-v1.zip",
+      "sizeBytes": 4271302,
+      "sha256": "f0b0a75fb7b34c8dbdfd83890fa81e4f30b567613a8dfba0e75c0fb1f52a7a83"
+    },
+    "hi": {
+      "asset": "voices-hi-v1.zip",
+      "sizeBytes": 5364325,
+      "sha256": "01b681f40c3830bcc4c6b7489680ec40d03d38fa408d98db7a65ed63edb4bd16"
+    },
+    "hr": {
+      "asset": "voices-hr-v1.zip",
+      "sizeBytes": 5925709,
+      "sha256": "79dc7703ae6be42e873f44a68f6c831dc964188519ffe75a077d2d9c9dc06ef8"
+    },
+    "hu": {
+      "asset": "voices-hu-v1.zip",
+      "sizeBytes": 5678235,
+      "sha256": "e4afd7046fa2da5adfc93a8f8ea837282e3b031b5dcf087202fda551b6927221"
+    },
+    "id": {
+      "asset": "voices-id-v1.zip",
+      "sizeBytes": 5257762,
+      "sha256": "87b405b823971efb7c7b6003e6f8674e22cde6a48f0b6afaf1d8b504652f3ec0"
+    },
+    "it": {
+      "asset": "voices-it-v1.zip",
+      "sizeBytes": 5899934,
+      "sha256": "3cd7b6e9947c61e9680622ba7bac2454dec0466d811b5e8f408162ee7740bf6c"
+    },
+    "ja": {
+      "asset": "voices-ja-v1.zip",
+      "sizeBytes": 5249451,
+      "sha256": "f6515768462ff1f429230f250c90b820c11e63c8392712b32303e9d8517f234e"
+    },
+    "ko": {
+      "asset": "voices-ko-v1.zip",
+      "sizeBytes": 6009052,
+      "sha256": "a969cc43730766e7004bf1b3c8743d4e722468900966873caee7c73a0fff9c80"
+    },
+    "lt": {
+      "asset": "voices-lt-v1.zip",
+      "sizeBytes": 5952825,
+      "sha256": "a39fe3dfd2f25c17ff1390f35c029aa04a1ffe5d63b334a5b85c6fc9af424008"
+    },
+    "lv": {
+      "asset": "voices-lv-v1.zip",
+      "sizeBytes": 5891519,
+      "sha256": "1c6ebc40cc90e151702cb7d178830bc45ec196f6328670e677cbdc00a30793f0"
+    },
+    "nl": {
+      "asset": "voices-nl-v1.zip",
+      "sizeBytes": 4958909,
+      "sha256": "13479c064c8ce9e11cbe0e47fa72e8dd955d94e759297af10648697de2bd93ee"
+    },
+    "pl": {
+      "asset": "voices-pl-v1.zip",
+      "sizeBytes": 5221130,
+      "sha256": "8e6c558b49108386d877ad408740bb4c972678ce49221cc2f4b4b7c5ec5966fb"
+    },
+    "pt": {
+      "asset": "voices-pt-v1.zip",
+      "sizeBytes": 5037775,
+      "sha256": "f5669cb941eff3c29e93f9a173e0983a66fbb0f9c9b5811f70f75bb0fad5fc51"
+    },
+    "ro": {
+      "asset": "voices-ro-v1.zip",
+      "sizeBytes": 5808489,
+      "sha256": "6cb8f7571a7a0b8ef6630c9ef02aedebb2e47e2a6c858962485228bc21d7712d"
+    },
+    "ru": {
+      "asset": "voices-ru-v1.zip",
+      "sizeBytes": 5787611,
+      "sha256": "f50421531937114698c28e05e757c3bd3407a2c2227f39abc007badd8b20c263"
+    },
+    "sk": {
+      "asset": "voices-sk-v1.zip",
+      "sizeBytes": 5770145,
+      "sha256": "badd0e761270be946d43d75b9c390e4a3560f5aa231a557bd198e0c9bba44aaa"
+    },
+    "sl": {
+      "asset": "voices-sl-v1.zip",
+      "sizeBytes": 5844233,
+      "sha256": "2f0db923faa40bfcd82450fc4c7c39d33ccdb872cdb4746e357f94ab96f90cd8"
+    },
+    "sv": {
+      "asset": "voices-sv-v1.zip",
+      "sizeBytes": 5595305,
+      "sha256": "4e7d857effeb9de2dc91fc1351597a386bcd3d16296394323b860fba2c16a7c8"
+    },
+    "tr": {
+      "asset": "voices-tr-v1.zip",
+      "sizeBytes": 4803985,
+      "sha256": "d593d2484a13c9dbd1deb05fb745c5c9156b6a7463c47fb75bfd82f20b199a0b"
+    },
+    "uk": {
+      "asset": "voices-uk-v1.zip",
+      "sizeBytes": 5459811,
+      "sha256": "ac75809ce8b558f1d43677a37cd239c8aa84b47e5ceed244deeec547054d2e2c"
+    },
+    "vi": {
+      "asset": "voices-vi-v1.zip",
+      "sizeBytes": 5509349,
+      "sha256": "13fbcbd286b9951d0caa4c6010655d34d45671e630d3ccd84f7a9566d3cb511f"
+    }
+  }
 }

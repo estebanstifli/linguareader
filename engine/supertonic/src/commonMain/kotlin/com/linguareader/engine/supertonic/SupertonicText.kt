@@ -4,6 +4,10 @@ import com.linguareader.core.platform.UnicodeForm
 import com.linguareader.core.platform.charCountOf
 import com.linguareader.core.platform.codePointAtIndex
 import com.linguareader.core.platform.normalizeUnicode
+import com.linguareader.core.platform.isLetterOrDigitCodePoint
+import com.linguareader.core.platform.isMarkCodePoint
+import com.linguareader.core.text.TokenSpan
+import com.linguareader.core.text.Tokenizer
 import com.linguareader.core.platform.putIntLe
 import com.linguareader.core.platform.putShortLe
 import okio.FileSystem
@@ -17,21 +21,39 @@ import okio.Path
  */
 class SupertonicTextProcessor(private val indexer: LongArray) {
 
-    data class Encoded(val ids: LongArray, val droppedChars: Int)
+    data class Encoded(
+        val ids: LongArray,
+        val droppedChars: Int,
+        /** One entry per model token, with original UTF-16 offsets (tags use -1). */
+        val sourceStarts: IntArray = IntArray(0),
+        val sourceEnds: IntArray = IntArray(0),
+        val codePoints: IntArray = IntArray(0),
+        val words: List<TokenSpan> = emptyList(),
+        val timingSafe: Boolean = false,
+    )
+
+    private data class UnitSpan(val value: String, val start: Int, val end: Int)
+    private data class Tracked(val units: List<UnitSpan>, val timingSafe: Boolean)
 
     fun encode(text: String, lang: String): Encoded {
-        val processed = preprocess(text, lang)
-        val ids = ArrayList<Long>(processed.length)
+        val tracked = tracked(text, lang)
+        val ids = ArrayList<Long>(tracked.units.size)
+        val starts = ArrayList<Int>(); val ends = ArrayList<Int>(); val codePoints = ArrayList<Int>()
         var dropped = 0
-        var i = 0
-        while (i < processed.length) {
-            val cp = processed.codePointAtIndex(i)
-            i += charCountOf(cp)
+        var safe = tracked.timingSafe
+        for (unit in tracked.units) {
+            val cp = unit.value.codePointAtIndex(0)
             // La referencia Python trunca a uint16: fuera del BMP no hay entradas.
             val id = if (cp < indexer.size) indexer[cp] else -1L
-            if (id >= 0) ids += id else dropped++
+            if (id >= 0) {
+                ids += id; starts += unit.start; ends += unit.end; codePoints += cp
+            } else {
+                dropped++
+                if (isLetterOrDigitCodePoint(cp) || isMarkCodePoint(cp)) safe = false
+            }
         }
-        return Encoded(ids.toLongArray(), dropped)
+        return Encoded(ids.toLongArray(), dropped, starts.toIntArray(), ends.toIntArray(),
+            codePoints.toIntArray(), Tokenizer.tokenize(text, lang), safe)
     }
 
     companion object {
@@ -40,67 +62,114 @@ class SupertonicTextProcessor(private val indexer: LongArray) {
             "“" to "\"", "”" to "\"", "‘" to "'", "’" to "'",
             "´" to "'", "`" to "'", "[" to " ", "]" to " ", "|" to " ", "/" to " ", "#" to " ",
             "→" to " ", "←" to " ",
+            // This punctuation is absent from the model's index. Keep its pause and source offset.
+            "؛" to ";",
         )
         private val EXPRESSIONS = linkedMapOf("@" to " at ", "e.g.," to "for example, ", "i.e.," to "that is, ")
         private val SPECIAL = Regex("[♥☆♡©\\\\]")
         private val ENDS_WITH_PUNCT = Regex(".*[.!?;:,'\"“”‘’)\\]}…。」』】〉》›»]$")
 
-        fun preprocess(input: String, lang: String): String {
+        fun preprocess(input: String, lang: String): String = tracked(input, lang).units.joinToString("") { it.value }
+
+        private fun tracked(input: String, lang: String): Tracked {
             require(lang in SupertonicModel.LANGUAGES || lang == "na") { "Idioma no soportado por Supertonic: $lang" }
-            var text = normalizeUnicode(input, UnicodeForm.NFKD)
-            text = removeEmojis(text)
-            REPLACEMENTS.forEach { (from, to) -> text = text.replace(from, to) }
-            text = text.replace(SPECIAL, "")
-            EXPRESSIONS.forEach { (from, to) -> text = text.replace(from, to) }
-            text = text.replace(" ,", ",").replace(" .", ".").replace(" !", "!").replace(" ?", "?")
-                .replace(" ;", ";").replace(" :", ":").replace(" '", "'")
-            while ("\"\"" in text) text = text.replace("\"\"", "\"")
-            while ("''" in text) text = text.replace("''", "'")
-            text = text.replace(Regex("\\s+"), " ").trim()
-            if (!ENDS_WITH_PUNCT.matches(text)) text += "."
-            return "<$lang>$text</$lang>"
+            // NFKD can reorder marks across original codepoint boundaries. Stable queues preserve
+            // provenance even for decomposed input; normalizing each character alone is insufficient.
+            val provenance = HashMap<String, ArrayDeque<UnitSpan>>()
+            var inputIndex = 0
+            while (inputIndex < input.length) {
+                val end = inputIndex + charCountOf(input.codePointAtIndex(inputIndex))
+                val decomposed = normalizeUnicode(input.substring(inputIndex, end), UnicodeForm.NFKD)
+                codePointStrings(decomposed).forEach { value ->
+                    provenance.getOrPut(value) { ArrayDeque() }.addLast(UnitSpan(value, inputIndex, end))
+                }
+                inputIndex = end
+            }
+            var units = codePointStrings(normalizeUnicode(input, UnicodeForm.NFKD)).map { value ->
+                requireNotNull(provenance[value]).removeFirst()
+            }.filterNot { isEmoji(it.value.codePointAtIndex(0)) }
+            var safe = true
+            fun replace(pattern: Regex, replacement: String) {
+                val text = units.joinToString("") { it.value }
+                val matches = pattern.findAll(text).toList()
+                if (matches.isEmpty()) return
+                val positions = IntArray(units.size + 1)
+                units.forEachIndexed { index, unit -> positions[index + 1] = positions[index] + unit.value.length }
+                val out = ArrayList<UnitSpan>(); var cursor = 0
+                for (match in matches) {
+                    while (cursor < units.size && positions[cursor] < match.range.first) out += units[cursor++]
+                    val start = cursor
+                    while (cursor < units.size && positions[cursor] <= match.range.last) cursor++
+                    val matched = units.subList(start, cursor)
+                    val from = matched.minOf { it.start }; val to = matched.maxOf { it.end }
+                    codePointStrings(replacement).forEach { out += UnitSpan(it, from, to) }
+                }
+                while (cursor < units.size) out += units[cursor++]
+                units = out
+            }
+            REPLACEMENTS.forEach { (from, to) -> replace(Regex(Regex.escape(from)), to) }
+            replace(SPECIAL, "")
+            EXPRESSIONS.forEach { (from, to) ->
+                if (units.joinToString("") { it.value }.contains(from)) safe = false
+                replace(Regex(Regex.escape(from)), to)
+            }
+            listOf(",", ".", "!", "?", ";", ":", "'").forEach { replace(Regex(Regex.escape(" $it")), it) }
+            for (quote in listOf("\"", "'")) {
+                while (units.joinToString("") { it.value }.contains(quote + quote)) replace(Regex(Regex.escape(quote + quote)), quote)
+            }
+            replace(Regex("\\s+"), " ")
+            units = units.dropWhile { it.value.isBlank() }.dropLastWhile { it.value.isBlank() }
+            val text = units.joinToString("") { it.value }
+            if (!ENDS_WITH_PUNCT.matches(text)) units = units + UnitSpan(".", -1, -1)
+            fun tag(value: String) = codePointStrings(value).map { UnitSpan(it, -1, -1) }
+            return Tracked(tag("<$lang>") + units + tag("</$lang>"), safe)
         }
 
-        private fun removeEmojis(text: String): String {
-            val sb = StringBuilder(text.length)
+        private fun codePointStrings(text: String): List<String> {
+            val out = ArrayList<String>()
             var i = 0
             while (i < text.length) {
                 val start = i
                 val cp = text.codePointAtIndex(i)
                 i += charCountOf(cp)
-                val emoji = cp in 0x1F600..0x1F64F || cp in 0x1F300..0x1F5FF || cp in 0x1F680..0x1F6FF ||
+                out += text.substring(start, i)
+            }
+            return out
+        }
+
+        private fun isEmoji(cp: Int): Boolean = cp in 0x1F600..0x1F64F || cp in 0x1F300..0x1F5FF || cp in 0x1F680..0x1F6FF ||
                     cp in 0x1F700..0x1F77F || cp in 0x1F780..0x1F7FF || cp in 0x1F800..0x1F8FF ||
                     cp in 0x1F900..0x1F9FF || cp in 0x1FA00..0x1FA6F || cp in 0x1FA70..0x1FAFF ||
                     cp in 0x2600..0x26FF || cp in 0x2700..0x27BF || cp in 0x1F1E6..0x1F1FF
-                if (!emoji) sb.append(text, start, i)
-            }
-            return sb.toString()
-        }
+
+        data class Chunk(val text: String, val start: Int, val end: Int)
 
         /** Trocea textos largos (> [maxLen]) por frases, comas y espacios. Las frases del lector suelen caber enteras. */
-        fun chunk(text: String, maxLen: Int): List<String> {
-            val t = text.trim()
-            if (t.length <= maxLen) return listOf(t)
-            val out = mutableListOf<String>()
-            val current = StringBuilder()
-            fun flush() { if (current.isNotBlank()) out += current.toString().trim(); current.setLength(0) }
-            val pieces = t.split(Regex("(?<=[.!?;,])\\s+"))
-            for (piece in pieces) {
-                if (piece.length > maxLen) {
-                    flush()
-                    piece.split(Regex("\\s+")).forEach { w ->
-                        if (current.length + w.length + 1 > maxLen) flush()
-                        if (current.isNotEmpty()) current.append(' ')
-                        current.append(w)
+        fun chunk(text: String, maxLen: Int): List<String> = chunkWithOffsets(text, maxLen).map { it.text }
+
+        /** Contiguous slices preserve exact requested UTF-16 offsets, including repeated whitespace. */
+        fun chunkWithOffsets(text: String, maxLen: Int): List<Chunk> {
+            require(maxLen >= 4)
+            val out = mutableListOf<Chunk>(); var start = 0
+            while (start < text.length) {
+                while (start < text.length && text[start].isWhitespace()) start++
+                if (start == text.length) break
+                var end = minOf(text.length, start + maxLen)
+                if (end < text.length) {
+                    val sentence = (start + 1 until end).lastOrNull { text[it].isWhitespace() && text[it - 1] in ".!?;,。！？؛" }
+                    val space = (start + 1 until end).lastOrNull { text[it].isWhitespace() }
+                    end = sentence ?: space ?: end
+                    if (end < text.length && text[end].isLowSurrogate()) end--
+                    while (end > start && end < text.length && isMarkCodePoint(text.codePointAtIndex(end))) {
+                        end--; if (end > start && text[end].isLowSurrogate()) end--
                     }
-                    flush()
-                    continue
+                    if (end <= start) throw IllegalArgumentException("Secuencia Unicode demasiado larga")
                 }
-                if (current.length + piece.length + 1 > maxLen) flush()
-                if (current.isNotEmpty()) current.append(' ')
-                current.append(piece)
+                var trimmedEnd = end
+                while (trimmedEnd > start && text[trimmedEnd - 1].isWhitespace()) trimmedEnd--
+                if (trimmedEnd > start) out += Chunk(text.substring(start, trimmedEnd), start, trimmedEnd)
+                start = end
             }
-            flush()
             return out
         }
 
@@ -113,8 +182,15 @@ class SupertonicTextProcessor(private val indexer: LongArray) {
  * principio y ~0,6 s al final). Las pausas entre frases las pone el reproductor de forma controlada.
  */
 object AudioTrim {
+    data class Slice(val from: Int, val to: Int)
+
     fun trim(samples: FloatArray, sampleRate: Int, threshold: Float = 0.02f, marginMs: Int = 40, windowMs: Int = 10): FloatArray {
-        if (samples.isEmpty()) return samples
+        val slice = bounds(samples, sampleRate, threshold, marginMs, windowMs)
+        return if (slice.from == 0 && slice.to == samples.size) samples else samples.copyOfRange(slice.from, slice.to)
+    }
+
+    fun bounds(samples: FloatArray, sampleRate: Int, threshold: Float = 0.02f, marginMs: Int = 40, windowMs: Int = 10): Slice {
+        if (samples.isEmpty()) return Slice(0, 0)
         val win = maxOf(1, sampleRate * windowMs / 1000)
         fun loud(start: Int): Boolean {
             val end = minOf(samples.size, start + win)
@@ -123,13 +199,13 @@ object AudioTrim {
         }
         var first = 0
         while (first < samples.size && !loud(first)) first += win
-        if (first >= samples.size) return samples // todo silencio: no tocar
+        if (first >= samples.size) return Slice(0, samples.size) // todo silencio: no tocar
         var last = ((samples.size - 1) / win) * win
         while (last > first && !loud(last)) last -= win
         val margin = sampleRate * marginMs / 1000
         val from = maxOf(0, first - margin)
         val to = minOf(samples.size, last + win + margin)
-        return samples.copyOfRange(from, to)
+        return Slice(from, to)
     }
 }
 

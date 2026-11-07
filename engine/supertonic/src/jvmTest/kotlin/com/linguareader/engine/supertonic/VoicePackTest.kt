@@ -12,56 +12,56 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
 /**
- * Genera el paquete de voces: por cada voz e idioma, una muestra de prueba y una frase de
- * «preparando la lectura» ya sintetizadas (pasos de calidad por defecto, velocidad 1.0).
- * La app lo descarga junto al modelo y lo usa en «Probar voz» y en la pantalla de preparación,
- * sin tener que cargar el modelo para oírlas. Solo con -Dsupertonic.voicePack=true (tarea :engine:supertonic:voicePack).
+ * Genera los paquetes de voces, **uno por idioma**: `voices-<idioma>-v<N>.zip` con, por cada voz, la muestra de
+ * «Probar voz» y la frase de «preparando la lectura» ya sintetizadas ([SupertonicSampleTexts]; pasos de calidad por
+ * defecto, velocidad 1.0) y un `manifest.json` con tamaño y sha256 de cada WAV. La app descarga solo el paquete del
+ * idioma que se aprende (o el que se elige en Ajustes) y así oye las voces sin cargar el modelo.
+ *
+ * Solo con -Dsupertonic.voicePack=true (tarea :engine:supertonic:voicePack). Opcional:
+ * -Dsupertonic.languages=de,it para regenerar solo algunos idiomas (por defecto, los 31).
+ * Los zips ya existentes de otros idiomas no se tocan.
  */
 class VoicePackTest {
 
     private val modelDir = File(System.getProperty("supertonic.modelDir", ".models/none"))
     private val out = File(System.getProperty("supertonic.packDir", "build/voice-pack"))
-
-    private val sample = mapOf(
-        "en" to "Hello! This is a short test of the Supertonic voice, running offline on this phone.",
-        "fr" to "Bonjour ! Ceci est un court essai de la voix Supertonic, sans connexion.",
-        "es" to "¡Hola! Esta es una breve prueba de la voz Supertonic, sin conexión.",
-    )
-    private val ready = mapOf(
-        "en" to "Getting ready to read…",
-        "fr" to "Préparation de la lecture…",
-        "es" to "Preparando la lectura…",
-    )
+    private val languages = System.getProperty("supertonic.languages")?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }
+        ?: SupertonicModel.LANGUAGES.toList()
 
     @Test
-    fun generatePack() = runBlocking {
+    fun generatePacks() = runBlocking {
         assumeTrue(System.getProperty("supertonic.voicePack") == "true")
         assumeTrue(SupertonicModelDir(modelDir.toOkioPath()).isComplete())
+        val missing = languages.filter { it !in SupertonicSampleTexts.SAMPLE || it !in SupertonicSampleTexts.READY }
+        check(missing.isEmpty()) { "Sin textos de muestra para: $missing" }
         val engine = SupertonicEngine(modelDir = { modelDir.toOkioPath() }, log = { })
         try {
-            val dir = File(out, "voices").also { it.deleteRecursively(); it.mkdirs() }
             val steps = SupertonicEngine.DEFAULT_STEPS
-            val items = ArrayList<String>()
-            for (lang in sample.keys) for (voice in SupertonicModel.VOICES) for ((kind, texts) in listOf("sample" to sample, "ready" to ready)) {
-                val rel = "$lang/$voice/$kind.wav"
-                val target = File(dir, rel).also { it.parentFile.mkdirs() }
-                val r = engine.synthesizeTo(SpeechRequest(texts.getValue(lang), lang, voice, 1.0f, mapOf("steps" to "$steps")), target.toOkioPath())
-                check(r is SynthesisOutcome.Written) { "Falló $rel: $r" }
-                items += """    {"path":"$rel","sizeBytes":${target.length()},"sha256":"${sha(target)}"}"""
-                println("[voicePack] $rel ${target.length() / 1000} KB")
-            }
-            File(dir, "manifest.json").writeText(
-                "{\n  \"version\": 1,\n  \"engine\": \"${SupertonicModel.ENGINE_ID}\",\n  \"steps\": $steps,\n  \"items\": [\n" + items.joinToString(",\n") + "\n  ]\n}\n",
-            )
-            val zip = File(out, "voices.zip")
-            ZipOutputStream(zip.outputStream()).use { z ->
-                dir.walkTopDown().filter { it.isFile }.sortedBy { it.path }.forEach { f ->
-                    z.putNextEntry(ZipEntry(f.relativeTo(dir).invariantSeparatorsPath))
-                    f.inputStream().use { it.copyTo(z) }
-                    z.closeEntry()
+            for (lang in languages) {
+                val dir = File(out, "voices/$lang").also { it.deleteRecursively(); it.mkdirs() }
+                val items = ArrayList<String>()
+                for (voice in SupertonicModel.VOICES) for ((kind, text) in listOf("sample" to SupertonicSampleTexts.SAMPLE, "ready" to SupertonicSampleTexts.READY)) {
+                    val rel = "$voice/$kind.wav"
+                    val target = File(dir, rel).also { it.parentFile.mkdirs() }
+                    val r = engine.synthesizeTo(SpeechRequest(text.getValue(lang), lang, voice, 1.0f, mapOf("steps" to "$steps")), target.toOkioPath())
+                    check(r is SynthesisOutcome.Written) { "Falló $lang/$rel: $r" }
+                    items += """    {"path":"$rel","sizeBytes":${target.length()},"sha256":"${sha(target)}"}"""
+                    println("[voicePack] $lang/$rel ${target.length() / 1000} KB")
                 }
+                File(dir, "manifest.json").writeText(
+                    "{\n  \"version\": $VERSION,\n  \"language\": \"$lang\",\n  \"engine\": \"${SupertonicModel.ENGINE_ID}\",\n  \"steps\": $steps,\n  \"items\": [\n" +
+                        items.joinToString(",\n") + "\n  ]\n}\n",
+                )
+                val zip = File(out, "voices-$lang-v$VERSION.zip")
+                ZipOutputStream(zip.outputStream()).use { z ->
+                    dir.walkTopDown().filter { it.isFile }.sortedBy { it.path }.forEach { f ->
+                        z.putNextEntry(ZipEntry(f.relativeTo(dir).invariantSeparatorsPath))
+                        f.inputStream().use { it.copyTo(z) }
+                        z.closeEntry()
+                    }
+                }
+                println("[voicePack] ${zip.absolutePath} ${zip.length() / 1_000_000} MB sha256=${sha(zip)}")
             }
-            println("[voicePack] ${zip.absolutePath} ${zip.length() / 1_000_000} MB sha256=${sha(zip)}")
         } finally {
             engine.shutdown()
         }
@@ -70,5 +70,10 @@ class VoicePackTest {
     private fun sha(f: File) = MessageDigest.getInstance("SHA-256").let { md ->
         f.inputStream().use { i -> val b = ByteArray(1 shl 16); while (true) { val n = i.read(b); if (n < 0) break; md.update(b, 0, n) } }
         md.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    private companion object {
+        /** Versión del formato/contenido del paquete por idioma (va en el nombre del zip y en el catálogo). */
+        const val VERSION = 1
     }
 }

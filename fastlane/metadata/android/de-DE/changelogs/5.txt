@@ -1,0 +1,1 @@
+Die Themenauswahl wurde verbessert, damit die Optionen auf kleinen Bildschirmen und bei größerer Schrift lesbar bleiben.

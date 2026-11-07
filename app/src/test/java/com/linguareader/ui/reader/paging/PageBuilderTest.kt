@@ -92,14 +92,37 @@ class PageBuilderTest {
     }
 
     @Test
-    fun `a page that starts with a translation starts at the end of its original`() {
+    fun `an oversized bilingual pair stays on one scrollable page without losing text`() {
         val blocks = listOf(
             LayoutBlock.Original(0, 0, 0, 100), // 10 líneas: llena la página
             LayoutBlock.Translation(0, 0, "x".repeat(20), 100),
         )
         val pages = PageBuilder.build(blocks, measureBy(10), 100f, 0f, 0f)
+        assertEquals(1, pages.size)
+        assertEquals(0 to (0 until 100), pages.single().items.first().range())
+        assertEquals(1, (pages.single().items.last() as PageItem.Translation).lastLine)
+    }
+
+    @Test
+    fun `a bilingual pair moves intact to the next page when only the original fits`() {
+        val blocks = listOf(LayoutBlock.Original(0, 0, 0, 60),
+            LayoutBlock.Original(0, 1, 0, 20), LayoutBlock.Translation(0, 1, "x".repeat(30), 20))
+        val pages = PageBuilder.build(blocks, measureBy(10), 100f, 10f, 0f, 3f)
         assertEquals(2, pages.size)
-        assertEquals(TextPos(0, 100), pages[1].start)
+        assertEquals(1, pages[0].items.size)
+        assertEquals(2, pages[1].items.size)
+        assertEquals(TextPos(1, 0), pages[1].start)
+        assertEquals(1 to (0 until 20), pages[1].items.first().range())
+    }
+
+    @Test
+    fun `compact pair spacing fits exactly and keeps the following pair separate`() {
+        val blocks = listOf(LayoutBlock.Original(0, 0, 0, 50),
+            LayoutBlock.Translation(0, 0, "x".repeat(40), 50),
+            LayoutBlock.Original(0, 1, 0, 10), LayoutBlock.Translation(0, 1, "y", 10))
+        val pages = PageBuilder.build(blocks, measureBy(10), 93f, 14f, 0f, 3f)
+        assertEquals(listOf(2, 2), pages.map { it.items.size })
+        assertEquals(TextPos(1, 0), pages[1].start)
     }
 
     @Test

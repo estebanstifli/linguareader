@@ -1,5 +1,9 @@
 # Alineación por palabra para Supertonic: estudio comparativo
 
+> **Documento histórico.** Desde 2026-11-06 Android obtiene tiempos de la atención interna de Supertonic y ha
+> retirado los modelos, descargas e inferencia de los alineadores externos. Los experimentos siguientes se conservan
+> como referencia; no describen el flujo actual de la app. Ver [SUPERTONIC.md](SUPERTONIC.md).
+
 Objetivo: obtener tiempos por palabra del audio generado por Supertonic (que no los da) para
 resaltar la palabra que suena. Ambos motores evaluados son **alineadores forzados**: reciben el
 audio y el texto exacto, sin ASR.

@@ -56,3 +56,9 @@ keystore.properties
 *.mobileprovision
 *.cer
 *.certSigningRequest
+
+# Material de trabajo local (capturas, vídeos, .aab, borradores): nunca al repositorio
+/artifacts/
+/book.code-workspace
+/fix_pl_atw.py
+/w-osiemdziesiat-dni-dookola-swiata.pl.part*.txt

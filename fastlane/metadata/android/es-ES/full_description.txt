@@ -1,30 +1,25 @@
-Aprende un idioma de la forma más natural: leyendo historias que te gustan mientras las escuchas.
+Libros bilingües gratis para aprender idiomas, historia a historia.
 
-LingoAudioBook te ofrece lecturas graduadas para cada nivel, una voz que lee en voz alta e ilumina cada palabra mientras suena, y traducción al tocar. Todo funciona sin conexión, sin cuenta y sin anuncios.
+Lee en el idioma que estás aprendiendo y ten la traducción a mano. LingoAudioBook reúne libros, audio y vocabulario para que disfrutes de una historia mientras descubres cómo funciona otro idioma.
 
-LECTURAS GRADUADAS
-• Bibliotecas gratuitas de libros de A1 a B2 en inglés, español y francés, adaptados de clásicos de dominio público.
-• Filtra por nivel y empieza por el libro que te sugerimos para el tuyo.
+UNA HISTORIA. DOS IDIOMAS.
+Muestra el texto original con la traducción debajo de cada frase, o lee solo el original y toca una palabra cuando necesites ayuda. Elige por separado el idioma de lectura y el de traducción.
 
-LEE Y ESCUCHA
-• La voz lee el texto y la palabra que suena se ilumina, para unir sonido y escritura.
-• Repite una frase, avanza, cambia la velocidad y sigue escuchando con la pantalla apagada.
-• Elige la voz de tu móvil o una voz neuronal opcional sin conexión.
+UNA BIBLIOTECA GRATUITA POR DESCUBRIR
+Explora lecturas por niveles en inglés, español y francés: cuentos conocidos, aventuras clásicas y adaptaciones para distintos niveles de lectura. Encuentra un libro adecuado para ti y crea el hábito de leer a tu ritmo.
 
-TOCA PARA TRADUCIR
-• Toca cualquier palabra para ver su traducción en contexto, también phrasal verbs, contracciones y expresiones.
-• Mira la traducción de la frase entera y guarda palabras en tu vocabulario.
-• Traducción en el propio dispositivo a tu idioma tras una única descarga.
+LEE. ESCUCHA. COMPRENDE.
+Escucha el texto con voces sintéticas, ajusta la velocidad y repite una frase. El resaltado de palabras y un dedo animado opcional te ayudan a seguir la lectura cuando hay sincronización disponible. Sigue escuchando con la pantalla apagada.
 
-TUS PROPIOS LIBROS
-• Abre EPUB, PDF, Word, ODT, RTF, FB2, MOBI sin DRM, TXT, Markdown, subtítulos y páginas web.
-• Encuentra los libros que ya guardas en las carpetas que elijas.
+PALABRAS CON UNA HISTORIA
+Descubre vocabulario en contexto y guarda palabras para repasarlas después. Añade marcadores y retoma la lectura donde la dejaste.
 
-LECTURA CÓMODA
-• Temas claro, oscuro y sepia, tamaño de letra e interlineado ajustables.
-• Marcadores, búsqueda en el libro, estanterías y colecciones.
+TUS LIBROS, A TU MANERA
+Importa libros EPUB y TXT compatibles. Ajusta el tamaño de letra y el interlineado, y elige el tema claro, oscuro o sepia para leer cómodamente.
 
-PRIVADA POR DISEÑO
-Sin cuenta, sin anuncios y sin seguimiento. Tus libros, tu progreso y tu vocabulario se quedan en tu móvil.
+PREPARA TU LECTURA SIN CONEXIÓN
+Descarga los libros, los modelos de traducción y las voces que necesites antes de leer sin conexión. Las traducciones se generan automáticamente; los idiomas disponibles y los resultados dependen de la combinación de idiomas y de la voz elegida.
 
-Es una beta temprana: nos encantará leer tus comentarios en estebandezafra@gmail.com.
+Gratis, sin anuncios ni compras dentro de la aplicación.
+
+Abre un libro. Descubre un idioma.

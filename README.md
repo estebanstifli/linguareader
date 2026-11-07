@@ -13,7 +13,7 @@ Nombre en Google Play: **LingoAudioBook** (`com.lingoaudiobook.app`). En el cód
 > ⚠️ **ALPHA en desarrollo.** Proyecto experimental: funciones incompletas, cambios frecuentes y sin garantías.
 > Las voces pregeneradas (un paquete por idioma), las bibliotecas y las
 > narraciones se descargan de <https://files.lingoaudiobook.eu> (bucket R2 público, **sin token**; `tools/publish_packs.py`).
-> El modelo Supertonic 3 se descarga de Hugging Face. Aún no hay APK publicado: se compila con `run.ps1` (ver «Probarlo en Windows con un solo comando» o «Compilar, probar e instalar a mano»).
+> El modelo Supertonic 3 se descarga también de R2, bajo `files.lingoaudiobook.eu/models/supertonic-3/`, con la revisión y los hashes originales fijados. Aún no hay APK publicado: se compila con `run.ps1` (ver «Probarlo en Windows con un solo comando» o «Compilar, probar e instalar a mano»).
 > Licencias de código, modelos y contenido: ver [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) y [docs/ALIGNMENT.md](docs/ALIGNMENT.md).
 
 > Estado: **Fase 1 completa, Fase 2 casi completa, Supertonic 3 integrado (Fase 3)** (ver [docs/ROADMAP.md](docs/ROADMAP.md)).

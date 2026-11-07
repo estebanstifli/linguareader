@@ -20,7 +20,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -56,6 +59,13 @@ class NarrationLibrary(
     /** Id del libro cuya narración acaba de quedar descargada. */
     val ready: SharedFlow<String> = _ready
 
+    private val _downloading = MutableStateFlow<Set<String>>(emptySet())
+    /** Libros cuya narración se está descargando ahora. */
+    val downloading: StateFlow<Set<String>> = _downloading
+
+    /** La narración que declara el libro, si es descargable y verificable (solo libros de la biblioteca). */
+    fun declared(book: Book): NarrationRef? = usable(book)
+
     /** La narración del libro, si ya está descargada y casa con su texto; null en otro caso (se lee con el TTS). */
     suspend fun cached(book: Book): Narration? {
         val ref = usable(book) ?: return null
@@ -89,12 +99,17 @@ class NarrationLibrary(
             !isComplete(target(book.id, "timings", ref.timings, "ass"), ref.timings)
     }
 
-    /** Descarga en segundo plano la narración de [book]; al terminar bien emite su id en [ready]. */
-    fun download(book: Book) {
+    /**
+     * Descarga en segundo plano la narración de [book]; al terminar bien emite su id en [ready]. Una vez por sesión,
+     * salvo [retry] (petición expresa del usuario desde la ficha).
+     */
+    fun download(book: Book, retry: Boolean = false) {
         val ref = usable(book) ?: return
         val bookId = book.id
         val attempt = "$bookId|${ref.audio.sha256}|${ref.timings.sha256}"
-        if (!synchronized(attemptedLock) { attempted.add(attempt) }) return
+        if (bookId in _downloading.value) return
+        if (!synchronized(attemptedLock) { attempted.add(attempt) } && !retry) return
+        _downloading.update { it + bookId }
         appScope.launch(ioDispatcher) {
             val dir = root / bookId
             val staging = dir / ".download"
@@ -124,6 +139,8 @@ class NarrationLibrary(
                 throw e
             } catch (e: Exception) {
                 log("Narración de $bookId no descargada: ${e.message}")
+            } finally {
+                _downloading.update { it - bookId }
             }
         }
     }

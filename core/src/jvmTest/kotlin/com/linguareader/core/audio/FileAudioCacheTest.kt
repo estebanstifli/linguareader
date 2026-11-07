@@ -11,6 +11,7 @@ import com.linguareader.core.engine.TtsEngineInfo
 import com.linguareader.core.engine.VoiceInfo
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -66,6 +67,61 @@ class FileAudioCacheTest {
         assertNotNull(c.get(key(2)))
         assertNotNull(c.get(key(3)))
         assertTrue(c.sizeBytes() <= 250)
+    }
+
+    @Test
+    fun `pinned entries are not evicted and do not count towards the limit`() {
+        val c = cache(max = 250)
+        c.put(key(1)) { it.toFile().writeBytes(ByteArray(100)) }; now += 10
+        c.pin("audiobook:a", listOf(key(1)))
+        assertEquals("lo fijado no cuenta en el límite", 0L, c.sizeBytes())
+        c.put(key(2)) { it.toFile().writeBytes(ByteArray(100)) }; now += 10
+        c.put(key(3)) { it.toFile().writeBytes(ByteArray(100)) }; now += 10
+        c.put(key(4)) { it.toFile().writeBytes(ByteArray(100)) }
+        assertNotNull("el más antiguo sobrevive por estar fijado", c.get(key(1)))
+        assertNull(c.get(key(2)))
+        assertTrue(c.sizeBytes() <= 250)
+        assertEquals(100L, c.pinnedBytes("audiobook:a"))
+        assertEquals(setOf(key(1)), c.pinnedKeys("audiobook:a"))
+    }
+
+    @Test
+    fun `pins survive a restart and clear keeps them`() {
+        cache().apply {
+            put(key(1)) { it.toFile().writeBytes(ByteArray(10)) }
+            put(key(2)) { it.toFile().writeBytes(ByteArray(10)) }
+            pin("audiobook:a", listOf(key(1)))
+        }
+        val c = cache()
+        assertEquals(setOf(key(1)), c.pinnedKeys("audiobook:a"))
+        c.clear()
+        assertNotNull(c.get(key(1)))
+        assertNull(c.get(key(2)))
+    }
+
+    @Test
+    fun `deleteGroup removes the audio unless another group pins it`() {
+        val c = cache()
+        c.put(key(1)) { it.toFile().writeBytes(ByteArray(10)) }
+        c.put(key(2)) { it.toFile().writeBytes(ByteArray(10)) }
+        c.pin("audiobook:a", listOf(key(1), key(2)))
+        c.pin("audiobook:b", listOf(key(2)))
+        assertEquals(10L, c.deleteGroup("audiobook:a"))
+        assertNull(c.get(key(1)))
+        assertNotNull("compartida con otro grupo", c.get(key(2)))
+        assertTrue(c.pinnedKeys("audiobook:a").isEmpty())
+        assertEquals(0L, c.deleteGroup("missing"))
+    }
+
+    @Test
+    fun `has does not touch the entry`() {
+        val c = cache(max = 250)
+        c.put(key(1)) { it.toFile().writeBytes(ByteArray(100)) }; now += 10
+        c.put(key(2)) { it.toFile().writeBytes(ByteArray(100)) }; now += 10
+        assertTrue(c.has(key(1))) // sin renovar su fecha: sigue siendo el más antiguo
+        c.put(key(3)) { it.toFile().writeBytes(ByteArray(100)) }
+        assertNull(c.get(key(1)))
+        assertFalse(c.has(key(1)))
     }
 
     @Test

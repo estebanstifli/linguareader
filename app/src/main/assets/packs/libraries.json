@@ -108,6 +108,15 @@
       "books": 16,
       "words": 127085,
       "fingerprint": "aa48dfc1d2bc9d72c541c2824d87de52240a305bd12308ac54dc6873330491bc"
+    },
+    "uk": {
+      "version": 1,
+      "asset": "library-uk-v1.zip",
+      "sizeBytes": 2173009,
+      "sha256": "4a6748c06035351b56ab053647eedb337d4cf0df892f9aef0d5e031569e215f7",
+      "books": 16,
+      "words": 98863,
+      "fingerprint": "3821f2a9b917b8e2ce570de9588077d6cd44cf85c2371cc19ec672292caf9688"
     }
   }
 }

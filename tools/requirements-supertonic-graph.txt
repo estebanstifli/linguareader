@@ -1,0 +1,4 @@
+# Production graph generator; versions used to generate the shipped graph (Python 3.13).
+# ONNX Runtime, Whisper, audio I/O and native compilers are not required here.
+numpy==2.3.2
+onnx==1.23.2

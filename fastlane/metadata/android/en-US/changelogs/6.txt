@@ -1,0 +1,5 @@
+New online library with search, filters and book downloads.
+Book details with covers and reading options.
+Full-book audio generation and translation, with progress and resume controls.
+Improved audio and bilingual reading: each sentence stays with its translation, with tighter spacing.
+Stability and display fixes.

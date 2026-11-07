@@ -77,6 +77,17 @@ class SupertonicSmokeTest {
             val (seconds, rms) = wavStats(out)
             println("pasos=$steps  síntesis=${m.synthMs} ms  audio=${m.audioMs} ms  RTF=${"%.3f".format(m.rtf)}  mem=${m.memoryMb} MB  rms=${"%.3f".format(rms)}  -> ${out.path}")
             assertTrue(r.toString(), r is com.linguareader.core.audio.SynthesisOutcome.Written)
+            val marks = (r as com.linguareader.core.audio.SynthesisOutcome.Written).marks
+            if (steps == 5) {
+                assertTrue("Five-step internal word marks", !marks.isNullOrEmpty())
+                marks!!.forEach {
+                    assertTrue(it.start >= 0 && it.end <= text.length && it.start < it.end)
+                    assertTrue(it.ms >= 0 && it.endMs != null && it.endMs!! > it.ms && it.endMs!! <= r.durationMs)
+                }
+                assertTrue(marks.zipWithNext().all { (a, b) -> a.end <= b.start && a.endMs!! <= b.ms })
+            } else {
+                assertTrue("Unvalidated step count retains audio with sentence fallback", marks.isNullOrEmpty())
+            }
             assertTrue("duración razonable: $seconds s", seconds in 2.0..15.0)
             assertTrue("no es silencio: rms=$rms", rms > 0.01)
         }
@@ -90,6 +101,7 @@ class SupertonicSmokeTest {
         val (seconds, rms) = wavStats(out)
         println("fr: síntesis=${m.synthMs} ms audio=${m.audioMs} ms RTF=${"%.3f".format(m.rtf)} rms=${"%.3f".format(rms)} -> ${out.path}")
         assertTrue(r is com.linguareader.core.audio.SynthesisOutcome.Written)
+        assertTrue(!(r as com.linguareader.core.audio.SynthesisOutcome.Written).marks.isNullOrEmpty())
         assertTrue(seconds in 1.0..10.0 && rms > 0.01)
     }
 
@@ -109,6 +121,8 @@ class SupertonicSmokeTest {
         println("caché: primera=$first ms, segunda=$second ms (acierto)")
         assertEquals(1, hits)
         assertEquals(a.audio.path, b.audio.path)
+        val marks = com.linguareader.core.audio.SpokenMarksSidecar.read(okio.FileSystem.SYSTEM, File(b.audio.path).toOkioPath())
+        assertTrue("Cache preserves explicit native bounds", !marks.isNullOrEmpty() && marks.all { it.endMs != null })
         assertTrue(second < first)
     }
 
@@ -120,5 +134,23 @@ class SupertonicSmokeTest {
         val r = engine.synthesizeTo(SpeechRequest("Again.", "en", null, 1.0f), File(outDir, "reload.wav").toOkioPath())
         assertTrue(r is com.linguareader.core.audio.SynthesisOutcome.Written)
         assertTrue(engine.stats.value.loaded)
+    }
+
+    @Test
+    fun `5 long request retains original word offsets and chunk silence`() = runBlocking {
+        val text = "  " + List(7) { "Anna opens the window and reads a short letter." }.joinToString("   \n") + "  "
+        val chunks = SupertonicTextProcessor.chunkWithOffsets(text, 300)
+        assertTrue(chunks.size >= 2)
+        val outcome = engine.synthesizeTo(SpeechRequest(text, "en", "F1", 1f), File(outDir, "long_marks.wav").toOkioPath())
+        assertTrue(outcome is com.linguareader.core.audio.SynthesisOutcome.Written)
+        val written = outcome as com.linguareader.core.audio.SynthesisOutcome.Written
+        val marks = written.marks!!
+        assertEquals(com.linguareader.core.text.Tokenizer.tokenize(text, "en").map { it.start to it.end }, marks.map { it.start to it.end })
+        assertTrue(marks.zipWithNext().all { (a, b) -> a.endMs!! <= b.ms })
+        assertTrue(marks.last().endMs!! <= written.durationMs)
+        chunks.drop(1).forEach { chunk ->
+            val first = marks.indexOfFirst { it.start >= chunk.start }
+            assertTrue("An internal chunk gap is retained, never stretched into a word", marks[first].ms - marks[first - 1].endMs!! >= 290)
+        }
     }
 }

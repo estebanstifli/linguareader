@@ -99,6 +99,7 @@ data class PageGeometry(
     val spread: Boolean = false,
     /** Separación entre las dos caras (solo en doble página). */
     val gutterPx: Int = 0,
+    val translationSpacingPx: Float = blockSpacingPx / 4f,
 )
 
 private class LayoutMetrics(private val r: TextLayoutResult) : MeasuredText {
@@ -134,6 +135,7 @@ suspend fun paginate(
         pageHeight = geometry.heightPx - 2f,
         blockSpacing = geometry.blockSpacingPx,
         titleSpacing = geometry.titleSpacingPx,
+        translationSpacing = geometry.translationSpacingPx,
     )
     PagedBook(if (geometry.spread) spreads(pages) else pages)
 }

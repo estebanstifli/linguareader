@@ -23,7 +23,11 @@ import kotlin.math.max
 import kotlin.math.sqrt
 
 /** Resultado de una inferencia: muestras float [-1, 1] a [sampleRate] Hz. */
-class SupertonicAudio(val samples: FloatArray, val sampleRate: Int) {
+class SupertonicAudio(
+    val samples: FloatArray,
+    val sampleRate: Int,
+    val wordTimings: List<SupertonicWordTiming> = emptyList(),
+) {
     val durationMs: Long get() = samples.size * 1000L / sampleRate
 }
 
@@ -32,8 +36,8 @@ class SupertonicAudio(val samples: FloatArray, val sampleRate: Int) {
  * con N pasos de flow matching → vocoder). No es seguro para uso concurrente: [SupertonicEngine]
  * lo usa desde un único hilo. Hay que llamar a [close] para liberar la memoria nativa.
  *
- * Nota: el modelo predice solo la **duración total** de cada enunciado; no expone tiempos por
- * carácter ni por palabra.
+ * El estimador derivado expone un mapa compacto de atención para extraer límites de palabras.
+ * El predictor de duración sigue devolviendo solo la duración total del enunciado.
  */
 class SupertonicRuntime private constructor(
     private val runtime: OnnxRuntime,
@@ -82,6 +86,8 @@ class SupertonicRuntime private constructor(
         seed: Long,
         checkCancelled: () -> Unit = {},
     ): SupertonicAudio {
+        require(totalSteps in 1..32) { "Número de pasos no válido" }
+        require(speed.isFinite() && speed in 0.25f..4f) { "Velocidad no válida" }
         val encoded = textProcessor.encode(text, lang)
         val len = encoded.ids.size
         require(len > 0) { "Texto vacío tras el preprocesado" }
@@ -94,6 +100,7 @@ class SupertonicRuntime private constructor(
             val dpOut = dp.run(mapOf("text_ids" to textIds, "style_dp" to st.dp, "text_mask" to textMask)).also(closeables::addAll)
             val rawDuration = dpOut[0].floats()[0]
             val durationSec = rawDuration / speed
+            require(durationSec.isFinite() && durationSec > 0f && durationSec <= 60f) { "Duración de síntesis no válida" }
 
             val encOut = textEnc.run(mapOf("text_ids" to textIds, "style_ttl" to st.ttl, "text_mask" to textMask)).also(closeables::addAll)
             val textEmb = encOut[0]
@@ -113,6 +120,9 @@ class SupertonicRuntime private constructor(
             }
             val latentMask = runtime.floatTensor(FloatArray(latentLen) { 1f }, longArrayOf(1, 1, latentLen.toLong())).also(closeables::add)
             val totalStep = runtime.floatTensor(floatArrayOf(totalSteps.toFloat()), longArrayOf(1)).also(closeables::add)
+            val timingEnabled = totalSteps == SupertonicWordTimings.STEPS && encoded.timingSafe && encoded.words.isNotEmpty()
+            var attention: FloatArray? = null
+            var attentionSteps = 0
 
             for (step in 0 until totalSteps) {
                 checkCancelled()
@@ -128,6 +138,17 @@ class SupertonicRuntime private constructor(
                     )
                     try {
                         xt = out[0].floats()
+                        if (timingEnabled && step in 1..4) {
+                            val compact = out.getOrNull(1)
+                            if (compact != null && compact.shape.contentEquals(longArrayOf(latentLen.toLong(), len.toLong()))) {
+                                val values = compact.floats()
+                                if (values.size == latentLen * len) {
+                                    val accumulated = attention ?: FloatArray(values.size).also { attention = it }
+                                    for (i in values.indices) accumulated[i] += values[i] * .25f
+                                    attentionSteps++
+                                }
+                            }
+                        }
                     } finally {
                         closeAll(out)
                     }
@@ -151,7 +172,10 @@ class SupertonicRuntime private constructor(
             } finally {
                 latent.close()
             }
-            return SupertonicAudio(samples, sampleRate)
+            val timings = attention?.takeIf { attentionSteps == 4 }?.let {
+                SupertonicWordTimings.decode(it, latentLen, encoded, samples, sampleRate, chunkSize, checkCancelled)
+            } ?: emptyList()
+            return SupertonicAudio(samples, sampleRate, timings)
         } finally {
             closeAll(closeables)
         }
@@ -175,7 +199,7 @@ class SupertonicRuntime private constructor(
             val opened = ArrayList<OnnxSession>()
             try {
                 fun session(name: String): OnnxSession = runtime.createSession(
-                    dir.file("onnx/$name.onnx").toString(),
+                    (if (name == "vector_estimator") dir.ensureTimingModel() else dir.file("onnx/$name.onnx")).toString(),
                     OnnxSessionOptions(intraOpThreads = intraOpThreads, interOpThreads = 1, optimization = OnnxOptLevel.EXTENDED),
                 ).also(opened::add)
                 return SupertonicRuntime(

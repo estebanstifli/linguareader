@@ -70,7 +70,7 @@ class TextExtractor : DocumentExtractor {
 
     companion object {
         private val CHAPTER = Regex(
-            "^(chapter|chap\\.|capítulo|capitulo|cap\\.|chapitre|kapitel|capitolo|hoofdstuk|rozdział|rozdzial|[Гг]лава|अध्याय|제\\s*\\d+\\s*장|part|parte|partie|teil|book|libro|livre|prologue|prólogo|prologo|epilogue|epílogo|épilogue|epilogo)\\b.{0,60}$",
+            "^(chapter|chap\\.|capítulo|capitulo|cap\\.|chapitre|kapitel|capitolo|hoofdstuk|rozdział|rozdzial|[Гг]лава|[Рр]озділ|[Κκ]εφάλαιο|bölüm|Bölüm|अध्याय|제\\s*\\d+\\s*장|part|parte|partie|teil|book|libro|livre|prologue|prólogo|prologo|epilogue|epílogo|épilogue|epilogo)\\b.{0,60}$",
             RegexOption.IGNORE_CASE,
         )
         private val ROMAN_OR_NUMBER = Regex("^([IVXLCDM]+|\\d{1,3})\\.?$")

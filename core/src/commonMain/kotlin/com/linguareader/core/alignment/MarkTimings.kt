@@ -28,6 +28,7 @@ object MarkTimings {
 
     fun toTimed(tokens: List<Token>, spans: List<IntRange?>, marks: List<SpokenMark>, durationMs: Long): List<TimedToken> {
         require(spans.size == tokens.size)
+        if (marks.any { it.endMs != null }) return bounded(tokens, spans, marks, durationMs)
         val starts = LongArray(tokens.size) { -1L }
         var from = 0
         var lastMs = -1L
@@ -51,6 +52,30 @@ object MarkTimings {
             val total = own + gap.sumOf { letters(tokens[it]) }
             val end = starts[i] + ((nextStart - starts[i]) * own / total.toDouble()).toLong()
             TimedToken(tokens[i].id, starts[i], end.coerceAtLeast(starts[i]), confidence = 1f)
+        }
+    }
+
+    /**
+     * Fronteras acústicas explícitas: no alargarlas hasta el siguiente inicio, ni fabricar límites internos si
+     * una marca abarca varios tokens mostrados. Varias palabras habladas de un número sí se pueden reunir en
+     * su único token mostrado. Una mezcla de marcas acotadas/no acotadas o tiempos inválidos se rechaza.
+     */
+    private fun bounded(tokens: List<Token>, spans: List<IntRange?>, marks: List<SpokenMark>, durationMs: Long): List<TimedToken> {
+        if (durationMs <= 0 || marks.any { m ->
+            m.endMs == null || m.start < 0 || m.end <= m.start || m.ms < 0 || m.endMs <= m.ms || m.endMs > durationMs ||
+                m.confidence?.let { !it.isFinite() || it !in 0f..1f } == true
+        }) return emptyList()
+        if (marks.zipWithNext().any { (a, b) -> b.ms < a.endMs!! || b.start < a.end }) return emptyList()
+        val grouped = Array(tokens.size) { mutableListOf<SpokenMark>() }
+        for (mark in marks) {
+            val matching = spans.indices.filter { i -> spans[i]?.let { mark.start <= it.last && mark.end > it.first } == true }
+            if (matching.size == 1) grouped[matching.single()] += mark
+        }
+        return grouped.mapIndexedNotNull { i, pieces ->
+            if (pieces.isEmpty()) null else TimedToken(
+                tokens[i].id, pieces.first().ms, pieces.last().endMs!!,
+                confidence = pieces.mapNotNull { it.confidence }.minOrNull(),
+            )
         }
     }
 

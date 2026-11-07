@@ -54,9 +54,27 @@ for _name, (_ru, _ko, _hi) in {
 }.items():
     AUTHOR_NAMES.setdefault(_name, {}).update(ru=_ru, ko=_ko, hi=_hi)
 
-CHAPTER = re.compile(r"^(?:(?:chapter|capítulo|chapitre|kapitel|capitolo|hoofdstuk|rozdział|глава|अध्याय)\s+\d+"
+# Autores en turco, griego y ucraniano.
+for _name, (_tr, _el, _uk) in {
+    "Hermanos Grimm": ("Grimm Kardeşler", "Αδελφοί Γκριμ", "Брати Грімм"),
+    "Cuento popular inglés": ("İngiliz halk masalı", "Αγγλικό λαϊκό παραμύθι", "Англійська народна казка"),
+    "Cuento popular estadounidense": ("Amerikan halk masalı", "Αμερικανικό λαϊκό παραμύθι", "Американська народна казка"),
+    "Carlo Collodi": ("Carlo Collodi", "Κάρλο Κολόντι", "Карло Коллоді"),
+    "Charles Dickens": ("Charles Dickens", "Κάρολος Ντίκενς", "Чарльз Діккенс"),
+    "Charles Perrault": ("Charles Perrault", "Σαρλ Περό", "Шарль Перро"),
+    "Hans Christian Andersen": ("Hans Christian Andersen", "Χανς Κρίστιαν Άντερσεν", "Ганс Крістіан Андерсен"),
+    "Jane Austen": ("Jane Austen", "Τζέιν Όστιν", "Джейн Остін"),
+    "Jeanne-Marie Leprince de Beaumont": ("Jeanne-Marie Leprince de Beaumont", "Ζαν-Μαρί Λεπρένς ντε Μπομόν", "Жанна-Марі Лепренс де Бомон"),
+    "Jules Verne": ("Jules Verne", "Ιούλιος Βερν", "Жуль Верн"),
+    "Mary Shelley": ("Mary Shelley", "Μέρι Σέλεϊ", "Мері Шеллі"),
+    "Robert Louis Stevenson": ("Robert Louis Stevenson", "Ρόμπερτ Λιούις Στίβενσον", "Роберт Луїс Стівенсон"),
+}.items():
+    AUTHOR_NAMES.setdefault(_name, {}).update(tr=_tr, el=_el, uk=_uk)
+
+CHAPTER = re.compile(r"^(?:(?:chapter|capítulo|chapitre|kapitel|capitolo|hoofdstuk|rozdział|глава|अध्याय"
+                     r"|bölüm|κεφάλαιο|розділ)\s+\d+"
                      r"|제\s*\d+\s*장)\s*:\s*(.+)$", re.I)
-END_LINES = {"the end", "fin", "ende", "fine", "fim", "einde", "koniec", "slut", "конец", "끝", "समाप्त"}
+END_LINES = {"the end", "fin", "ende", "fine", "fim", "einde", "koniec", "slut", "конец", "끝", "समाप्त", "son", "τέλος", "кінець"}
 
 
 def _author(original, lang):

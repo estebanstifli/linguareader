@@ -37,7 +37,7 @@ final class AppStore: ObservableObject {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("LinguaReader", isDirectory: true)
         let catalog = Bundle.main.url(forResource: "libraries", withExtension: "json").flatMap { try? String(contentsOf: $0, encoding: .utf8) }
         LinguaShared.shared.start(appSupportDir: support.path, cacheDir: caches.path, librariesCatalogJson: catalog,
-                                  packsRepo: "estebanstifli/linguareader", packsTag: "packs-v1", libraryTag: "library-v1",
+                                  packsBaseUrl: "https://files.lingoaudiobook.eu", packsTag: "packs-v1", libraryTag: "library-v1",
                                   translator: translator)
         let shared = LinguaShared.shared
         watchers = [

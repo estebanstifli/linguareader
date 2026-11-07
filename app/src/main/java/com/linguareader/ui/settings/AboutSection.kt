@@ -54,6 +54,7 @@ fun AboutSection() {
             openUrl(AppLinks.PRIVACY_POLICY)
         }
         LinkRow(R.drawable.ic_language, stringResource(R.string.about_website), AppLinks.WEBSITE) { openUrl(AppLinks.WEBSITE) }
+        LinkRow(R.drawable.ic_language, stringResource(R.string.about_help), AppLinks.HELP) { openUrl(AppLinks.HELP) }
         LinkRow(R.drawable.ic_edit, stringResource(R.string.about_contact), AppLinks.CONTACT_EMAIL) {
             open(
                 Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:"))

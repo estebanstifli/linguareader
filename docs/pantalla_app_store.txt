@@ -1,0 +1,139 @@
+App para iOS Versión 0.4.1
+Guardar
+Añadir a revisión
+No se ha podido añadir a revisión
+
+Los siguientes elementos son obligatorios para iniciar el proceso de revisión:
+
+Debes seleccionar una versión.
+Información de la página del producto
+Inglés (EE. UU.)
+?
+Los componentes y metadatos que se muestran a continuación ayudan a los clientes a descubrir tu app e interactuar con ella en la página del producto y en los resultados de búsqueda. Más información…
+
+Nuevas formas de promocionar apps
+
+Mejora la página del producto de tu app con un encabezado personalizado y perfecciona cómo se muestra en los resultados de búsqueda de App Store.
+Ahora también puedes cargar vistas previas de la app y capturas de pantalla para el iPhone Duo, lo que añade compatibilidad con el dispositivo más reciente.
+
+
+Encabezado y resultados de la búsqueda
+Vistas previas de la app y capturas de pantalla
+Personaliza la página del producto de tu app y cómo se muestra en los resultados de búsqueda de App Store con componentes creativos. Consulta las prácticas recomendadas
+
+
+
+Encabezado
+
+Resultados de la búsqueda
+
+Vista previa
+Para añadir un componente arrástralo y suéltalo.
+
+0 de 1 componentes de encabezado
+Explorar componentes
+Cargar
+Eliminar
+Para añadir componentes, arrástralos y suéltalos o elígelos de tu biblioteca de componentes. Los tamaños compatibles incluyen 5244 × 2950px y 3840 × 1646px. Explorar plantillas
+
+Texto promocional
+?
+Learn languages with audiobooks and a finger that follows every word.
+101
+
+Descripción
+?
+Turn every story into a language lesson.
+
+LingoAudioBook brings reading and listening together. Hear a story, follow the highlighted words, and let an animated finger guide your eyes as you listen. Discover new vocabulary in context and enjoy learning at your own pace.
+
+READ. LISTEN. FOLLOW ALONG.
+Listen to books in English, Spanish, French and more. Word highlighting and an animated finger help you follow the text and connect written words with their pronunciation.
+
+TRANSLATE YOUR WAY
+Keep the original text on screen and tap a word to explore its meaning, or show translations beneath each sentence. Choose your reading and translation languages independently.
+
+FIND YOUR NEXT STORY
+Explore graded stories for different learning levels, from familiar fairy tales to classic adventures. Or bring your own reading material by importing EPUB and TXT books.
+
+MAKE READING YOUR OWN
+Adjust the voice, playback speed, text size and line spacing. Choose a light, dark or sepia theme, and switch the finger guide on or off whenever you like.
+
+BUILD YOUR VOCABULARY
+Save words you want to remember, bookmark your favourite passages and return to where you left off.
+
+KEEP LISTENING
+Continue listening with the screen off and use playback controls to pause, repeat or move between sentences.
+
+Free to use, with no ads or in-app purchases.
+
+Choose a story. Press play. Learn one word at a time.
+2611
+
+Palabras clave
+?
+learn, english, spanish, french,  language 
+57
+
+URL de soporte
+?
+https://estebanstifli.github.io/lingoaudiobook/
+URL de marketing
+?
+Versión
+?
+0.4.1
+Copyright
+?
+2026 Esteban García 
+180
+
+Archivo de cobertura de la app de encaminamiento
+?
+Ningún archivo seleccionado
+Seleccionar archivo
+
+Clip de app
+
+App para iMessage
+?
+Compilación
+Si tu app utiliza encriptación, deberás cargar documentación sobre el cumplimiento de las leyes de exportación. Puedes enviar esta documentación antes de enviar tu app a revisión en la sección de documentación sobre encriptación de la app o cargar tu app a continuación.
+
+Carga tus compilaciones con una de las distintas herramientas. Ver herramientas de carga
+
+Game Center
+Información para el equipo de revisión de apps
+Información de inicio de sesión
+?
+Indica un nombre de usuario y una contraseña para que podamos iniciar sesión en tu app. Necesitaremos estos datos para poder completar la revisión de tu app.
+
+
+Es necesario iniciar sesión
+Datos de contacto
+?
+esteban
+garcia
++34672766966
+estebandezafra@gmail.com
+Notas
+?
+
+4000
+
+Archivo adjunto
+?
+Ningún archivo seleccionado
+Seleccionar archivo (opcional)
+Publicación de la versión en App Store
+Para ofrecer tu app en App Store puedes publicarla automáticamente una vez que haya sido aprobada por el equipo de revisión de apps. También puedes publicarla manualmente más tarde en App Store.
+
+
+Publicar esta versión manualmente
+
+Publicar esta versión automáticamente
+
+Publicar esta versión automáticamente después de que el equipo de revisión de apps la haya revisado, no antes del
+Tu fecha y hora locales
+
+1 Nov. 2026 8:00 AM

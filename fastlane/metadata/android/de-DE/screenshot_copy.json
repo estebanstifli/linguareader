@@ -1,0 +1,42 @@
+{
+  "language": "DEUTSCH",
+  "example": "Lesebeispiel: Englisch + Deutsch",
+  "cards": [
+    [
+      "bilingual",
+      "ZWEISPRACHIGE BÜCHER",
+      "Eine Geschichte.\nZwei Sprachen.",
+      "Lerne mit Originaltext und Übersetzung."
+    ],
+    [
+      "finger",
+      "LESEN UND HÖREN",
+      "Hören. Mitlesen.\nLernen.",
+      "Der Lesefinger führt dich durch die Wörter."
+    ],
+    [
+      "translate",
+      "ANTIPPEN UND ÜBERSETZEN",
+      "Ein neues Wort?\nTippe darauf.",
+      "Entdecke die Bedeutung direkt in der Geschichte."
+    ],
+    [
+      "library",
+      "LEKTÜRE NACH NIVEAU",
+      "Deine nächste\nGeschichte wartet.",
+      "Entdecke Bücher auf Englisch, Spanisch und Französisch."
+    ],
+    [
+      "vocabulary",
+      "WÖRTER IM KONTEXT",
+      "Erweitere deinen\nWortschatz.",
+      "Sieh dir den Satz an. Speichere Wörter zum Wiederholen."
+    ],
+    [
+      "comfort",
+      "LESEN AUF DEINE ART",
+      "Ein wenig lesen.\nJeden Tag.",
+      "Sepia, Dunkelmodus und anpassbare Schriftgröße."
+    ]
+  ]
+}

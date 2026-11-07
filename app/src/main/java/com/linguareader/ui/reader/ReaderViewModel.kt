@@ -189,6 +189,10 @@ class ReaderViewModel(
     val translationDownloads: StateFlow<Map<String, ModelDownload>> = translationModels.downloads
 
     private val bookId = savedStateHandle.toRoute<ReaderRoute>().bookId
+    /** «Leer y escuchar» desde la ficha: la voz arranca al abrir. */
+    private val listenOnOpen = savedStateHandle.toRoute<ReaderRoute>().listen
+    private var audioRequested = listenOnOpen
+    private var narrationRequested = false
 
     private val _state = MutableStateFlow(ReaderUiState())
     val state: StateFlow<ReaderUiState> = _state.asStateFlow()
@@ -236,7 +240,12 @@ class ReaderViewModel(
             return
         }
         _state.update { it.copy(book = book, totalPassages = book.passages.size) }
-        val prefs = preferencesRepository.preferences.first()
+        var prefs = preferencesRepository.preferences.first()
+        // Como «leer desde aquí»: escuchar desde la ficha activa la lectura en voz alta en el lector clásico.
+        if (listenOnOpen && !prefs.ttsMode) {
+            preferencesRepository.update { it.copy(ttsMode = true, ttsModeChosen = true) }
+            prefs = preferencesRepository.preferences.first { it.ttsMode }
+        }
         audio.setSpeed(prefs.speechRate)
 
         val saved = progressDao.get(bookId)
@@ -247,8 +256,8 @@ class ReaderViewModel(
         seedTranslations(book, prefs.translationLanguage)
         // Narración pregrabada: si ya está descargada se lee con ella en lugar del motor TTS.
         narrationSelector.setNarration(narrations.cached(book))
-        if (narrations.needsDownload(book)) awaitNarration(book)
-        showPassage(index, offset, autoplay = false, immediate = true)
+        if (listenOnOpen) requestNarration(book)
+        showPassage(index, offset, autoplay = listenOnOpen, immediate = listenOnOpen)
 
         viewModelScope.launch { bookmarkDao.observeForBook(bookId).collect { list -> _state.update { it.copy(bookmarks = list) } } }
         viewModelScope.launch {
@@ -283,6 +292,13 @@ class ReaderViewModel(
      * Descarga en segundo plano la narración del libro. Mientras tanto (o si falla) se lee con el motor TTS; cuando
      * está lista se cambia a ella, pero no a mitad de una lectura: en la siguiente pausa, en el mismo punto.
      */
+    private fun requestNarration(book: Book) {
+        audioRequested = true
+        if (narrationRequested || !narrations.needsDownload(book)) return
+        narrationRequested = true
+        awaitNarration(book)
+    }
+
     private fun awaitNarration(book: Book) = viewModelScope.launch {
         narrations.ready.onSubscription { narrations.download(book) }.first { it == book.id }
         playback.first { !it.isPlaying }
@@ -342,7 +358,7 @@ class ReaderViewModel(
      * La ventana se desplaza con cada cambio de página: la generación no se detiene al final de la página que suena.
      */
     private suspend fun prefetchNext(book: Book, index: Int) {
-        if (!preferences.value.ttsMode) return // lector clásico: no se genera audio
+        if (!audioRequested || !preferences.value.ttsMode) return
         val upcoming = PrefetchWindow.after(book.passages, index)
         if (upcoming.isNotEmpty()) audio.prefetch(upcoming, book.learningLanguage, voiceFor(book))
     }
@@ -369,10 +385,11 @@ class ReaderViewModel(
             )
         }
         passageJob = viewModelScope.launch {
+            if (autoplay) requestNarration(book)
             audio.load(passage, book.learningLanguage, voiceFor(book), offset)
             persist(passage, offset)
-            // Pasar páginas en pausa no genera audio: solo al abrir el libro o al empezar a leer.
-            if (!continuation && (autoplay || immediate)) prepareAudio(book, passage, offset, immediate)
+            // Abrir para leer no prepara voz; solo se prepara al pedir reproducción.
+            if (!continuation && autoplay) prepareAudio(book, passage, offset, immediate)
             if (autoplay) audio.play()
             prefetchNext(book, index)
             refreshTranslations()
@@ -507,6 +524,7 @@ class ReaderViewModel(
 
     /** Lectura en voz alta desde la página visible. */
     fun playFrom(pos: TextPos) {
+        _state.value.book?.let(::requestNarration)
         if (pos.passage != _state.value.passageIndex) showPassage(pos.passage, pos.offset, autoplay = true)
         else viewModelScope.launch { audio.seekToOffset(pos.offset); audio.play() }
     }
@@ -542,7 +560,14 @@ class ReaderViewModel(
     // --------------------------------------------------------------------------------------
 
     fun togglePlay() = viewModelScope.launch {
-        if (playback.value.isPlaying) audio.pause() else audio.play()
+        if (playback.value.isPlaying) audio.pause() else {
+            val book = _state.value.book ?: return@launch
+            val passage = _state.value.passage ?: return@launch
+            requestNarration(book)
+            prepareAudio(book, passage, playback.value.resumeOffset, immediate = false)
+            audio.play()
+            prefetchNext(book, passage.index)
+        }
     }
 
     fun nextSentence() = viewModelScope.launch {
@@ -559,6 +584,7 @@ class ReaderViewModel(
     }
 
     fun repeatSentence() = viewModelScope.launch {
+        _state.value.book?.let(::requestNarration)
         audio.seekToSentence(playback.value.sentenceIndex)
         if (!playback.value.isPlaying) audio.play()
     }
@@ -566,6 +592,7 @@ class ReaderViewModel(
     fun readFromToken(tokenId: String) = viewModelScope.launch {
         val passage = passageOfToken(tokenId) ?: return@launch
         val token = passage.tokenById(tokenId) ?: return@launch
+        _state.value.book?.let(::requestNarration)
         _state.update { it.copy(wordCard = null) }
         // «Leer desde aquí» en el lector clásico activa la lectura en voz alta (altavoz y controles).
         if (!preferences.value.ttsMode) preferencesRepository.update { it.copy(ttsMode = true, ttsModeChosen = true) }
@@ -588,7 +615,7 @@ class ReaderViewModel(
         val book = _state.value.book ?: return@launch
         val passage = _state.value.passage ?: return@launch
         audio.load(passage, book.learningLanguage, voiceFor(book), playback.value.resumeOffset)
-        prepareAudio(book, passage, playback.value.resumeOffset, immediate = false)
+        if (audioRequested) prepareAudio(book, passage, playback.value.resumeOffset, immediate = false)
         refreshVoices()
         prefetchNext(book, passage.index)
     }

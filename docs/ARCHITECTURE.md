@@ -19,12 +19,12 @@
 |---|---|---|
 | `:core` | Kotlin Multiplatform (jvm, iosArm64, iosSimulatorArm64) | `model` (Book, Passage, Token…), `engine/Ports.kt` (interfaces), `text` (Tokenizer, SentenceSegmenter, normalizador de habla), `content` (manifiesto, integridad), `translation` (glosario, expresiones), `alignment` (validador, timeline, GapFiller), `audio` (clave y caché de audio, sidecars), `narration`, `reader` (controladores de audio), `platform` (puerto expect/actual: Unicode, frases, hashing, charset, fechas) |
 | `:engine:onnx` | Kotlin Multiplatform | Puerto mínimo de ONNX Runtime (`OnnxRuntime`, `OnnxSession`, `OnnxTensor`). jvm: API Java de ONNX Runtime; iOS: stub hasta enlazar `onnxruntime-c` en un Mac |
-| `:engine:alignment` | Kotlin Multiplatform | Alineación forzada por palabra: Viterbi CTC, remuestreo, texto wav2vec2/MMS, `Wav2Vec2ClipAligner`. Ver [ALIGNMENT.md](ALIGNMENT.md) |
-| `:engine:supertonic` | Kotlin Multiplatform | Motor Supertonic 3: port del preprocesado de texto, runtime ONNX (4 sesiones), catálogo del modelo con sha256, métricas. El descargador con reanudación (`ModelDownloader`, HttpURLConnection) está en `jvmMain` tras el puerto `FileDownloader`. Ver [SUPERTONIC.md](SUPERTONIC.md) |
+| `:engine:alignment` | Kotlin Multiplatform | Laboratorio histórico de alineación forzada: Viterbi CTC, remuestreo y wav2vec2/MMS. No es dependencia de producción de Android; se conserva para benchmarks. Ver [ALIGNMENT.md](ALIGNMENT.md) |
+| `:engine:supertonic` | Kotlin Multiplatform | Motor Supertonic 3: preprocesado Unicode con offsets, runtime ONNX (4 sesiones), atención interna compacta, tiempos por palabra, catálogo con sha256 y métricas. Grafo derivado local con pesos compartidos. Descargador reanudable tras `FileDownloader`. Ver [SUPERTONIC.md](SUPERTONIC.md) |
 | `:importer` | Kotlin Multiplatform | Puerto `DocumentExtractor`, `ExtractorRegistry` (detección por firma), extractores EPUB/MOBI/DOCX/ODT/RTF/FB2/HTML/TXT/Markdown/SRT (Ksoup + Okio), `PageTextCleaner` (PDF) e `ImportedBookBuilder` (texto → `manifest.json`). Ver [IMPORT.md](IMPORT.md) |
 | `:data` | Kotlin Multiplatform | Persistencia compartida: base de datos Room (`AppDatabase`: progreso, marcadores, vocabulario, caché de traducciones, estanterías, papelera, correcciones, documentos del dispositivo; esquemas exportados en `data/schemas`) y `UserPreferencesRepository` sobre DataStore. Room genera la implementación para jvm e iOS (`@ConstructedBy`); tests JVM con `sqlite-bundled` |
 | `:app` | Android | `data` (assets, fuentes de importación de Android, escaneo, `DataStore` de Android), `engine` (Android TTS, foco de audio, reproductor Media3, ML Kit, PDF), `di` (grafo Koin), `ui` (catálogo, lector, ajustes, vocabulario) |
-| `:domain` | Kotlin Multiplatform | Gestores que antes vivían en la app Android: libros importados (`ImportedBookRepository`, `LocalBookImporter`), catálogo compuesto, estanterías y papelera (`LibraryRepository`), bibliotecas descargables (`LibraryPackManager`, `LibraryArchive`, `GithubPackSource`), packs (`SupertonicModelManager`, `AlignmentModelManager`, `VoicePackManager`), narraciones y pretraducción. Sobre Okio y el puerto `HttpTransport`; errores tipados (`PackError`). Conserva los paquetes originales |
+| `:domain` | Kotlin Multiplatform | Gestores que antes vivían en la app Android: libros importados (`ImportedBookRepository`, `LocalBookImporter`), catálogo compuesto, estanterías y papelera (`LibraryRepository`), bibliotecas descargables (`LibraryPackManager`, `LibraryArchive`, `PackSource`), packs (`SupertonicModelManager`, `VoicePackManager`), narraciones y pretraducción. Sobre Okio y el puerto `HttpTransport`; errores tipados (`PackError`). Conserva los paquetes originales |
 | `:shared` | Kotlin Multiplatform (solo iOS) | Framework `LinguaShared` para la app iOS: exporta los módulos compartidos y añade los adaptadores de Apple (`AppleSpeechEngine`, `DirectoryBookRepository`, `BookImporter`, arranque Koin). Ver [IOS.md](IOS.md) |
 | `ios/` | Xcode (XcodeGen) | App SwiftUI, tests XCTest/XCTest UI y empaquetado para AWS Device Farm. No es un módulo Gradle. Ver [IOS.md](IOS.md) |
 
@@ -108,8 +108,9 @@ silencios entre frases. Ahora usa el mismo flujo que Supertonic:
 Antes del TTS, `SpeechTextNormalizer` convierte cada frase en su forma hablada (números, abreviaturas,
 símbolos) con un mapa token → habla, sin tocar el texto ni los tokens: ver [SPEECH_NORMALIZATION.md](SPEECH_NORMALIZATION.md).
 
-Para resaltado por palabra con Supertonic haría falta un `AlignmentEngine` de forced alignment
-sobre el WAV. `AlignmentValidator` y `AlignmentTimeline` ya están listos para ese caso.
+Supertonic produce marcas de inicio/final mediante atención interna. `SpokenMarksSidecar`, `MarkTimings` y
+`AlignmentTimeline` las conectan con el lector y su reloj real. No se descarga ni ejecuta un alineador externo;
+las marcas inválidas pasan a sincronía por frase. La API de timelines se conserva para narraciones pregrabadas.
 Detalles, métricas y limitaciones: [SUPERTONIC.md](SUPERTONIC.md).
 
 ## UI
@@ -252,29 +253,38 @@ que antes), `iosArm64` e `iosSimulatorArm64`. Es la **Fase 0** del plan de app i
 | Libros importados por el usuario | Del usuario | Se guardan solo en el dispositivo (`license.id = user-import`); no se redistribuyen. |
 
 
-## Paquetes descargables (voces y modelos de alineación)
+## Paquetes descargables (voces, modelo Supertonic, bibliotecas y narraciones)
 
-Lo pesado o generado no va en git ni en el APK: se publica como adjuntos de una **release de GitHub**
-(`estebanstifli/linguareader`, etiqueta `packs-v1`; configurable con `-PpacksRepo=` y `-PpacksTag=`). El modelo
-Supertonic sigue descargándose de Hugging Face (revisión fijada).
+Lo pesado o generado no va en git ni en el APK: se publica como **ficheros estáticos en un bucket R2 público de
+Cloudflare** con dominio propio, `https://files.lingoaudiobook.eu` (`PackSource`; configurable con `-PpacksBaseUrl=`).
+Los prefijos de ruta conservan las antiguas etiquetas de release: `packs-v1/` (voces, `-PpacksTag=`) y
+`library-v1/` (bibliotecas EPUB, `libraries.json` y narraciones, `-PlibraryTag=`). R2 sirve con CDN y `Range`
+(reanudación), sin token ni cuenta; hasta la 0.4.2 eran adjuntos de releases de GitHub (`estebanstifli/linguareader`).
+El modelo Supertonic se descarga del mismo dominio R2, bajo `models/supertonic-3/<revision>/`, con los 17 archivos
+originales y sus SHA-256 fijados en `SupertonicModel`. La licencia y la atribución acompañan a la copia; Hugging Face
+queda como referencia de procedencia. Cambiar el servidor no altera la revisión, la carpeta del modelo ni la clave
+de caché: las instalaciones completas siguen funcionando sin descargar de nuevo. No hay fallback automático a HF.
 
-| Adjunto | Contenido | Tamaño |
+| Objeto (`packs-v1/`) | Contenido | Tamaño |
 |---|---|---|
-| `voices.zip` | 60 WAV por voz (F1–F5, M1–M5) e idioma (en, fr, es): muestra de prueba y frase «preparando la lectura», + manifest con sha256 | 12 MB |
-| `w2v2-en.model.onnx` / `.vocab.json` | wav2vec2 base 100h (Apache-2.0), int8 | 122 MB |
-| `vp-fr.model.onnx` / `.vocab.json` | wav2vec2 base VoxPopuli FR (**CC-BY-NC-4.0**), int8 | 122 MB |
-| `vp-es.model.onnx` / `.vocab.json` | wav2vec2 base VoxPopuli ES (**CC-BY-NC-4.0**), int8 | 122 MB |
+| `voices-<idioma>-v1.zip` × 31 | Por voz (F1–F5, M1–M5): muestra de «Probar voz» y frase «preparando la lectura» en ese idioma (`SupertonicSampleTexts`), + `manifest.json` con sha256 | 4–7 MB cada uno |
+| `voices.json` | Catálogo `{version: 2, languages: {<idioma>: {asset, sizeBytes, sha256}}}`; la app lo refresca al arrancar (idiomas nuevos sin actualizar la app) | 5 KB |
 
-El antiguo `w2v2-fr` (wav2vec2 large 7K FR, Apache-2.0, 355 MB) ya no está en el catálogo; la app borra su carpeta al
-arrancar (`AlignmentModelManager.removeRetired`). Ver [ALIGNMENT.md §9](ALIGNMENT.md).
+Los paquetes de alineación se han retirado de la preparación y publicación predeterminadas; Android no los descarga.
+Al arrancar, `RetiredAlignmentModels` elimina solo `files/models/alignment`, sin seguir enlaces ni tocar audio,
+libros o narraciones. Los experimentos anteriores se conservan en [ALIGNMENT.md](ALIGNMENT.md).
 
-- Generar y publicar: `./gradlew :engine:supertonic:voicePack`, `python tools/make_release.py` (copia los adjuntos a
-  `.models/release/` y regenera `assets/aligners/catalog.json` y `assets/packs/voices.json` con tamaños y sha256) y
-  `gh release upload packs-v1 .models/release/* --clobber`.
-- **Repositorio público**: la app resuelve los adjuntos con la API de GitHub (`GithubPackSource`) sin token ni cuenta.
+- **Paquete de voces por idioma** (`VoicePackManager`): se descarga **solo el idioma que hace falta**. El del idioma que
+  se aprende (`readingLanguage`) baja solo cuando el modelo Supertonic queda instalado y cada vez que ese idioma cambia
+  (onboarding incluido); en Ajustes › Voz, «Probar voz» en un idioma sin paquete lo descarga y reproduce la muestra al
+  llegar (y sintetiza con el modelo si no hay paquete o falla). En disco, `voice-pack/<idioma>/<voz>/{sample,ready}.wav`
+  con un `.installed` (sha256) por idioma; el paquete único anterior (`voice-pack/.installed`) se borra al arrancar.
+- **Generar y publicar**: `./gradlew :engine:supertonic:voicePack` (`-PvoiceLanguages=de,it` para unos pocos; ≈9 min los
+  31 en PC), `python tools/make_release.py` (copia solo voces a `.models/release/` y regenera
+  `assets/packs/voices.json` y `release/voices.json`) y `python tools/publish_packs.py` (sube con `wrangler r2 object put`
+  desde `../book_web`; `--library` y `--narrations` para `dist/library` y `dist/narrations`). Un índice local
+  (`.models/r2-index.json`) evita resubir lo que no cambió. Límite de wrangler: 300 MiB por objeto.
 - **Velocidad**: el audio se genera siempre a 1.0× (clave de caché única); la velocidad del reproductor del lector solo cambia la reproducción (Media3 `setPlaybackParameters`, tono intacto) y no regenera nada.
-- El paquete de voces se baja solo cuando el modelo Supertonic queda instalado; «Probar voz» y la frase de preparación
-  usan esos WAV sin cargar el modelo.
 
 ## Arranque de la lectura con Supertonic
 
@@ -319,3 +329,58 @@ Etapa 3  reproducción         ExoPlayer ◄─ clip + tiempos         (hilo pri
   que 64 MB serían ~12 min (un libro demo entero ya los supera); 256 MB ≈ 50 min.
 - Clave por contenido (texto normalizado + idioma + motor/versión + voz + velocidad + pasos), compartida entre libros: la
   misma frase en dos libros se reutiliza. No hay carpeta por libro; el LRU protege lo que se está leyendo.
+- Las etapas TTS → disco y disco → alineación viven en `SentenceClipPipeline` (core), que el controlador solo encadena.
+  La misma instancia la usa la generación de libros enteros (abajo): lo que genera una lo encuentra la otra.
+
+## Audio de un libro entero en segundo plano (ficha del libro)
+
+Para móviles de gama media/baja, donde Supertonic no va por delante de la lectura, la ficha del libro ofrece
+**Generar audio**: `BookAudioService` (`:domain`) recorre todas las frases con el mismo `SentenceClipPipeline` del
+lector (TTS a la caché y, si hay modelo para el idioma, alineación por palabra persistida en el sidecar), con progreso
+por frases, cancelar y continuar. Es el mismo patrón que `BookTranslationService`: ámbito de aplicación, sobrevive a las
+pantallas y cede el paso al lector (no sintetiza mientras hay una lectura sonando, para no robarle el único hilo del
+motor). Al abrir el libro, cada frase ya está en caché y suena al instante con todas sus palabras.
+
+### Por qué no «un MP3 por libro»
+
+Se valoró guardar el audio generado como un único fichero por libro y se descartó, al menos por ahora:
+
+| | Un fichero por libro | Clips por frase (elegido) |
+|---|---|---|
+| Codificación | Android no trae codificador MP3; habría que usar AAC/Opus con `MediaCodec` (específico de plataforma) | WAV ya generado, sin paso extra |
+| Reanudar una generación cancelada | Contenedores con cabecera final (M4A) no se pueden ampliar; haría falta ADTS/OGG crudo y un índice aparte | Cada frase es independiente: continuar = saltar las que ya existen |
+| Reproducción | Nuevo reproductor con `ClippingConfiguration` por frase y seek en VBR (imprecisión sin tabla de seek) | El pipeline actual (un clip = una frase, pausas que inserta el reproductor) no cambia |
+| Alineación | El alineador lee PCM: habría que decodificar antes de alinear, o alinear antes de codificar y guardar los tiempos en el índice | El sidecar `.align.json` ya vive junto al WAV |
+| Compartir frases entre libros / lector | Imposible: el audio está dentro del fichero del libro | La clave por contenido se reutiliza entre lector y generación |
+| Cambiar de voz o de pasos | Regenerar el fichero entero | Solo cambian las claves afectadas |
+
+El problema real del esquema por frases era que el **LRU** expulsaba lo generado: a 44,1 kHz / 16 bits un libro de
+60 min ocupa ≈ 300 MB, más que el límite por defecto (256 MB). La solución es **fijar por grupo**
+(`FileAudioCache.pin`): las claves del libro (`audiobook:<id>`, en `audio-cache/pins/`) no cuentan en el límite ni las
+expulsa el LRU; se borran desde la ficha (**Borrar audio**) o al borrar el libro definitivamente, y «Vaciar caché» en
+Ajustes no las toca. El estado de la ficha («x/total frases, N MB») se calcula contando las claves presentes en la caché,
+de modo que no hay un estado persistido que pueda desincronizarse del disco.
+
+**Libros con narración pregrabada** (`Book.narration`, ver CONTENT_FORMAT.md): la ficha no ofrece generar nada. Si la
+narración está descargada y casa con el texto (`NarrationLibrary.cached`), la tarjeta muestra «Audio listo: narración de
+estudio con tiempos por palabra» al 100 %; si no, «Descargar ahora» (`NarrationLibrary.download(retry = true)`, con
+`downloading` para el progreso) además de la descarga automática al abrir el libro. Una narración descargada que no casa
+con el texto (< 90 %) se trata como si no existiera y se vuelve a la generación local.
+
+**Un libro a la vez y pantalla apagada.** `BookAudioService.start` detiene cualquier otra generación en marcha (el
+motor tiene un solo hilo; la ficha avisa antes con el título del otro libro). Como el proceso se congela con la pantalla
+apagada, el diálogo de «Generar audio» ofrece la casilla «Seguir generando aunque se apague la pantalla»
+(`generateAudioScreenOff` / `...Chosen` con «No volver a preguntar», también en Ajustes › Voz) y, si está marcada,
+mientras hay una generación activa corre `AudioGenerationService`: servicio en primer plano (`mediaProcessing` desde
+Android 15, `dataSync` antes; ambos con límite de 6 h diarias, al agotarse `onTimeout` cancela; se llama a
+`Service.startForeground` de plataforma porque `ServiceCompat` enmascara los tipos que no conoce y pide «none», que
+Android 14+ rechaza con `InvalidForegroundServiceTypeException`)
+con wake lock parcial, notificación de progreso (x de total frases, «en espera» mientras se lee) y botón «Detener». El
+servicio observa `BookAudioService.states` y se para solo cuando no queda nada activo. Sin aceptar, la generación sigue
+mientras el proceso viva y se continúa desde la ficha.
+
+**Siguiente paso si el tamaño pesa** (no implementado): comprimir cada clip fijado **después** de alinearlo (AAC 64 kb/s
+mono con `MediaCodec`, ≈ 8 KB/s frente a 88 KB/s del WAV; un libro de 60 min pasaría de ~300 MB a ~30 MB), guardando la
+duración en el sidecar porque `GapFiller.wavDurationMs` lee la cabecera WAV. Media3 reproduce AAC/ADTS sin cambios en el
+reproductor; el alineador seguiría recibiendo el WAV antes de la compresión. Eso mantiene todo lo anterior y solo añade
+una etapa opcional, específica de Android, al final del pipeline.

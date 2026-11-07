@@ -1,0 +1,158 @@
+{
+  "settings": {
+    "threads": 4,
+    "steps": 5,
+    "provider": "CPU",
+    "ort": "1.31.0",
+    "repeats": 3
+  },
+  "model_bytes": {
+    "external_fp32": 506212,
+    "matmul_int8": 242030858
+  },
+  "baseline_bytes": 256535187,
+  "load_seconds": {
+    "external_fp32": 1.173878900008276,
+    "matmul_int8": 1.296256799949333
+  },
+  "production_candidate": "external_fp32_lossless",
+  "int8_installed": false,
+  "items": [
+    {
+      "id": "es_05",
+      "audio_seconds": 4.395034013605442,
+      "candidates": {
+        "embedded_fp32": {
+          "max_pcm_diff": 0.0,
+          "pcm_rmse": 0.0,
+          "snr_db": null,
+          "word_count": 9,
+          "max_boundary_diff_ms": 0.0,
+          "median_ms": 684.6107000019401,
+          "measurements_ms": [
+            754.8430000897497,
+            684.6107000019401,
+            666.315000038594
+          ]
+        },
+        "external_fp32": {
+          "max_pcm_diff": 0.0,
+          "pcm_rmse": 0.0,
+          "snr_db": null,
+          "word_count": 9,
+          "max_boundary_diff_ms": 0.0,
+          "median_ms": 686.6061000619084,
+          "measurements_ms": [
+            697.2608000505716,
+            686.6061000619084,
+            666.0670998971909
+          ]
+        },
+        "matmul_int8": {
+          "max_pcm_diff": 0.44048011302948,
+          "pcm_rmse": 0.051425165822710575,
+          "snr_db": -0.4383655985968226,
+          "word_count": 9,
+          "max_boundary_diff_ms": 114.48899999999983,
+          "median_ms": 693.9972001127899,
+          "measurements_ms": [
+            700.6498000118881,
+            693.9972001127899,
+            652.6636998169124
+          ]
+        }
+      }
+    },
+    {
+      "id": "en_02",
+      "audio_seconds": 3.008843537414966,
+      "candidates": {
+        "embedded_fp32": {
+          "max_pcm_diff": 0.0,
+          "pcm_rmse": 0.0,
+          "snr_db": null,
+          "word_count": 9,
+          "max_boundary_diff_ms": 0.0,
+          "median_ms": 600.7725999224931,
+          "measurements_ms": [
+            583.8268999941647,
+            607.0413999259472,
+            600.7725999224931
+          ]
+        },
+        "external_fp32": {
+          "max_pcm_diff": 0.0,
+          "pcm_rmse": 0.0,
+          "snr_db": null,
+          "word_count": 9,
+          "max_boundary_diff_ms": 0.0,
+          "median_ms": 585.979200201109,
+          "measurements_ms": [
+            585.979200201109,
+            603.8035000674427,
+            582.8870998229831
+          ]
+        },
+        "matmul_int8": {
+          "max_pcm_diff": 0.3709377348423004,
+          "pcm_rmse": 0.05407660856953304,
+          "snr_db": -1.8446053656312678,
+          "word_count": 9,
+          "max_boundary_diff_ms": 120.0,
+          "median_ms": 575.7287000305951,
+          "measurements_ms": [
+            641.5911999065429,
+            575.7287000305951,
+            556.1066998634487
+          ]
+        }
+      }
+    },
+    {
+      "id": "fr_02",
+      "audio_seconds": 3.8505215419501133,
+      "candidates": {
+        "embedded_fp32": {
+          "max_pcm_diff": 0.0,
+          "pcm_rmse": 0.0,
+          "snr_db": null,
+          "word_count": 9,
+          "max_boundary_diff_ms": 0.0,
+          "median_ms": 635.1099999155849,
+          "measurements_ms": [
+            613.2624999154359,
+            635.1099999155849,
+            644.9941999744624
+          ]
+        },
+        "external_fp32": {
+          "max_pcm_diff": 0.0,
+          "pcm_rmse": 0.0,
+          "snr_db": null,
+          "word_count": 9,
+          "max_boundary_diff_ms": 0.0,
+          "median_ms": 654.0115000680089,
+          "measurements_ms": [
+            644.2853000480682,
+            664.9262998253107,
+            654.0115000680089
+          ]
+        },
+        "matmul_int8": {
+          "max_pcm_diff": 0.4036809206008911,
+          "pcm_rmse": 0.05223507692226301,
+          "snr_db": -0.342977037718895,
+          "word_count": 9,
+          "max_boundary_diff_ms": 0.0,
+          "median_ms": 638.6204001028091,
+          "measurements_ms": [
+            638.6204001028091,
+            629.0911000687629,
+            648.7376000732183
+          ]
+        }
+      }
+    }
+  ],
+  "int8_sha256": "fe151359a89c05baf0581d8abde32f15d98f6aeca03a064e89d7b06dd4085ab2"
+}

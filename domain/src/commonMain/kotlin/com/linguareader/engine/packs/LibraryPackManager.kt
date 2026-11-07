@@ -25,7 +25,7 @@ import okio.Path
  * (`u-lib-<idioma>-<slug>`), así que actualizar la biblioteca conserva el progreso, los marcadores y el
  * vocabulario; los libros retirados en la versión nueva se borran.
  *
- * El catálogo (`libraries.json`) viene con la app ([bundledCatalogJson]) y se refresca desde la release, para que
+ * El catálogo (`libraries.json`) viene con la app ([bundledCatalogJson]) y se refresca desde el origen de paquetes, para que
  * las bibliotecas nuevas o ampliadas lleguen sin actualizar la app.
  */
 class LibraryPackManager(
@@ -34,7 +34,7 @@ class LibraryPackManager(
     filesDir: Path,
     private val cacheDir: Path,
     private val appScope: CoroutineScope,
-    private val source: GithubPackSource,
+    private val source: PackSource,
     private val importer: LocalBookImporter,
     private val tag: String,
     bundledCatalogJson: () -> String?,

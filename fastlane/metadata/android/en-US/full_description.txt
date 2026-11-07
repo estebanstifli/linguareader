@@ -1,30 +1,25 @@
-Learn a language the natural way: by reading stories you enjoy while you listen to them.
+Free bilingual books to learn languages, one story at a time.
 
-LingoAudioBook gives you graded readers for every level, a voice that reads aloud and highlights each word as it is spoken, and translation on tap. Everything works offline, with no account and no ads.
+Read in the language you are learning and keep the translation close by. LingoAudioBook brings books, audio and vocabulary together so you can enjoy a story while discovering how a new language works.
 
-GRADED READERS
-• Free libraries of books from A1 to B2 in English, Spanish and French, adapted from public-domain classics.
-• Filter by level and start with the suggested book for your level.
+ONE STORY. TWO LANGUAGES.
+Show the original text with a translation beneath each sentence, or read only the original and tap a word when you need help. Choose your reading language and translation language separately.
 
-READ AND LISTEN
-• The voice reads the text and the current word lights up, so you connect sound and spelling.
-• Repeat a sentence, skip ahead, change the speed and keep listening with the screen off.
-• Choose your phone's voice or an optional offline neural voice.
+A FREE LIBRARY TO EXPLORE
+Discover graded stories in English, Spanish and French: familiar fairy tales, classic adventures and adaptations for different reading levels. Choose a book that feels right for you and build a reading habit at your own pace.
 
-TAP TO TRANSLATE
-• Tap any word to see its translation in context, including phrasal verbs, contractions and expressions.
-• See the translation of the whole sentence and save words to your vocabulary.
-• On-device translation into your own language after a one-time download.
+READ IT. HEAR IT. UNDERSTAND IT.
+Listen to the text with synthetic voices, adjust the speed and replay a sentence. Word highlighting and an optional animated finger help you follow along when word timing is available. Keep listening with the screen off.
 
-YOUR OWN BOOKS
-• Open EPUB, PDF, Word, ODT, RTF, FB2, MOBI without DRM, TXT, Markdown, subtitles and web pages.
-• Find the books you already keep in the folders you choose.
+WORDS THAT BELONG TO A STORY
+See new vocabulary in context and save words to revisit later. Use bookmarks and pick up where you left off.
 
-COMFORTABLE READING
-• Light, dark and sepia themes, adjustable text size and line spacing.
-• Bookmarks, search in the book, shelves and collections.
+YOUR BOOKS, YOUR WAY
+Import compatible EPUB and TXT books. Adjust text size and line spacing, and choose a light, dark or sepia theme for comfortable reading.
 
-PRIVATE BY DESIGN
-No account, no ads and no tracking. Your books, progress and vocabulary stay on your phone.
+READY WHEN YOU ARE
+Download books, translation models and the voices you need before reading offline. Translations are generated automatically; available languages and results depend on the selected language pair and voice.
 
-This is an early beta: we'd love your feedback at estebandezafra@gmail.com.
+Free to use, with no ads or in-app purchases.
+
+Open a book. Discover a language.

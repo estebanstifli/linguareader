@@ -1,6 +1,6 @@
 ---
 name: graded-translate
-description: Traducir un libro graduado ya existente en content/graded-books a otro idioma (es, fr, de, it, pt…) con el mismo nivel MCER, en una versión natural y no literal, y verificarla. Usar cuando se pida traducir un libro graduado o crear su versión en otro idioma.
+description: Traducir un libro graduado ya existente en content/graded-books a otro idioma (es, fr, de, it, pt, tr, el, uk…) con el mismo nivel MCER, en una versión natural y no literal, y verificarla. Usar cuando se pida traducir un libro graduado o crear su versión en otro idioma.
 ---
 
 # Traducir un libro graduado
@@ -56,7 +56,9 @@ Idioma destino (código o nombre: `de`, «alemán»…) + libro opcional (ruta o
   *ty*/*pan, pani* (súbdito → rey: «Wasza Wysokość» / «Najjaśniejszy Panie» con 3.ª persona); en sueco
   *du* casi siempre, «Ers Majestät» al rey. En ruso *ты*/*вы* (al rey: «Ваше Величество» + *вы*); en
   coreano 반말/해요체/합쇼체 según edad y rango (al rey: 전하 + 합쇼체); en hindi *तू/तुम/आप* (al rey:
-  महाराज + *आप*).
+  महाराज + *आप*). En turco *sen*/*siz* (al rey: «Efendimiz» / «Majesteleri» + *siz*); en griego
+  *εσύ*/*εσείς* (al rey: «Μεγαλειότατε» + *εσείς*); en ucraniano *ти*/*ви* (al rey: «Ваша Величносте» +
+  *ви*).
 - **Nombres y títulos**: usa la forma tradicional del destino cuando exista, la de las traducciones
   del original y no la de una película (*El sastrecillo valiente*, *Le Vaillant Petit Tailleur*, *Das
   tapfere Schneiderlein*, *Il piccolo sarto coraggioso*, *O Alfaiate Valente*; *Caperucita Roja*, *Le
@@ -68,7 +70,12 @@ Idioma destino (código o nombre: `de`, «alemán»…) + libro opcional (ruta o
   *Snövit*; *Assepoester*, *Kopciuszek*, *Askungen*; *De gelaarsde kat*, *Kot w butach*, *Mästerkatten
   i stövlar*; *Pinokkio*, *Pinokio*, *Pinocchio*; en ru/ko/hi: *Храбрый портняжка*, *용감한 꼬마 재봉사*;
   *Красная Шапочка*, *빨간 모자*, *लाल टोपी*; *Белоснежка*, *백설공주*; *Золушка*, *신데렐라*, *सिंड्रेला*;
-  *Кот в сапогах*, *장화 신은 고양이*; *Приключения Пиноккио*, *피노키오의 모험*). Los
+  *Кот в сапогах*, *장화 신은 고양이*; *Приключения Пиноккио*, *피노키오의 모험*; en tr/el/uk: *Cesur Küçük
+  Terzi*, *Ο ανδρείος ραφτάκος*, *Хоробрий кравчик*; *Kırmızı Başlıklı Kız*, *Η Κοκκινοσκουφίτσα*,
+  *Червона Шапочка*; *Pamuk Prenses*, *Η Χιονάτη*, *Білосніжка*; *Külkedisi*, *Η Σταχτοπούτα*,
+  *Попелюшка*; *Çizmeli Kedi*, *Ο παπουτσωμένος γάτος*, *Кіт у чоботях*; *Güzel ve Çirkin*, *Η
+  Πεντάμορφη και το Τέρας*, *Красуня і Чудовисько*; *Define Adası*, *Το νησί των θησαυρών*, *Острів
+  скарбів*; *Aşk ve Gurur*, *Περηφάνια και προκατάληψη*, *Гордість і упередження*). Los
   nombres inventados en nuestra adaptación se conservan, salvo que suenen raros en el destino.
 - Si la obra original está escrita en el idioma destino (Perrault, Leprince de Beaumont o Verne al
   francés; Collodi al italiano; Grimm al alemán), puedes usar sus fórmulas célebres cuando la
@@ -90,6 +97,9 @@ El nivel MCER no cambia, pero la gramática de cada nivel es la del idioma desti
 | **ru** | настоящее время (imperfectivo); futuro con *буду* + inf. y futuro perfectivo de verbos muy frecuentes; *хотеть/мочь/надо* + inf.; imperativo. **Sin** прошедшее время, *бы* ni participios | прошедшее время (ambos aspectos) como tiempo narrativo; futuro simple y compuesto. **Sin** *бы* (salvo *хотел бы*), participios ni деепричастия | + *бы* (condicional), participios activos y pasivos, деепричастия sencillos (*читая*), estilo indirecto | todo |
 | **ko** | presente en 해요체 (-아요/어요) en diálogo y -ㄴ다/는다 en la narración; futuro -(으)ㄹ 거예요; -고 싶다, -(으)ㄹ 수 있다; imperativo -(으)세요. **Sin** pasado (-았/었-), honoríficos complejos ni conectores avanzados (solo -고, -아서/어서, -지만) | pasado -았/었- como tiempo narrativo; -(으)면, -(으)니까, -(으)ㄹ 때; modificadores -(으)ㄴ/는/(으)ㄹ. **Sin** 대과거 (-았었-) ni estilo indirecto (-다고 하다) | + estilo indirecto, -(으)ㄹ 뻔하다, -던, honoríficos (-시-, 드리다) coherentes, -았었- | todo: registro literario, -더라 |
 | **hi** | presente habitual (*करता है*) y continuo (*कर रहा है*); futuro (*करेगा*); *सकना/चाहना* + inf.; imperativo. **Sin** pasado perfectivo (*किया, गया*), *था* ni construcción con *ने*; adjetivos de estado como *बैठा है* sí | pasado perfectivo con *ने* y pasado habitual/continuo (*करता था, कर रहा था*) para narrar. **Sin** pluscuamperfecto (*गया था, चुका था*) ni condicional irreal | + pluscuamperfecto, condicional (*अगर… तो*), subjuntivo (*करे*), voz pasiva sencilla, oraciones relativas *जो… वह* | todo: registro literario, compuestos verbales ricos |
+| **tr** | şimdiki zaman (*-iyor*), geniş zaman (*-ir*), gelecek (*-ecek*); *-abilmek*, *istemek*; emir kipi. **Sin** *-di*, *-miş*, *-mişti* ni şart *-se* | *-di* como tiempo narrativo (o *-miş* de cuento, con *Bir varmış, bir yokmuş*: elige uno por libro); *-ken*, *-ince*. **Sin** *-mişti* ni *-seydi*; ortaçlar (*-en*, *-dik*) solo sencillos | + *-mişti*, *-se/-seydi*, ortaçlar y zarf-fiiller (*-ip, -erek, -dıkça*), dolaylı anlatım (*-diğini söyledi*), edilgen | todo |
+| **el** | ενεστώτας; μέλλοντας con *θα*; *θέλω να / μπορώ να* + υποτακτική; προστακτική. **Sin** αόριστος, παρατατικός, παρακείμενος ni *θα* + παρατατικός | αόριστος + παρατατικός para narrar; μέλλοντας. **Sin** υπερσυντέλικος (*είχε φύγει*) ni δυνητική (salvo *θα ήθελα*) | + παρακείμενος, υπερσυντέλικος, δυνητική, μετοχές en *-οντας*, πλάγιος λόγος | todo: registro literario |
+| **uk** | теперішній час; futuro con *буду* + inf. y futuro perfectivo de verbos muy frecuentes; *хотіти/могти/треба* + inf.; наказовий спосіб. **Sin** минулий час, *би* ni дієприслівники | минулий час (ambos aspectos) como tiempo narrativo; futuro simple y compuesto (*робитиму*). **Sin** *би* (salvo *хотів би*), дієприкметники ni дієприслівники | + *би*, дієприкметники, дієприслівники sencillos (*читаючи*), непряма мова | todo |
 | **pt** | presente; *ir* + inf.; *estar a* + inf.; *poder/querer/ter de* + inf.; imperativo. **Sin** pretérito perfeito, imperfeito, futuro, condicional ni subjuntivo («Quero que venhas» → «Vem comigo») | pretérito perfeito + imperfeito para narrar; futuro con *ir* + inf. (o futuro simples). **Sin** mais-que-perfeito, condicional ni subjuntivo (presente del subjuntivo solo en fórmulas: *oxalá*, *que…!*) | + mais-que-perfeito composto (*tinha feito*), condicional, presente e imperfeito do subjuntivo, futuro do subjuntivo (*se tiveres*), discurso indireto | todo: mais-que-perfeito simples literario, infinitivo pessoal complejo, subjuntivo pleno |
 
 Vocabulario: el más frecuente del destino y, si una palabra clave pasa del nivel, explícala con el
@@ -105,10 +115,11 @@ tienden a alargarse. Nunca recortes ni añadas escenas para ajustar la cifra.
 - Cabecera de capítulo (la reconoce `TextExtractor`): `Capítulo N: Título` (es, pt),
   `Chapitre N : Titre` (fr), `Kapitel N: Titel` (de, sv), `Capitolo N: Titolo` (it),
   `Hoofdstuk N: Titel` (nl), `Rozdział N: Tytuł` (pl), `Глава N: Название` (ru), `제N장: 제목` (ko),
-  `अध्याय N: शीर्षक` (hi).
+  `अध्याय N: शीर्षक` (hi), `Bölüm N: Başlık` (tr), `Κεφάλαιο N: Τίτλος` (el), `Розділ N: Назва` (uk).
 - Última línea: `Fin` (es, fr), `Ende` (de), `Fine` (it), `Fim` (pt), `Einde` (nl), `Koniec` (pl),
-  `Slut` (sv), `Конец` (ru), `끝` (ko), `समाप्त` (hi). Slug sin diacríticos también en pl/sv (ł→l, ą→a,
-  å→a, ö→o). En **ru, ko y hi** (alfabetos no latinos) el slug es el **inglés** del original
+  `Slut` (sv), `Конец` (ru), `끝` (ko), `समाप्त` (hi), `Son` (tr), `Τέλος` (el), `Кінець` (uk). Slug sin
+  diacríticos también en pl/sv/tr (ł→l, ą→a, å→a, ö→o, ı→i, ş→s, ğ→g, ç→c). En **ru, ko, hi, el y uk**
+  (alfabetos no latinos) el slug es el **inglés** del original
   (`ru/A1/the-brave-little-tailor.txt`): rutas y URLs siempre en ASCII.
 - Diálogos según la norma del idioma:
   - **es**: raya (`—`), nunca comillas: `—¡Siete! —dice—. ¡Siete de un golpe!` Con `¿?` y `¡!` de
@@ -134,11 +145,19 @@ tienden a alargarse. Nunca recortes ni añadas escenas para ajustar la cifra.
     eojeol según la norma (띄어쓰기). Nunca « ».
   - **hi**: comillas “…”, danda `।` como punto final (nunca `.`), `?` y `!` normales; nukta donde
     corresponda (*ज़*, *फ़*). Números en cifras indoarábigas (1, 2, 3).
+  - **tr**: raya (`—`) al inicio del diálogo: `— Yedi! diye bağırır. — Bir vuruşta yedi!`; citas y
+    carteles con “…”. Distingue siempre *ı/i* e *İ/I*.
+  - **el**: comillas «…» con inciso: `«Επτά!» λέει. «Επτά με μια χτυπιά!»`. Interrogación con `;`
+    (nunca `?`), *άνω τελεία* `·` cuando haga falta; sistema monotónico.
+  - **uk**: raya (`—`) al inicio del diálogo: `— Сім! — каже він. — Сім одним ударом!`; citas y
+    carteles con «…». Apóstrofo `’` (*м’ясо, сім’я*); nunca letras rusas (ы, э, ъ, ё).
 - Párrafos separados por una línea en blanco, como el original.
 
 ## Proceso (cada lectura y reescritura cuesta tokens)
 - Si una herramienta o un comando es denegado, no lo reintentes de otra forma: sigue con Read/Write
-  y el checker.
+  y el checker. En Bash, un solo comando por llamada (sin `;`, `$( )`, `cd` ni heredocs `<<EOF`), con
+  rutas relativas a la raíz del repo; para buscar usa Grep/Glob y para
+  cambiar ficheros (también el README del idioma) usa Edit o Write.
 
 1. Saca con `grep -n "<slug>\|<Título>" content/graded-books/README.md` solo la fila del catálogo y
    su entrada del glosario inglés (no leas el README entero); lee las primeras 10 líneas del fichero
@@ -148,9 +167,11 @@ tienden a alargarse. Nunca recortes ni añadas escenas para ajustar la cifra.
    onomatopeyas recurrentes.
 3. Escribe:
    - **A1/A2**: el libro completo de una vez con Write, párrafo por párrafo del original.
-   - **B1/B2**: por bloques de 3–4 capítulos en el scratchpad (`<slug>.<idioma>.part1.txt`…),
-     leyendo solo los capítulos de ese bloque; al final, `cat` al fichero definitivo (solo el último
-     bloque lleva el cierre).
+   - **B1/B2**: por bloques de 3–4 capítulos **junto al fichero definitivo** (`<slug>.part1.txt`…,
+     nunca en Temp ni en el scratchpad), leyendo solo los capítulos de ese bloque (solo el último
+     bloque lleva el cierre). Al final únelos con
+     `python -I tools/join_parts.py <definitivo> <part1> <part2> …`, que separa con una línea en blanco
+     y borra las partes. No uses `cat`, `{ }`, `&&` encadenados ni `rm`: los permisos los deniegan.
 4. Verifica:
    `PYTHONIOENCODING=utf-8 python -I tools/translation_check.py <origen> <traducción> --lang <xx> --fix-typography --show-long 5`
    - Capítulos y párrafos por capítulo idénticos al origen, cierre correcto.
@@ -168,7 +189,7 @@ tienden a alargarse. Nunca recortes ni añadas escenas para ajustar la cifra.
    - la fila del libro: ⬜ → ✅ y rellena `Fichero` (`` `<idioma>/<NIVEL>/<slug>.txt` ``), `Título`,
      `Palabras` (con punto de miles: 3.154), `Palabras/frase` (coma decimal: 5,7) y `Legibilidad`
      (índice y valor que imprime el checker: «INFLESZ 92», «Flesch-Amstad 85», «Gulpease 78»,
-     «Flesch-Martins 88», «Flesch-Douma 84», «FOG-PL 5», «LIX 24», «Flesch-Oborneva 90», «Sílabas/palabra 2,4»); `Notas` solo si hay algo que recordar (tratamiento, canción, tiempo
+     «Flesch-Martins 88», «Flesch-Douma 84», «FOG-PL 5», «LIX 24», «Flesch-Oborneva 90», «Ateşman 92», «Sílabas/palabra 2,4»); `Notas` solo si hay algo que recordar (tratamiento, canción, tiempo
      narrativo elegido). Las celdas vacías se dejan vacías; no toques las demás filas;
    - glosario (sección «Vocabulario fuera de nivel»): una entrada `- **<Título traducido>**: ...` con
      las palabras del destino que pasan del nivel, en el mismo orden que la tabla.

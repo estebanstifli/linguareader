@@ -82,8 +82,9 @@ registerVerificationTest("alignCorpus", "Sintetiza con Supertonic el corpus de e
     systemProperty("supertonic.corpusDir", rootProject.layout.projectDirectory.dir(".models/align-corpus").asFile.absolutePath)
 }
 
-/** Paquete de voces (muestras y frases de «preparando») → .models/voice-pack/voices.zip. */
-registerVerificationTest("voicePack", "Sintetiza las muestras de voz y frases de preparación de cada voz e idioma.", "*VoicePackTest*") {
+/** Paquetes de voces por idioma (muestras y frases de «preparando») → .models/voice-pack/voices-<lang>-v1.zip. -PvoiceLanguages=de,it para solo algunos. */
+registerVerificationTest("voicePack", "Sintetiza las muestras de voz y frases de preparación de cada voz e idioma (un zip por idioma).", "*VoicePackTest*") {
     systemProperty("supertonic.voicePack", "true")
     systemProperty("supertonic.packDir", rootProject.layout.projectDirectory.dir(".models/voice-pack").asFile.absolutePath)
+    providers.gradleProperty("voiceLanguages").orNull?.let { systemProperty("supertonic.languages", it) }
 }

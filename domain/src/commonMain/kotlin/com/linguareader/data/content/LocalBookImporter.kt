@@ -70,6 +70,7 @@ class LocalBookImporter(
         language: String,
         level: CefrLevel,
         stableId: String? = null,
+        authors: List<String>? = null,
     ): String = withContext(ioDispatcher) {
         val bookId = stableId?.let { ImportedBookRepository.ID_PREFIX + it } ?: draft.bookId
         val book = builder.build(
@@ -77,7 +78,7 @@ class LocalBookImporter(
             ImportOptions(
                 bookId = bookId,
                 title = title.ifBlank { draft.document.title ?: draft.sourceName },
-                authors = author.split(',').map(String::trim).filter(String::isNotEmpty),
+                authors = authors ?: author.split(',').map(String::trim).filter(String::isNotEmpty),
                 language = language,
                 level = level,
                 sourceName = draft.sourceName,

@@ -37,6 +37,7 @@ FONT_URL = "https://github.com/google/fonts/raw/main/ofl/merriweather/Merriweath
 # composición tipográfica (devanagari: matras y conjuntos) se dibujan con HarfBuzz + FreeType, porque
 # Pillow sin raqm no reordena los glifos.
 SCRIPT_FONTS = {
+    "el": ("NotoSerif.ttf", "https://github.com/google/fonts/raw/main/ofl/notoserif/NotoSerif%5Bwdth,wght%5D.ttf", False),
     "ko": ("NotoSerifKR.ttf", "https://github.com/google/fonts/raw/main/ofl/notoserifkr/NotoSerifKR%5Bwght%5D.ttf", False),
     "hi": ("NotoSerifDevanagari.ttf",
            "https://github.com/google/fonts/raw/main/ofl/notoserifdevanagari/NotoSerifDevanagari%5Bwdth,wght%5D.ttf", True),

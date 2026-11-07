@@ -1,13 +1,13 @@
 package com.linguareader.legal
 
 /**
- * Web pública de la app (GitHub Pages, repositorio estebanstifli/lingoaudiobook) y contacto. La URL de privacidad es
- * la misma que se declara en Play Console › Contenido de la aplicación.
+ * Web pública de la app y contacto. Usar PRIVACY_POLICY también en Play Console.
  */
 object AppLinks {
-    const val WEBSITE = "https://estebanstifli.github.io/lingoaudiobook/"
+    const val WEBSITE = "https://lingoaudiobook.eu/"
     const val PRIVACY_POLICY = WEBSITE + "privacy/"
-    const val CONTACT_EMAIL = "estebandezafra@gmail.com"
+    const val HELP = WEBSITE + "help/"
+    const val CONTACT_EMAIL = "wpbotwriter@gmail.com"
 }
 
 /** Componente de terceros incluido en la app o descargado por ella, con su licencia. */
@@ -38,10 +38,5 @@ object ThirdPartyNotices {
     /** Modelos que la app no incluye y que el usuario descarga si quiere. */
     val downloadable = listOf(
         ThirdPartyNotice("Supertonic 3 (voice model)", "Supertone Inc.", "BigScience OpenRAIL-M", "https://huggingface.co/supertone-oss-archive/supertonic-3"),
-        ThirdPartyNotice("wav2vec2-base-100h (English alignment)", "Meta AI", APACHE_2, "https://huggingface.co/facebook/wav2vec2-base-100h"),
-        ThirdPartyNotice(
-            "wav2vec2-base-10k-voxpopuli-ft (French, Spanish alignment)", "Meta AI", "CC BY-NC 4.0",
-            "https://creativecommons.org/licenses/by-nc/4.0/",
-        ),
     )
 }

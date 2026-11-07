@@ -3,28 +3,39 @@
 Motor TTS local alternativo, ejecutado con ONNX Runtime en la CPU del móvil y sin red.
 Convive con el TTS del sistema (Android TTS), que no cambia. Se elige en **Ajustes > Motor de voz**.
 
+Desde 2026-11-06 entrega tiempos internos por palabra con cinco pasos de síntesis. Android no descarga ni ejecuta
+alineadores externos. El grafo de atención se prepara automáticamente a partir de los pesos oficiales ya instalados;
+no hace falta volver a descargar el modelo. La evaluación multilingüe y sus límites están en
+[el resumen de investigación conservado](SUPERTONIC_RESEARCH_HISTORY.md).
+
+La [validación de integración Android](../artifacts/supertonic-internal-android/VALIDACION.txt) recoge las pruebas
+reales en emulador: 31 idiomas, caché, lector con pausa/reanudación, descarga interrumpida y migración de modelos.
+Incluye tamaños de los APK debug/release, mediciones y límites de lo comprobado.
+
 ## 1. Qué es y de dónde sale
 
 | | |
 |---|---|
 | Código de referencia | <https://github.com/supertone-oss-archive/supertonic> (MIT). **Archivado**: sin parches ni soporte. |
 | Pesos | <https://huggingface.co/supertone-oss-archive/supertonic-3>, revisión fijada `aafc6e32416a594460b32413efc49d7fe4ce6d46` |
+| Descarga de la app | `https://files.lingoaudiobook.eu/models/supertonic-3/<revisión>/` (Cloudflare R2); los 17 archivos originales mantienen sus SHA-256 |
 | Licencia de los pesos | **BigScience OpenRAIL-M**: uso y redistribución permitidos con restricciones de uso (Anexo A) |
 | Arquitectura | 4 ONNX: `duration_predictor` → `text_encoder` → `vector_estimator` (flow matching, N pasos) → `vocoder` |
-| Tamaño | 398 MB en fp32 (`vector_estimator` 257 MB, `vocoder` 101 MB, `text_encoder` 36 MB) + 10 voces (≈0,3 MB cada una) |
+| Tamaño | 401.291.751 bytes de descarga oficial (4 ONNX, 10 voces, configuración y licencia), más 506.212 bytes del grafo interno generado localmente. Sin modelos de alineación adicionales |
 | Audio | 44,1 kHz, mono, PCM 16 bits |
-| Idiomas | 31, incluidos `en`, `fr` y `es` (todas las voces son multilingües) |
+| Idiomas | 31 (todas las voces son multilingües): `en ko ja ar bg cs da de el es et fi fr hi hr hu id it lt lv nl pl pt ro ru sk sl sv tr uk vi` (`SupertonicModel.LANGUAGES`; fuente: ficha oficial en Hugging Face). Ajustes › Voz ofrece «Probar voz» en los 31; cada idioma tiene su paquete de voces pregeneradas (`SupertonicSampleTexts`) |
 
 ### Licencias y obligaciones
 
 - **Código** (port Kotlin de `java/Helper.java`): MIT. Se conserva la atribución en este documento.
 - **ONNX Runtime Android 1.31.0**: MIT. Librerías nativas alineadas a 16 KB (requisito de Play en Android 15+).
-- **Pesos (OpenRAIL-M)**: **no se empaquetan en el APK**. Se descargan bajo demanda desde el
-  archivo oficial y solo después de mostrar la licencia y que el usuario la acepte
+- **Pesos (OpenRAIL-M)**: **no se empaquetan en el APK**. Se descargan bajo demanda desde la
+  copia propia en R2 y solo después de mostrar la licencia y que el usuario la acepte
   (`supertonicLicenseAccepted`). En la UI se indica "voz sintética", para cumplir la restricción (e)
-  de no presentar contenido generado como no generado por máquina. Si en el futuro se
-  redistribuyen los pesos (pack propio o CDN), hay que incluir la licencia completa y sus
-  restricciones de uso en los términos de la app (§4 de la licencia).
+  de no presentar contenido generado como no generado por máquina. La copia en R2 conserva
+  la licencia completa, las restricciones, los avisos de autoría y la procedencia original.
+  `tools/publish_supertonic.py` publica archivos inmutables y verifica los bytes públicos;
+  el manifiesto se publica al final. Los archivos originales no se modifican.
 - **Estado del proyecto**: archivado. Fijamos la revisión y los sha256; no se esperan
   actualizaciones de seguridad del código de referencia (nuestro port no depende de él en ejecución).
 
@@ -77,33 +88,46 @@ Convive con el TTS del sistema (Android TTS), que no cambia. Se elige en **Ajust
 
 ### Resaltado y traducción
 
-- **Supertonic no da tiempos por palabra.** El `duration_predictor` devuelve una sola duración por
-  enunciado, y ningún ONNX expone alineación carácter/palabra. **No se inventan tiempos**: con
-  Supertonic el resaltado es **por frase**, con límites exactos (un clip = una frase) y movidos por
-  el evento real de inicio de cada clip en ExoPlayer.
-- La barra del lector lo indica: *"Voz sintética (Supertonic) · sincronía por frase: el motor no da tiempos por palabra"*.
+- **Tiempos internos de Supertonic:** el grafo derivado expone la media de las cabezas 2/7 de la atención
+  del bloque 21, rama condicional. Se acumulan los pasos 1–4 de cinco pasos en un único mapa `[tiempo, texto]`.
+  El decodificador monótono combina esa atención con la energía del WAV; no ejecuta reconocimiento ni alineación CTC.
+- Las marcas incluyen offset UTF-16 de texto, inicio, final acústico y confianza no calibrada. Se desplazan al
+  recortar silencios y concatenar fragmentos, y se persisten junto al WAV. El lector sigue la posición real de
+  ExoPlayer; respeta los finales y los silencios entre palabras, sin rellenar marcas internas ausentes.
+- La configuración de Android usa cinco pasos, la receta validada. Una petición directa al motor con otros pasos,
+  un mapa inválido o una correspondencia de texto ambigua puede producir audio sin marcas: el lector pasa a frase.
+- Hindi conserva signos vocálicos y marcas Unicode. `؛` se normaliza a `;` conservando offsets. En japonés el
+  tokenizador del lector agrupa secuencias sin espacios: no se ha añadido un segmentador léxico japonés general.
+- La etiqueta del lector indica la granularidad efectivamente activa. La comparación con Whisper es automática,
+  no una certificación de precisión humana; los comparadores small/medium discrepan en torno a 100 ms.
 - «Leer desde aquí» empieza en el inicio de la frase que contiene la palabra.
 - La pausa y reanudación es exacta al milisegundo (ExoPlayer conserva la posición). Al reabrir el
   libro, se reanuda desde el inicio de la frase guardada.
 - Tocar una palabra, la ficha de traducción, el glosario, las expresiones y el vocabulario no
   cambian. «Escuchar palabra» usa el motor activo.
-- **Resaltado por palabra**: ver el estudio de alineadores forzados en [ALIGNMENT.md](ALIGNMENT.md)
-  (MMS vía ONNX funciona en Android con ~30 ms de error; pendiente de integrar en el lector).
-- **Alternativas consideradas inicialmente**:
-  (a) forced alignment CTC (p. ej. wav2vec2/MMS en ONNX) sobre el WAV generado, validado con
-  `AlignmentValidator` y persistido con el hash del audio; (b) exportar las atenciones cruzadas del
-  `vector_estimator` (requiere reexportar el modelo, imposible sin el checkpoint PyTorch).
-  La opción (a) encaja en `AlignmentEngine` sin tocar la UI.
+- El estudio anterior de alineadores externos queda como histórico en [ALIGNMENT.md](ALIGNMENT.md).
+  Exponer la atención no requiere checkpoint PyTorch: se deriva un grafo ONNX que reutiliza los tensores originales.
 
 ### Recursos, hilos y memoria
 
 - Toda la inferencia ocurre en un hilo dedicado (`supertonic-tts`); nunca en el hilo principal.
-  `intraOpNumThreads` = mín(4, núcleos); optimización `EXTENDED_OPT`.
+  `intraOpNumThreads` = mín(4, núcleos) en ARM; en x86_64 se limita a dos hilos tras la comparación en emulador
+  (≈13% menos tiempo que cuatro, mismo PCM en el texto de control). Optimización `EXTENDED_OPT`.
 - El modelo se carga bajo demanda y se **libera** tras 120 s sin síntesis, al cambiar a otro motor,
   al borrar el modelo o con `onTrimMemory(RUNNING_CRITICAL)`. Todos los tensores y resultados
   ONNX se cierran (`use`/`close`).
 - La cancelación entre pasos de difusión permite abandonar una síntesis al saltar o pausar.
 - El primer uso verifica sha256 de los 17 ficheros (marcador `.verified`).
+- El grafo derivado ocupa 506.212 bytes y referencia los pesos dentro del `vector_estimator.onnx` original:
+  no hay una segunda copia de 257 MB. La plantilla comprimida integrada en código ocupa 37.906 bytes.
+  Tiene SHA-256 fijado, escritura atómica y reparación automática si se pierde o corrompe.
+- Se mantienen FP32 y CPU. El candidato INT8 probado no fue más rápido y alteró algunas fronteras hasta 120 ms;
+  no se activó. La paridad del grafo con pesos externos fue exacta en audio y marcas en las tres frases de control.
+  [Mediciones y procedimiento](SUPERTONIC_TIMINGS_MODEL.md).
+- La versión de caché incorpora `attn1-unicode1`: no se reutilizan clips antiguos sin marcas como si fueran nuevos.
+- La actualización elimina exclusivamente los antiguos ficheros propios `files/models/alignment`, sin seguir
+  enlaces simbólicos. Conserva libros, narraciones, traducciones, voces y audio. Ahorro: unos 122 MB por alineador,
+  365.816.780 bytes si estaban instalados inglés, francés y español.
 
 ## 3. Descarga e instalación del modelo
 
@@ -160,7 +184,8 @@ evaluadas: otra JDK, parchear el JBR o usar ORT 1.18 en las pruebas de escritori
 
 ## 5. Limitaciones conocidas
 
-- Sin tiempos por palabra (ver §2): resaltado por frase.
+- Los tiempos son estimaciones de atención; faltan anotaciones humanas y mediciones ARM para certificar precisión
+  y rendimiento. Hay fallback por frase ante casos no soportados, y japonés conserva los grupos del tokenizador.
 - 398 MB de descarga y ≈ 450–550 MB de RAM con el modelo cargado. En móviles de 3 GB o menos
   puede fallar (se informa como «sin memoria») o el sistema puede cerrar la app en segundo plano.
 - Solo `arm64-v8a` y `x86_64` (`abiFilters`); los móviles de 32 bits usan la voz del sistema.

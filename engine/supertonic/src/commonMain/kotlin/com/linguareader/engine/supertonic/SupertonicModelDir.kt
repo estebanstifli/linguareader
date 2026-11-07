@@ -3,7 +3,9 @@ package com.linguareader.engine.supertonic
 import com.linguareader.core.platform.Sha256
 import com.linguareader.core.platform.toHexLower
 import okio.FileSystem
+import okio.IOException
 import okio.Path
+import kotlin.random.Random
 
 /** Estado de una carpeta de modelo en disco. */
 class SupertonicModelDir(val root: Path, val fileSystem: FileSystem = FileSystem.SYSTEM) {
@@ -11,6 +13,52 @@ class SupertonicModelDir(val root: Path, val fileSystem: FileSystem = FileSystem
     fun file(path: String): Path = root / path
 
     fun readText(path: String): String = fileSystem.read(file(path)) { readUtf8() }
+
+    /**
+     * Publishes a small, hash-pinned graph beside the original verified weights.
+     * Its external TensorProto ranges point into vector_estimator.onnx: no second
+     * copy of the 256 MB weights, network request, Python or ONNX converter is needed.
+     * Call from the synthesis/IO dispatcher, after verification of the source model.
+     * Existing installations migrate lazily; a damaged derived graph is rebuilt.
+     */
+    fun ensureTimingModel(): Path {
+        check(isVerified()) { "The original Supertonic files must be verified before preparing word timings" }
+        return publishTimingGraph()
+    }
+
+    /** Graph-only publication separated for concurrency tests; source verification is the caller's prerequisite. */
+    internal fun publishTimingGraph(): Path {
+        val target = file(SupertonicTimingGraph.FILE)
+        if (validTimingGraph(target)) return target
+        val bytes = SupertonicTimingGraph.bytes()
+        check(bytes.size.toLong() == SupertonicTimingGraph.SIZE)
+        val digest = Sha256().apply { update(bytes, 0, bytes.size) }.digest().toHexLower()
+        check(digest == SupertonicTimingGraph.SHA256) { "Embedded Supertonic timing graph is corrupt" }
+        // Download/verification (IO) and first synthesis (TTS) can race across two
+        // ModelDir instances. Each invocation owns its temporary file exclusively.
+        val suffix = Random.nextLong().toULong().toString(16) + Random.nextLong().toULong().toString(16)
+        val temporary = target.parent!! / (target.name + ".$suffix.part")
+        var ownsTemporary = false
+        try {
+            fileSystem.write(temporary, mustCreate = true) {
+                ownsTemporary = true
+                write(bytes)
+            }
+            try {
+                fileSystem.atomicMove(temporary, target)
+            } catch (error: IOException) {
+                // Some filesystems refuse replacing a target concurrently published
+                // by another caller. Accept only the exact pinned, complete graph.
+                if (!runCatching { validTimingGraph(target) }.getOrDefault(false)) throw error
+            }
+        } finally {
+            if (ownsTemporary) runCatching { fileSystem.delete(temporary, mustExist = false) }
+        }
+        return target
+    }
+
+    private fun validTimingGraph(path: Path): Boolean =
+        sizeOf(path) == SupertonicTimingGraph.SIZE && sha256(path, fileSystem) == SupertonicTimingGraph.SHA256
 
     private fun sizeOf(path: Path): Long = fileSystem.metadataOrNull(path)?.takeIf { it.isRegularFile }?.size ?: -1L
 

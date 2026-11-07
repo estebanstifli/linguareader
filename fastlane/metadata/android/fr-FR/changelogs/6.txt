@@ -1,0 +1,5 @@
+Nouvelle bibliothèque en ligne avec recherche, filtres et téléchargement.
+Fiches de livres avec couvertures et options de lecture.
+Génération audio et traduction de livres entiers, avec suivi et reprise.
+Lecture bilingue améliorée : chaque phrase reste avec sa traduction, avec un espacement réduit.
+Corrections de stabilité et d’affichage.

@@ -1,0 +1,1 @@
+Selettore del tema migliorato per mantenere le opzioni leggibili su schermi piccoli e con caratteri ingranditi.

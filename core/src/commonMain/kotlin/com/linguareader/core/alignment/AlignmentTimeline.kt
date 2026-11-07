@@ -55,7 +55,7 @@ object AlignmentValidator {
 }
 
 /** Línea temporal validada: correlaciona la posición del reproductor con el token activo en O(log n). */
-class AlignmentTimeline(private val timed: List<TimedToken>) {
+class AlignmentTimeline(private val timed: List<TimedToken>, private val holdInGaps: Boolean = true) {
 
     private val starts = LongArray(timed.size) { timed[it].startMs }
 
@@ -70,6 +70,6 @@ class AlignmentTimeline(private val timed: List<TimedToken>) {
         }
         val candidate = timed[lo]
         val isLast = lo == timed.lastIndex
-        return if (isLast && positionMs > candidate.endMs) null else candidate
+        return if ((!holdInGaps && positionMs >= candidate.endMs) || (isLast && positionMs > candidate.endMs)) null else candidate
     }
 }

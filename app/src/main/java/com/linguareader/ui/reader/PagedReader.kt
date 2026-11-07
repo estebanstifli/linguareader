@@ -1,6 +1,8 @@
 package com.linguareader.ui.reader
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.DragInteraction
@@ -150,6 +152,7 @@ fun PagedReaderContent(
                 heightPx = maxHeight.roundToPx(),
                 blockSpacingPx = 14.dp.toPx(),
                 titleSpacingPx = 28.dp.toPx(),
+                translationSpacingPx = 3.dp.toPx(),
                 spread = spread,
                 gutterPx = gutter,
             )
@@ -379,7 +382,10 @@ private fun PageColumn(
     val colors = LocalReaderColors.current
     val density = LocalDensity.current
     val isCurrent = playback.status == PlaybackStatus.PLAYING || playback.status == PlaybackStatus.PAUSED
-    Column(modifier) {
+    // Usually there is nothing to scroll. Very long bilingual pairs stay together
+    // on one page without clipping text or shrinking the user's chosen font.
+    val scroll = remember(items) { ScrollState(0) }
+    Column(modifier.verticalScroll(scroll)) {
         items.forEachIndexed { i, item ->
             val passage = book.passages[item.passage]
             when (item) {
@@ -441,7 +447,11 @@ private fun PageColumn(
                 }
             }
             if (i < items.lastIndex) {
-                val spacing = if (item is PageItem.Title) geometry.titleSpacingPx else geometry.blockSpacingPx
+                val spacing = when {
+                    item is PageItem.Title -> geometry.titleSpacingPx
+                    item is PageItem.Original && items[i + 1] is PageItem.Translation -> geometry.translationSpacingPx
+                    else -> geometry.blockSpacingPx
+                }
                 Spacer(Modifier.height(with(density) { spacing.toDp() }))
             }
         }

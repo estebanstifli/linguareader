@@ -1,0 +1,5 @@
+Neue Online-Bibliothek mit Suche, Filtern und Buchdownloads.
+Buchdetails mit Cover und Leseoptionen.
+Audioerstellung und Übersetzung ganzer Bücher mit Fortschritt und Fortsetzen.
+Verbessertes Audio und zweisprachiges Lesen: Jeder Satz bleibt mit seiner Übersetzung zusammen, mit weniger Abstand.
+Stabilitäts- und Darstellungsfehler behoben.

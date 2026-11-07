@@ -16,18 +16,19 @@ android {
         applicationId = "com.lingoaudiobook.app"
         minSdk = 26 // UtteranceProgressListener.onRangeStart (eventos por palabra)
         targetSdk = 36
-        // Paquetes descargables: adjuntos de una release de GitHub (docs/ARCHITECTURE.md → Paquetes).
-        val packsRepo = providers.gradleProperty("packsRepo").getOrElse("estebanstifli/linguareader")
+        // Paquetes descargables: ficheros estáticos en <base>/<prefijo>/ (bucket R2 público; docs/ARCHITECTURE.md → Paquetes).
+        val packsBaseUrl = providers.gradleProperty("packsBaseUrl").getOrElse("https://files.lingoaudiobook.eu")
         val packsTag = providers.gradleProperty("packsTag").getOrElse("packs-v1")
-        buildConfigField("String", "PACKS_REPO", "\"$packsRepo\"")
+        buildConfigField("String", "PACKS_BASE_URL", "\"$packsBaseUrl\"")
         buildConfigField("String", "PACKS_TAG", "\"$packsTag\"")
-        // Bibliotecas EPUB por idioma (tools/build_library.py): otra release del mismo repositorio.
+        // Bibliotecas EPUB por idioma y narraciones (tools/build_library.py): otro prefijo del mismo origen.
         val libraryTag = providers.gradleProperty("libraryTag").getOrElse("library-v1")
         buildConfigField("String", "LIBRARY_TAG", "\"$libraryTag\"")
         // Cada subida a Play necesita un versionCode mayor que el anterior.
-        versionCode = 4
-        versionName = "0.4.0"
-        testInstrumentationRunner = "com.linguareader.KoinTestRunner"
+        versionCode = 6
+        versionName = "0.4.2"
+        testInstrumentationRunner = if (providers.gradleProperty("storeCapture").orNull == "true")
+            "androidx.test.runner.AndroidJUnitRunner" else "com.linguareader.KoinTestRunner"
 
         // Arquitecturas: solo móviles de 64 bits y el emulador (ver `splits` más abajo). ONNX Runtime
         // aporta ~34 MB nativos por ABI y un modelo de ~400 MB en fp32 no es práctico en 32 bits.
@@ -106,7 +107,6 @@ dependencies {
     implementation(project(":data")) // Room y preferencias (KMP)
     implementation(project(":domain")) // gestores compartidos: libros importados, bibliotecas, packs, narraciones
     implementation(project(":engine:supertonic"))
-    implementation(project(":engine:alignment"))
     implementation(project(":importer"))
     implementation(libs.ksoup) // páginas web compartidas (BookImportService.readUrl), mismo parser que el importador
     implementation(libs.pdfbox.android) // importación de PDF con capa de texto
@@ -146,6 +146,8 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
 
     androidTestImplementation(platform(libs.androidx.compose.bom))
+    // Alineadores históricos solo en el APK de pruebas para conservar los benchmarks; nunca en la app.
+    androidTestImplementation(project(":engine:alignment"))
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
     // Espresso >= 3.7 es necesario en API 36 (InputManager.getInstance ya no existe).

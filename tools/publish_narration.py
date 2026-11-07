@@ -5,7 +5,7 @@
 
 - Copia los ficheros a dist/narrations/ con nombres planos `narration-<lang>-<slug>-v<N>.<ext>` (la versión N
   solo sube si cambia el contenido) y registra tamaño y sha256 en content/graded-books/narrations.json.
-- Con --upload los sube como adjuntos de la release de la biblioteca (gh).
+- Con --upload los sube al bucket R2 público, prefijo library-v1 (tools/publish_packs.py --narrations).
 - Después hay que regenerar la biblioteca del idioma (build_library.py): build_epub.py declara la narración en el
   OPF del libro (URL = build_epub.NARRATION_BASE_URL + nombre del adjunto) y la app la descarga al abrirlo.
 """
@@ -40,8 +40,7 @@ def main():
     ap.add_argument("--slug", required=True)
     ap.add_argument("--audio", required=True, type=Path)
     ap.add_argument("--ass", required=True, type=Path)
-    ap.add_argument("--upload", action="store_true", help=f"subir los adjuntos a la release {TAG}")
-    ap.add_argument("--repo", default="estebanstifli/linguareader")
+    ap.add_argument("--upload", action="store_true", help=f"subir los ficheros al bucket R2 ({TAG}/)")
     args = ap.parse_args()
 
     if not list(BOOKS_DIR.glob(f"{args.lang}/*/{args.slug}.txt")):
@@ -70,11 +69,12 @@ def main():
     NARRATIONS.write_text(json.dumps(registry, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"{key}: v{version}, audio {entry['audio']['sizeBytes'] / 1e6:.1f} MB")
 
-    cmd = ["gh", "release", "upload", TAG, *files, "--clobber", "--repo", args.repo]
+    cmd = [sys.executable, "-I", str(Path(__file__).with_name("publish_packs.py")), "--narrations"]
     if args.upload:
         subprocess.run(cmd, check=True)
     else:
-        print("Para publicar:\n  " + " ".join(f'"{c}"' if " " in c else c for c in cmd))
+        print("Para publicar en https://files.lingoaudiobook.eu/library-v1/:
+  " + " ".join(cmd))
     print(f"Después: python -I tools/build_library.py --lang {args.lang} --upload")
 
 

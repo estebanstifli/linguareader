@@ -28,7 +28,9 @@ suspend fun skipOnboarding(preferences: UserPreferencesRepository, scan: ScanSet
  */
 fun openFromCatalog(compose: androidx.compose.ui.test.SemanticsNodeInteractionsProvider, title: String) {
     compose.onNode(
-        androidx.compose.ui.test.hasText(title) and androidx.compose.ui.test.hasClickAction(),
+        androidx.compose.ui.test.hasText(title) and
+            androidx.compose.ui.test.hasContentDescription(title, substring = true) and
+            androidx.compose.ui.test.hasClickAction(),
     ).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
     readFromDetail(compose)
 }

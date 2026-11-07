@@ -55,7 +55,7 @@ class SupertonicModelManager(
         if (job?.isActive == true) return
         job = appScope.launch(ioDispatcher) {
             try {
-                val needed = SupertonicModel.TOTAL_BYTES - (if (fileSystem.exists(modelDir)) SupertonicModelDir(modelDir, fileSystem).bytesOnDisk() else 0)
+                val needed = (SupertonicModel.TOTAL_BYTES - (if (fileSystem.exists(modelDir)) SupertonicModelDir(modelDir, fileSystem).bytesOnDisk() else 0)).coerceAtLeast(0)
                 if (runCatching { fileSystem.createDirectories(modelDir) }.isFailure || fileSystem.metadataOrNull(modelDir)?.isDirectory != true) {
                     _state.value = ModelState.Failed(PackError.FolderCreateFailed)
                     return@launch
@@ -71,7 +71,10 @@ class SupertonicModelManager(
                     _state.value = ModelState.Downloading(p.downloadedBytes, p.totalBytes, p.currentFile)
                 }
                 _state.value = when (result) {
-                    DownloadResult.Completed -> currentState()
+                    DownloadResult.Completed -> {
+                        SupertonicModelDir(modelDir, fileSystem).ensureTimingModel()
+                        currentState()
+                    }
                     is DownloadResult.Failed -> ModelState.Failed(PackError.DownloadInterruptedResumable(result.message))
                 }
                 log("Descarga de Supertonic: $result")
@@ -99,7 +102,10 @@ class SupertonicModelManager(
                 val dir = SupertonicModelDir(modelDir, fileSystem)
                 fileSystem.delete(dir.file(SupertonicModel.MARKER), mustExist = false)
                 val bad = dir.verify { done -> _state.value = ModelState.Verifying(done.toFloat() / SupertonicModel.TOTAL_BYTES) }
-                _state.value = if (bad.isEmpty()) currentState() else ModelState.Failed(PackError.FilesCorrupt(bad.joinToString()))
+                _state.value = if (bad.isEmpty()) {
+                    dir.ensureTimingModel()
+                    currentState()
+                } else ModelState.Failed(PackError.FilesCorrupt(bad.joinToString()))
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 _state.value = ModelState.Failed(PackError.VerifyError(e.message.orEmpty()))

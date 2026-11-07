@@ -6,6 +6,10 @@ import org.junit.Test
 import org.koin.core.annotation.KoinExperimentalAPI
 import org.koin.dsl.module
 import org.koin.test.verify.verify
+import org.koin.test.verify.definition
+import org.koin.test.verify.injectedParameters
+import com.linguareader.core.engine.SpeechSynthesizer
+import com.linguareader.core.reader.SentenceClipPipeline
 
 private val RUNTIME_TYPES = listOf(
     Context::class, SavedStateHandle::class,
@@ -30,6 +34,14 @@ class KoinModulesTest {
     @OptIn(KoinExperimentalAPI::class)
     @Test
     fun `every dependency of every definition is bound`() {
-        module { includes(appModules) }.verify(extraTypes = RUNTIME_TYPES)
+        module { includes(appModules) }.verify(
+            extraTypes = RUNTIME_TYPES,
+            // AppModule explicitly passes get<CachingSpeechSynthesizer>() to this constructor.
+            // SpeechSynthesizer is not resolved by its interface type; scope this exception
+            // to this definition so other missing synthesizer bindings still fail verification.
+            injections = injectedParameters(
+                definition<SentenceClipPipeline>(SpeechSynthesizer::class),
+            ),
+        )
     }
 }

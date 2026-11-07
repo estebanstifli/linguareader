@@ -136,8 +136,9 @@ class BookImportService(
         language: String,
         level: CefrLevel,
         stableId: String? = null,
+        authors: List<String>? = null,
     ): String {
-        val bookId = local.commit(draft, title, author, language, level, stableId)
+        val bookId = local.commit(draft, title, author, language, level, stableId, authors)
         // Posiciones de las palabras sobre el PDF (voz y traducción en «Ver original»), en segundo plano ya.
         if (draft.original != null) {
             pdfLayouts.invalidate(bookId)

@@ -6,6 +6,7 @@ import com.linguareader.core.reader.TtsEngineRegistry
 import com.linguareader.core.reader.TtsEngineSelector
 import com.linguareader.data.prefs.UserPreferencesRepository
 import com.linguareader.engine.supertonic.SupertonicEngine
+import com.linguareader.engine.alignment.RetiredAlignmentModels
 import com.linguareader.engine.tts.SystemTtsAutoSelect
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,13 +26,19 @@ class TtsEngineCoordinator(
     private val settings: EngineSettingsHolder,
     private val supertonic: SupertonicEngine,
     private val autoSelect: SystemTtsAutoSelect,
+    private val retiredAligners: RetiredAlignmentModels,
     private val scope: CoroutineScope,
 ) {
     fun start() {
+        // Únicamente los pesos de alineadores retirados; no toca libros, narraciones ni marcas ya guardadas.
+        scope.launch(Dispatchers.IO) { retiredAligners.remove() }
         // Instalaciones que ya pasaron la primera apertura sin motor elegido (p. ej. con RHVoice por defecto).
         scope.launch { autoSelect.ensureChosen() }
         scope.launch {
-            preferences.preferences.map { it.supertonicSteps }.distinctUntilChanged().collect { settings.supertonicSteps = it }
+            preferences.preferences.map { it.supertonicSteps }.distinctUntilChanged().collect {
+                settings.supertonicSteps = SupertonicEngine.DEFAULT_STEPS
+                if (it != SupertonicEngine.DEFAULT_STEPS) preferences.update { p -> p.copy(supertonicSteps = SupertonicEngine.DEFAULT_STEPS) }
+            }
         }
         scope.launch {
             preferences.preferences.map { SpeechPauses(it.sentencePauseMs.toLong(), it.paragraphPauseMs.toLong()) }

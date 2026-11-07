@@ -1,0 +1,5 @@
+Nuova biblioteca online con ricerca, filtri e download dei libri.
+Schede dei libri con copertine e opzioni di lettura.
+Generazione audio e traduzione di libri interi, con avanzamento e ripresa.
+Audio e lettura bilingue migliorati: ogni frase resta insieme alla traduzione, con meno spazio.
+Correzioni di stabilità e visualizzazione.

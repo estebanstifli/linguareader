@@ -4,7 +4,7 @@
 
 Genera en fastlane/metadata/android/<idioma>/images/:
   icon.png            512×512, el icono adaptativo (fondo + primer plano) a pantalla completa; Play aplica la máscara.
-  featureGraphic.png  1024×500, icono, nombre y el lema de short_description.txt del idioma.
+  featureGraphic.png  1024×500, campaña de libros bilingües con ilustraciones de la biblioteca.
 Dibuja los trazados de res/drawable/ic_launcher_foreground.xml (M, m, c, h, H, v, V, z) con Pillow, con
 sobremuestreo para suavizar bordes. Fuente: tools/fonts/Merriweather.ttf (SIL OFL), la de make_covers.py.
 """
@@ -140,14 +140,16 @@ def feature_graphic(tagline: str) -> Image.Image:
 
 
 def main():
+    # Keep the current bilingual-book campaign when regenerating the app icon.
+    import runpy
     ico = icon()
-    for loc in sorted(p for p in META.iterdir() if p.is_dir()):
+    for copy in sorted(META.glob('*/screenshot_copy.json')):
+        loc = copy.parent
         out = loc / "images"
-        out.mkdir(exist_ok=True)
-        ico.convert("RGB").save(out / "icon.png")
-        tagline = (loc / "short_description.txt").read_text(encoding="utf-8").strip()
-        feature_graphic(tagline).convert("RGB").save(out / "featureGraphic.png")
+        out.mkdir(parents=True, exist_ok=True)
+        ico.save(out / "icon.png")
         print(loc.name, "OK")
+    runpy.run_path(str(ROOT / 'tools/refresh_play_listing_assets.py'), run_name='__main__')
 
 
 if __name__ == "__main__":

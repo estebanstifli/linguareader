@@ -563,7 +563,8 @@
     <string name="tts_cache_clear">Limpar cache</string>
     <string name="tts_license_note">Código: MIT. Pesos: %1$s (restrições de uso). Projeto arquivado pela Supertone, sem suporte. O áudio gerado é uma voz sintética.</string>
     <string name="tts_license_title">Licença do modelo</string>
-    <string name="tts_license_text">Os pesos do Supertonic 3 são distribuídos sob a licença %1$s. Ao baixá-los, você aceita as restrições de uso (Anexo A), entre elas: não usá-lo para fins ilegais, para prejudicar menores, para se passar por pessoas sem o consentimento delas, para espalhar desinformação prejudicial ou para assediar; e não apresentar o áudio gerado como se não fosse gerado por máquina.\n\nOrigem: huggingface.co/%2$s (revisão %3$s). Tamanho: %4$s. Texto completo: %5$s</string>
+    <string name="tts_license_text">Supertonic 3 da Supertone Inc. (%2$s). Ao baixar, voc? aceita a licen?a %1$s, incluindo suas restri??es de uso (se??o 5 e Anexo A). A voz ? gerada por intelig?ncia artificial.</string>
+    <string name="tts_license_read">Ler licen?a completa</string>
     <string name="tts_license_accept">Aceito e quero baixar</string>
     <string name="tts_metrics_load">Carregamento do modelo: %1$d ms (verificação %2$d ms, %3$d threads)</string>
     <string name="tts_metrics_synthesis">Síntese: %1$d ms · Áudio: %2$s s · RTF %3$s</string>
@@ -602,7 +603,8 @@
     <string name="about_version">Versão %1$s (%2$d)</string>
     <string name="about_tagline">Aprenda idiomas lendo e ouvindo: leituras graduadas, uma voz que destaca cada palavra e tradução ao tocar, tudo off-line.</string>
     <string name="about_privacy_policy">Política de privacidade</string>
-    <string name="about_website">Site e ajuda</string>
+    <string name="about_website">Site</string>
+    <string name="about_help">Ajuda</string>
     <string name="about_contact">Contato e sugestões</string>
     <string name="about_email_subject">%1$s %2$s: comentários</string>
     <string name="about_privacy_summary">Sem conta, sem anúncios e sem rastreamento pelo app. Seus livros, seu progresso e seu vocabulário ficam no seu celular. O app só se conecta à internet para baixar o que você pede (bibliotecas, tradutores, vozes) e para importar páginas da web.</string>

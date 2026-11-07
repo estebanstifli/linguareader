@@ -31,7 +31,6 @@ kotlin {
             api(project(":data"))
             api(project(":importer"))
             api(project(":engine:supertonic"))
-            api(project(":engine:alignment"))
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.atomicfu)
         }
