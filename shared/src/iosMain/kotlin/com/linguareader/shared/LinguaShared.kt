@@ -77,6 +77,18 @@ import com.linguareader.engine.translation.BookTranslationService
 import com.linguareader.engine.translation.BookTranslationState
 import com.linguareader.engine.supertonic.SupertonicModel
 import com.linguareader.engine.supertonic.SupertonicSampleTexts
+import com.linguareader.shared.pdf.PdfKitExtractor
+import com.linguareader.shared.pdf.PdfWordLayout
+import com.linguareader.core.model.OriginalOpenMode
+import com.linguareader.data.catalog.CatalogCategory
+import com.linguareader.data.catalog.CatalogLanguage
+import com.linguareader.data.catalog.CatalogPage
+import com.linguareader.data.catalog.LingoOnlineCatalog
+import com.linguareader.data.catalog.OnlineBook
+import com.linguareader.data.catalog.OnlineBookImporter
+import com.linguareader.data.catalog.OnlineCatalog
+import com.linguareader.data.catalog.OnlineCatalogFilter
+import com.linguareader.engine.supertonic.platformHttpTransport
 import com.linguareader.core.engine.EngineReadiness
 import com.linguareader.engine.translation.TranslationModels
 import com.linguareader.importer.ExtractorRegistry
@@ -129,6 +141,7 @@ object LinguaShared {
     ) {
         if (koinInstance != null) return
         val root = appSupportDir.toPath()
+        appRoot = root
         val cache = cacheDir.toPath()
         val fs = FileSystem.SYSTEM
         fs.createDirectories(root)
@@ -158,12 +171,20 @@ object LinguaShared {
                     }
 
                     // Libros: importados e instalados desde bibliotecas (no hay biblioteca empaquetada en iOS).
-                    single { ExtractorRegistry.default() }
+                    // PDF con PDFKit delante de los extractores comunes (mismo hueco que PdfExtractor en Android).
+                    single { ExtractorRegistry.default(extra = listOf(PdfKitExtractor())) }
                     single { ImportedBookRepository(fs, root / ImportedBookRepository.DIR, log = { Diagnostics.log("ImportedBooks", it) }) }
                     single { CompositeBookRepository(EmptyBookRepository, get(), get()) } binds arrayOf(BookRepository::class)
                     single { NarrationLibrary(fs, root, get(), log = { Diagnostics.log("Narration", it) }) }
                     single { LocalBookImporter(fs, cache / "import", get(), get(), get()) }
-                    single { LibraryRepository(get(), get(), BookDeleter { get<LocalBookImporter>().delete(it) }) }
+                    single {
+                        LibraryRepository(get(), get(), BookDeleter { id ->
+                            get<LocalBookImporter>().delete(id)
+                            // El PDF original guardado con el libro (iOS lo copia a originals/: los marcadores de Archivos caducan).
+                            fs.delete(originalPath(root, id), mustExist = false)
+                            pdfLayouts.remove(id)
+                        })
+                    }
                     single { PackSource(packsBaseUrl, packsTag) }
                     single {
                         LibraryPackManager(
@@ -185,6 +206,9 @@ object LinguaShared {
                         single<TranslationModels> { NoTranslationModels }
                     }
                     single { WordLookupService(get()) }
+                    // Catálogo online («Library»), mismo código común que Android, sobre NSURLSession.
+                    single<OnlineCatalog> { LingoOnlineCatalog(platformHttpTransport()) }
+                    single { OnlineBookImporter(get(), get(), fs, cache / "catalog", platformHttpTransport()) }
                     single { BookTranslationService(get(), get(), get(), get(), log = { Diagnostics.log("BookTranslation", it) }) }
 
                     // Audio. Dos modos con la misma voz de Apple:
@@ -636,12 +660,76 @@ object LinguaShared {
     @Throws(Throwable::class)
     suspend fun commitImport(draft: ImportDraft, title: String, author: String, language: String, level: CefrLevel, translateNow: Boolean): String {
         val id = importer.commit(draft, title, author, language, level)
+        // PDF: el fichero original pasa de la caché a originals/<id>.pdf (se borra con el libro).
+        draft.original?.let { original ->
+            val fs = koin.get<FileSystem>()
+            val target = originalPath(appRoot, id)
+            fs.createDirectories(target.parent!!)
+            runCatching { fs.copy(original.uri.toPath(), target) }
+                .onSuccess { importedBooks.updateOriginal(id, target.toString()) }
+                .onFailure { Diagnostics.log("Import", "could not keep the original PDF: ${it.message}") }
+            pdfLayouts.remove(id)
+        }
         if (translateNow) {
             val target = preferences.preferences.first().translationLanguage
             if (!LanguageTags.sameLanguage(language, target) && translationModels?.code(language) != null) bookTranslations.start(id, target)
         }
         return id
     }
+
+    // MARK: Catálogo online («Library»), como OnlineLibraryViewModel en Android
+
+    val onlineCatalog: OnlineCatalog get() = koin.get()
+    private val onlineImporter: OnlineBookImporter get() = koin.get()
+
+    @Throws(Throwable::class) suspend fun catalogBooks(filter: OnlineCatalogFilter, page: Int): CatalogPage = onlineCatalog.books(filter, page)
+    @Throws(Throwable::class) suspend fun catalogBook(id: Int): OnlineBook = onlineCatalog.book(id)
+    @Throws(Throwable::class) suspend fun catalogCategories(): List<CatalogCategory> = onlineCatalog.categories()
+    @Throws(Throwable::class) suspend fun catalogLanguages(): List<CatalogLanguage> = onlineCatalog.languages()
+
+    /** Portada de un libro del catálogo (≤ 5 MB), o null si falla. */
+    suspend fun catalogCover(url: String): NSData? = runCatching { onlineCatalog.fetch(url, 5L * 1024 * 1024) }.getOrNull()?.takeIf { it.isNotEmpty() }?.toNSData()
+
+    /** Id local del libro si ya está en la biblioteca. */
+    @Throws(Throwable::class)
+    suspend fun catalogLocalId(book: OnlineBook): String? = onlineImporter.bookId(onlineCatalog, book).takeIf { onlineImporter.exists(onlineCatalog, book) }
+
+    /** Descarga e importa el libro (tras confirmarlo el usuario); devuelve el id local. */
+    @Throws(Throwable::class)
+    suspend fun addCatalogBook(book: OnlineBook, level: CefrLevel): String = onlineImporter.add(onlineCatalog, book, level)
+
+    // MARK: PDF original (visor y «Ver original» en el lector), como PdfViewerViewModel + PdfTextLayouts en Android
+
+    private lateinit var appRoot: okio.Path
+    private val pdfLayouts = HashMap<String, PdfWordLayout>()
+
+    private fun originalPath(root: okio.Path, bookId: String): okio.Path = root / "originals" / "$bookId.pdf"
+
+    /** Ruta del PDF original de un libro importado, o null si el libro no es un PDF o el fichero ya no está. */
+    @Throws(Throwable::class)
+    suspend fun originalPdfPath(bookId: String): String? {
+        val original = importedBooks.original(bookId) ?: return null
+        if (!original.viewable) return null
+        val path = original.uri.toPath()
+        return if (koin.get<FileSystem>().exists(path)) path.toString() else null
+    }
+
+    /**
+     * Cajas de los tokens del libro sobre las páginas del PDF (una vez por sesión y libro; PDFKit + `WordBoxAligner`).
+     * null si el libro no tiene PDF original. [onProgress] páginas analizadas / total.
+     */
+    @Throws(Throwable::class)
+    suspend fun pdfWordLayout(bookId: String, onProgress: (Int, Int) -> Unit): PdfWordLayout? {
+        pdfLayouts[bookId]?.let { return it }
+        val path = originalPdfPath(bookId) ?: return null
+        val book = books.loadBook(bookId)
+        val layout = PdfWordLayout.compute(book, path, onProgress)
+        Diagnostics.log("Pdf", "layout for $bookId: ${layout.tokenCount} tokens, coverage ${(layout.coverage(book) * 100).toInt()} %")
+        pdfLayouts[bookId] = layout
+        return layout
+    }
+
+    @Throws(Throwable::class) suspend fun setOriginalOpenMode(mode: OriginalOpenMode) = preferences.update { it.copy(originalOpenMode = mode) }
 
     // MARK: Narración pregrabada (mp3 + tiempos por palabra), como en ReaderViewModel y BookDetailViewModel
 

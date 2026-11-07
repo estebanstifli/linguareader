@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class OnlineLibraryState(
-    val filter: CatalogFilter = CatalogFilter(),
+    val filter: OnlineCatalogFilter = OnlineCatalogFilter(),
     val books: List<OnlineBook> = emptyList(),
     val categories: List<CatalogCategory> = emptyList(),
     val languages: List<CatalogLanguage> = emptyList(),
@@ -39,7 +39,7 @@ class OnlineLibraryViewModel(
     private val importer: OnlineBookImporter,
     private val saved: SavedStateHandle,
 ) : ViewModel() {
-    private val mutable = MutableStateFlow(OnlineLibraryState(filter = CatalogFilter(
+    private val mutable = MutableStateFlow(OnlineLibraryState(filter = OnlineCatalogFilter(
         query = saved["query"] ?: "", language = saved["language"] ?: "",
         category = saved["category"] ?: "", level = saved["level"] ?: "",
     )))
@@ -51,7 +51,7 @@ class OnlineLibraryViewModel(
         saved.get<Int>("selectedBook")?.let { select(it) }
     }
 
-    fun filter(value: CatalogFilter) {
+    fun filter(value: OnlineCatalogFilter) {
         saved["query"] = value.query
         saved["language"] = value.language
         saved["category"] = value.category

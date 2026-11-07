@@ -46,6 +46,9 @@ struct ReadingPreferencesSection: View {
                 .accessibilityIdentifier("settings.fingerPointer")
             Toggle("Show illustrations", isOn: Binding(get: { p.showIllustrations }, set: { v in Task { try? await LinguaShared.shared.setShowIllustrations(enabled: v) } }))
                 .accessibilityIdentifier("settings.illustrations")
+            Picker("Open PDFs as", selection: Binding(get: { p.originalOpenMode }, set: { m in Task { try? await LinguaShared.shared.setOriginalOpenMode(mode: m) } })) {
+                Text("Ask").tag(OriginalOpenMode.ask); Text("Reading mode").tag(OriginalOpenMode.reader); Text("Original").tag(OriginalOpenMode.original)
+            }
             Toggle("Reduce motion", isOn: Binding(get: { p.reduceMotion }, set: { v in Task { try? await LinguaShared.shared.setReduceMotion(enabled: v) } }))
         }.themedRows()
     }

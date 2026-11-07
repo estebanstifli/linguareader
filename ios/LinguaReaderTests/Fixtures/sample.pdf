@@ -1,0 +1,55 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [4 0 R 6 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+endobj
+5 0 obj
+<< /Length 233 >>
+stream
+BT /F1 14 Tf 72 720 Td 18 TL
+(The Quiet Garden) Tj T*
+() Tj T*
+(Anna opened the gate and walked into the garden.) Tj T*
+(The grass was wet and the air smelled of rain.) Tj T*
+(A small bird sat on the wall and looked at her.) Tj T*
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >>
+endobj
+7 0 obj
+<< /Length 205 >>
+stream
+BT /F1 14 Tf 72 720 Td 18 TL
+(Chapter Two) Tj T*
+() Tj T*
+(In the afternoon the sun came out.) Tj T*
+(Anna sat on the old bench and read her book.) Tj T*
+(She read slowly, one sentence at a time.) Tj T*
+ET
+endstream
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000121 00000 n 
+0000000191 00000 n 
+0000000317 00000 n 
+0000000601 00000 n 
+0000000727 00000 n 
+trailer
+<< /Size 8 /Root 1 0 R /Info << /Title (The Quiet Garden) /Author (Anna Example) >> >>
+startxref
+983
+%%EOF

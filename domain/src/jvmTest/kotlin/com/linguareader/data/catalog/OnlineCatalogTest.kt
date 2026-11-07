@@ -30,7 +30,7 @@ class OnlineCatalogTest {
         } catch (_: CancellationException) { }
     }
     @Test fun searchEncodesSeparatorsAndCombinesFilters() {
-        val query = LingoOnlineCatalog.query(CatalogFilter("Austen & Brontë?", "en", "romance", "B1"), 2)
+        val query = LingoOnlineCatalog.query(OnlineCatalogFilter("Austen & Brontë?", "en", "romance", "B1"), 2)
         val params = query.split('&').associate { it.substringBefore('=') to URLDecoder.decode(it.substringAfter('='), "UTF-8") }
         assertEquals("Austen & Brontë?", params["q"])
         assertEquals("en", params["language"])
@@ -40,7 +40,7 @@ class OnlineCatalogTest {
         assertEquals("popular", params["sort"])
     }
     @Test fun emptyFiltersAreOmittedAndPageStartsAtOne() {
-        assertEquals("page=1&limit=24&sort=popular", LingoOnlineCatalog.query(CatalogFilter(), 0))
+        assertEquals("page=1&limit=24&sort=popular", LingoOnlineCatalog.query(OnlineCatalogFilter(), 0))
     }
     @Test fun readsNullableMetadataAndIgnoresNewApiFields() {
         val json = Json { ignoreUnknownKeys = true }
@@ -62,6 +62,6 @@ class OnlineCatalogTest {
         listOf("http://example.org/book", "file:///data/book", "https://user:password@example.org/book", "javascript:alert(1)").forEach {
             assertTrue(runCatching { CatalogHttp.checkedUrl(it) }.isFailure)
         }
-        assertEquals("www.gutenberg.org", CatalogHttp.checkedUrl("https://www.gutenberg.org/ebooks/1342.epub3.images").host)
+        assertEquals("www.gutenberg.org", CatalogHttp.host(CatalogHttp.checkedUrl("https://www.gutenberg.org/ebooks/1342.epub3.images")))
     }
 }

@@ -8,6 +8,10 @@ struct BookDetailView: View {
     @EnvironmentObject private var store: AppStore
     let bookId: String
     @State private var narration: LinguaShared.NarrationInfo?
+    /// El libro es un PDF importado con el fichero original guardado.
+    @State private var hasOriginal = false
+    @State private var askOpenMode = false
+    @State private var pending: CatalogDestination?
 
     private var book: BookSummary? { store.books.first { $0.id == bookId } }
 
@@ -27,7 +31,17 @@ struct BookDetailView: View {
         // Al abrir, al empezar o terminar la descarga de la narración.
         .task(id: "\(store.narrationDownloading.contains(bookId))|\(store.narrationReady ?? "")") {
             narration = try? await LinguaShared.shared.narrationInfo(bookId: bookId)
+            hasOriginal = ((try? await LinguaShared.shared.originalPdfPath(bookId: bookId)) ?? nil) != nil
         }
+        // PDF con «Preguntar»: leerlo como texto (voz, resaltado, traducción) o verlo con su formato original, y recordarlo.
+        .confirmationDialog(Text("How do you want to open this PDF?"), isPresented: $askOpenMode, titleVisibility: .visible) {
+            Button("Reading mode: text adapted to the screen, with voice and translation") { pending = .reader(bookId, false) }
+            Button("Original pages with voice and highlighting on top") { pending = .readerOriginal(bookId) }
+            Button("View the original PDF only") { pending = .viewer(bookId) }
+            Button("Always open PDFs in reading mode") { Task { try? await LinguaShared.shared.setOriginalOpenMode(mode: .reader) } }
+            Button("Always open PDFs as the original") { Task { try? await LinguaShared.shared.setOriginalOpenMode(mode: .original) } }
+        }
+        .navigationDestination(item: $pending) { $0.view }
     }
 
     private func content(_ book: BookSummary) -> some View {
@@ -55,15 +69,17 @@ struct BookDetailView: View {
             if let description = book.description_, !description.isEmpty { Text(description).font(.body) }
 
             HStack(spacing: 10) {
-                NavigationLink(value: CatalogDestination.reader(book.id, false)) {
-                    if store.progressFraction(book.id) != nil {
-                        Label("Continue reading", systemImage: "book").frame(maxWidth: .infinity)
-                    } else {
-                        Label("Read", systemImage: "book").frame(maxWidth: .infinity)
+                if hasOriginal, store.prefs?.originalOpenMode == .ask {
+                    Button { askOpenMode = true } label: { readLabel(book).frame(maxWidth: .infinity) }
+                        .buttonStyle(.bordered).controlSize(.large)
+                        .accessibilityIdentifier("detail.read")
+                } else {
+                    NavigationLink(value: hasOriginal && store.prefs?.originalOpenMode == .original ? CatalogDestination.readerOriginal(book.id) : CatalogDestination.reader(book.id, false)) {
+                        readLabel(book).frame(maxWidth: .infinity)
                     }
+                    .buttonStyle(.bordered).controlSize(.large)
+                    .accessibilityIdentifier("detail.read")
                 }
-                .buttonStyle(.bordered).controlSize(.large)
-                .accessibilityIdentifier("detail.read")
                 NavigationLink(value: CatalogDestination.reader(book.id, true)) {
                     Label("Read and listen", systemImage: "play.fill").frame(maxWidth: .infinity)
                 }
@@ -71,10 +87,26 @@ struct BookDetailView: View {
                 .accessibilityIdentifier("detail.listen")
             }
 
+            if hasOriginal {
+                NavigationLink(value: CatalogDestination.viewer(book.id)) {
+                    Label("View original (PDF)", systemImage: "doc.text.magnifyingglass").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("detail.viewOriginal")
+            }
             TranslationCard(book: book)
             if let narration { NarrationCard(bookId: book.id, info: narration) }
         }
         .padding(.top, 8)
+    }
+
+    @ViewBuilder
+    private func readLabel(_ book: BookSummary) -> some View {
+        if store.progressFraction(book.id) != nil {
+            Label("Continue reading", systemImage: "book")
+        } else {
+            Label("Read", systemImage: "book")
+        }
     }
 }
 

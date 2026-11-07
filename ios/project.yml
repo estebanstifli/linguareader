@@ -33,7 +33,7 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         ITSAppUsesNonExemptEncryption: false
         # Importar documentos del usuario («Abrir en LingoAudioBook» desde Archivos, Mail, WhatsApp, Safari…): la app
-        # recibe una URL con ámbito de seguridad y la copia a su caché (DocumentInbox). El PDF se añade con la fase 4.
+        # recibe una URL con ámbito de seguridad y la copia a su caché (DocumentInbox).
         LSSupportsOpeningDocumentsInPlace: true
         UIFileSharingEnabled: true
         CFBundleDocumentTypes:
@@ -42,6 +42,7 @@ targets:
             LSHandlerRank: Alternate
             LSItemContentTypes:
               - org.idpf.epub-container
+              - com.adobe.pdf
               - public.plain-text
               - public.html
               - public.rtf

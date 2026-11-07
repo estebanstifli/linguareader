@@ -11,9 +11,9 @@ struct ReaderView: View {
     @State private var confirmTrash = false
     @State private var newCollection = false
 
-    /// `listen`: «Read and listen» desde la ficha: la voz arranca al abrir.
-    init(bookId: String, listen: Bool = false) {
-        _model = StateObject(wrappedValue: ReaderModel(bookId: bookId, listenOnOpen: listen))
+    /// `listen`: «Read and listen» desde la ficha: la voz arranca al abrir. `original`: abrir viendo el PDF original.
+    init(bookId: String, listen: Bool = false, original: Bool = false) {
+        _model = StateObject(wrappedValue: ReaderModel(bookId: bookId, listenOnOpen: listen, original: original))
     }
 
     private var theme: ReaderTheme { model.theme(systemDark: colorScheme == .dark) }
@@ -25,6 +25,10 @@ struct ReaderView: View {
                 Text(error).foregroundStyle(.red).padding()
             } else if model.layout == nil {
                 ProgressView()
+            } else if model.showOriginal {
+                ReaderPdfView(model: model, theme: theme)
+                    .padding(.top, model.controlsVisible ? 88 : 0)
+                    .padding(.bottom, model.controlsVisible ? (model.ttsMode ? 110 : 0) : 0)
             } else {
                 page
             }
@@ -161,6 +165,11 @@ struct ReaderView: View {
                     Image(systemName: model.ttsMode ? "speaker.wave.2" : "speaker.slash")
                 }
                 .accessibilityLabel(model.ttsMode ? Text("Turn the voice off") : Text("Turn the voice on"))
+                if model.originalAvailable {
+                    Button { model.toggleOriginal() } label: { Image(systemName: model.showOriginal ? "text.book.closed" : "doc.text.magnifyingglass") }
+                        .accessibilityLabel(model.showOriginal ? Text("View as text") : Text("View the original PDF"))
+                        .accessibilityIdentifier("reader.original")
+                }
                 Button { sheet = .settings } label: { Image(systemName: "textformat.size") }.accessibilityIdentifier("reader.settings").accessibilityLabel("Reading settings")
                 overflowMenu
             }
@@ -200,7 +209,9 @@ struct ReaderView: View {
             if model.ttsMode {
                 PlayerBar(model: model)
             }
-            HStack {
+            if model.showOriginal {
+                EmptyView()
+            } else { HStack {
                 Text("\(model.pageIndex + 1) / \(model.pageCount)").font(.caption).monospacedDigit()
                 if model.pageCount > 1 {
                     Slider(value: Binding(get: { Double(min(model.pageIndex, model.pageCount - 1)) }, set: { model.pageIndex = Int($0.rounded()) }), in: 0...Double(model.pageCount - 1), step: 1)
@@ -213,7 +224,7 @@ struct ReaderView: View {
                 }
                 .accessibilityIdentifier("reader.bookmark")
                 .accessibilityLabel(model.currentPageBookmark != nil ? Text("Remove bookmark") : Text("Add bookmark"))
-            }
+            } }
         }
         .padding(.horizontal, 16).padding(.vertical, 10)
         .background(Color(theme.background).opacity(0.96))

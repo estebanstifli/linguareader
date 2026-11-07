@@ -29,7 +29,8 @@ class OnlineLibraryRecoveryTest : KoinComponent {
         val provider = object : OnlineCatalog {
             override val id = "test"
             override val name = "Test library"
-            override suspend fun books(filter: CatalogFilter, page: Int) = CatalogPage(emptyList(), CatalogPagination(1, 0, 0))
+            override suspend fun books(filter: OnlineCatalogFilter, page: Int) = CatalogPage(emptyList(), CatalogPagination(1, 0, 0))
+            override suspend fun fetch(url: String, limit: Long): ByteArray = error("Not used")
             override suspend fun book(id: Int): OnlineBook = error("Not used")
             override suspend fun categories(): List<CatalogCategory> {
                 if (offline) throw IOException("Offline")

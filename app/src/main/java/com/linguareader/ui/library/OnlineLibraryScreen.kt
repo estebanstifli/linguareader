@@ -34,7 +34,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.linguareader.R
 import com.linguareader.core.model.CefrLevel
-import com.linguareader.data.catalog.CatalogHttp
 import com.linguareader.data.catalog.OnlineBook
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -114,7 +113,7 @@ fun OnlineLibraryScreen(onBack: () -> Unit, onOpenBook: (String) -> Unit, vm: On
                 if (state.detailLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (state.detailError) ErrorPanel(vm::retryDetail)
                 state.detail?.let { book ->
-                    OnlineCover(book, Modifier.width(190.dp).aspectRatio(0.67f))
+                    OnlineCover(book, Modifier.width(190.dp).aspectRatio(0.67f), vm.provider::fetch)
                     Text(book.title, style = MaterialTheme.typography.headlineSmall)
                     book.author_names?.let { Text(it, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     Text(book.languageTags.joinToString(" · ", transform = ::languageName), style = MaterialTheme.typography.labelLarge)
@@ -122,11 +121,11 @@ fun OnlineLibraryScreen(onBack: () -> Unit, onOpenBook: (String) -> Unit, vm: On
                         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(stringResource(R.string.online_summary), style = MaterialTheme.typography.titleMedium)
                             Text(book.description?.takeIf { it.isNotBlank() } ?: stringResource(R.string.online_no_summary), style = MaterialTheme.typography.bodyLarge)
-                            if (book.source_reading_level != null) {
+                            book.source_reading_level?.let { readingLevel ->
                                 Text(stringResource(R.string.online_reading_level), style = MaterialTheme.typography.titleMedium)
-                                Text(book.source_reading_level)
+                                Text(readingLevel)
                             }
-                            if (book.cefr_estimated != null) Text(stringResource(R.string.online_estimated_level, book.cefr_estimated))
+                            book.cefr_estimated?.let { estimated -> Text(stringResource(R.string.online_estimated_level, estimated)) }
                         }
                     }
                 }
@@ -164,7 +163,7 @@ fun OnlineLibraryScreen(onBack: () -> Unit, onOpenBook: (String) -> Unit, vm: On
                 items(state.books, key = { it.id }) { book ->
                     Column(Modifier.testTag("online_book_${book.id}").clickable { keyboard?.hide(); focus.clearFocus(); vm.select(book.id) }, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Box {
-                            OnlineCover(book, Modifier.fillMaxWidth().aspectRatio(0.67f))
+                            OnlineCover(book, Modifier.fillMaxWidth().aspectRatio(0.67f), vm.provider::fetch)
                             book.cefr_estimated?.let { level ->
                                 Surface(Modifier.padding(8.dp), shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.primaryContainer) {
                                     Text(level, Modifier.padding(horizontal = 8.dp, vertical = 3.dp), style = MaterialTheme.typography.labelMedium)
@@ -210,12 +209,12 @@ private val coverCache = object : LruCache<String, Bitmap>(12 * 1024 * 1024) {
 }
 
 @Composable
-private fun OnlineCover(book: OnlineBook, modifier: Modifier) {
+private fun OnlineCover(book: OnlineBook, modifier: Modifier, fetch: suspend (String, Long) -> ByteArray) {
     val bitmap by produceState<Bitmap?>(null, book.cover_url) {
         val url = book.cover_url ?: return@produceState
         value = coverCache.get(url) ?: try {
             withContext(Dispatchers.IO) {
-                val bytes = CatalogHttp.bytes(url, 5L * 1024 * 1024)
+                val bytes = fetch(url, 5L * 1024 * 1024)
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
                 val options = BitmapFactory.Options().apply {

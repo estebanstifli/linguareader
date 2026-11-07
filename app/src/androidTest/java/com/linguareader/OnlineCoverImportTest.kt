@@ -5,6 +5,7 @@ import com.linguareader.core.content.Hashing
 import com.linguareader.core.content.MediaResult
 import com.linguareader.core.model.CefrLevel
 import com.linguareader.data.catalog.*
+import com.linguareader.engine.supertonic.platformHttpTransport
 import com.linguareader.data.content.ImportedBookRepository
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -22,15 +23,17 @@ class OnlineCoverImportTest : KoinComponent {
 
     @Test fun reviewedR2CoverReplacesEpubCoverAndIsStoredLocally() = runBlocking {
         val json = Json { ignoreUnknownKeys = true }
-        val response = CatalogHttp.bytes("https://lingoaudiobook-preview.estebandezafra.workers.dev/api/v1/books/1342", 1024 * 1024)
+        val transport = platformHttpTransport()
+        val response = CatalogHttp.bytes(transport, "https://lingoaudiobook-preview.estebandezafra.workers.dev/api/v1/books/1342", 1024 * 1024)
         val book = json.decodeFromJsonElement<OnlineBook>(json.parseToJsonElement(response.toString(Charsets.UTF_8)).jsonObject.getValue("data"))
         assertNotNull(book.r2_key)
-        val remote = CatalogHttp.bytes(requireNotNull(book.cover_url), 5L * 1024 * 1024)
+        val remote = CatalogHttp.bytes(transport, requireNotNull(book.cover_url), 5L * 1024 * 1024)
         val provider = object : OnlineCatalog {
             override val id = "cover-preview-check"
             override val name = "Cover verification"
             override suspend fun book(id: Int) = book
-            override suspend fun books(filter: CatalogFilter, page: Int): CatalogPage = error("Not used")
+            override suspend fun books(filter: OnlineCatalogFilter, page: Int): CatalogPage = error("Not used")
+            override suspend fun fetch(url: String, limit: Long): ByteArray = CatalogHttp.bytes(transport, url, limit)
             override suspend fun categories() = emptyList<CatalogCategory>()
             override suspend fun languages() = emptyList<CatalogLanguage>()
         }

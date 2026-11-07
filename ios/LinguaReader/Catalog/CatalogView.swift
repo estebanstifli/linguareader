@@ -19,12 +19,15 @@ enum CatalogSection: Hashable, Identifiable {
 /// Pantallas a las que se navega desde el catálogo: ficha del libro, lector (con o sin voz al abrir), idiomas, vocabulario,
 /// ajustes y edición de un libro.
 enum CatalogDestination: Hashable {
-    case detail(String), reader(String, Bool), languages, vocabulary, settings, edit(String)
+    case detail(String), reader(String, Bool), readerOriginal(String), viewer(String), online, languages, vocabulary, settings, edit(String)
 
     @ViewBuilder var view: some View {
         switch self {
         case .detail(let bookId): BookDetailView(bookId: bookId)
         case .reader(let bookId, let listen): ReaderView(bookId: bookId, listen: listen)
+        case .readerOriginal(let bookId): ReaderView(bookId: bookId, original: true)
+        case .viewer(let bookId): PdfViewerView(bookId: bookId)
+        case .online: OnlineLibraryView()
         case .languages: LanguagesView()
         case .vocabulary: VocabularyView()
         case .settings: SettingsView()
@@ -117,6 +120,12 @@ private struct SectionsList: View {
                 }
                 NavigationLink(value: CatalogDestination.languages) { Label("Learn other languages", systemImage: "globe") }
                     .accessibilityIdentifier("section.learn-other")
+            }.themedRows()
+            Section {
+                NavigationLink(value: CatalogDestination.online) { Label("Library", systemImage: "building.columns") }
+                    .accessibilityIdentifier("section.online")
+            } footer: {
+                Text("Free books online: search, add them to your library and read them offline.")
             }.themedRows()
             Section("Shelves") {
                 ForEach(store.shelves?.shelves ?? [], id: \.id) { shelf in

@@ -177,9 +177,9 @@ enum DocumentInbox {
         return Staged(url: target, name: name, mimeType: type?.preferredMIMEType)
     }
 
-    /// Tipos que el selector de archivos deja elegir: los del importador compartido (el PDF llega con la fase 4).
+    /// Tipos que el selector de archivos deja elegir: los del importador compartido.
     static var contentTypes: [UTType] {
-        var types: [UTType] = [.plainText, .html, .rtf, .text]
+        var types: [UTType] = [.pdf, .plainText, .html, .rtf, .text]
         for identifier in ["org.idpf.epub-container", "net.daringfireball.markdown", "org.openxmlformats.wordprocessingml.document", "org.oasis-open.opendocument.text"] {
             if let t = UTType(identifier) { types.append(t) }
         }

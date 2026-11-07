@@ -73,6 +73,7 @@ import com.linguareader.ui.catalog.ImportViewModel
 import com.linguareader.data.catalog.OnlineCatalog
 import com.linguareader.data.catalog.LingoOnlineCatalog
 import com.linguareader.data.catalog.OnlineBookImporter
+import com.linguareader.engine.supertonic.platformHttpTransport
 import com.linguareader.ui.library.OnlineLibraryViewModel
 import com.linguareader.ui.onboarding.OnboardingViewModel
 import com.linguareader.ui.reader.OriginalPdfViewModel
@@ -122,8 +123,9 @@ class EngineSettingsHolder {
 
 /** Datos: base de datos Room (módulo `:data`), preferencias, libros incluidos e importados, biblioteca, escaneo. */
 val dataModule = module {
-    single<OnlineCatalog> { LingoOnlineCatalog() }
-    single { OnlineBookImporter(androidContext(), get(), get()) }
+    // Catálogo online en código común (`:domain`), sobre el transporte HTTP de la plataforma.
+    single<OnlineCatalog> { LingoOnlineCatalog(platformHttpTransport()) }
+    single { OnlineBookImporter(get(), get(), FileSystem.SYSTEM, androidContext().cacheDir.toOkioPath(), platformHttpTransport()) }
     /** Ámbito de la aplicación para trabajos que sobreviven a las pantallas (descargas, escaneo, pretraducción). */
     single<CoroutineScope> { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
 

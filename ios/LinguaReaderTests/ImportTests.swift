@@ -62,6 +62,32 @@ final class ImportTests: XCTestCase {
         try await LinguaShared.shared.library.deleteForever(bookId: id)
     }
 
+    /// PDF de texto de 2 páginas (PDFKit): título y autor del documento, páginas, y cajas de palabras sobre el libro.
+    func testPdfImportsWithPdfKitAndPlacesWordsOnPages() async throws {
+        let d = try await draft("sample.pdf")
+        XCTAssertEqual(d.document.format, "pdf")
+        XCTAssertEqual(d.document.title, "The Quiet Garden")
+        XCTAssertEqual(d.document.authors.first, "Anna Example")
+        XCTAssertEqual(d.document.pageCount?.intValue, 2)
+        XCTAssertGreaterThanOrEqual(Int(d.document.paragraphCount), 2)
+        XCTAssertNotNil(d.original, "The PDF keeps its original file for the viewer")
+
+        let id = try await LinguaShared.shared.commitImport(draft: d, title: "The Quiet Garden", author: "Anna Example", language: "en", level: .a2, translateNow: false)
+        let path = try await LinguaShared.shared.originalPdfPath(bookId: id)
+        XCTAssertNotNil(path, "The original PDF should be copied next to the book")
+        let book = try await LinguaShared.shared.books.loadBook(bookId: id)
+        let layout = try await LinguaShared.shared.pdfWordLayout(bookId: id) { _, _ in }
+        XCTAssertNotNil(layout)
+        if let layout {
+            XCTAssertGreaterThan(layout.coverage(book: book), 0.8, "most words should get a box on a page")
+            XCTAssertNotNil(layout.firstTokenOn(page: 1))
+        }
+        try await LinguaShared.shared.library.trash(bookId: id, title: book.title)
+        try await LinguaShared.shared.library.deleteForever(bookId: id)
+        let gone = try await LinguaShared.shared.originalPdfPath(bookId: id)
+        XCTAssertNil(gone)
+    }
+
     func testPastedTextUsesFirstLineAsTitle() async throws {
         let outcome = try await LinguaShared.shared.readText(text: "A walk in the park\n\nIt was a sunny day. The children were playing.", title: nil)
         guard let d = (outcome as? ImportOutcomeDraft)?.draft else { return XCTFail("\(outcome)") }

@@ -208,8 +208,14 @@ en un iPhone real antes de prometerlo.
     Fase 3 ✅ (7-11-2026): importar documentos del usuario (menú «+»: archivo, página web, texto pegado; «Abrir en
     LingoAudioBook» desde otras apps; hoja de revisión con idioma, nivel y traducir ahora / mientras leo; errores
     tipados) y portadas en disco con «página de texto» para los importados (`Import/ImportModel.swift`,
-    `ImportSheet.swift`, `CoverThumbnails.swift`, `IosImport.kt`; tests `ImportTests.swift`). Pendientes: 4 PDF con PDFKit (extractor,
-    visor, «Ver original» con resaltado); 5 catálogo online movido a `domain` común; 6 iPad, giro y doble página;
+    `ImportSheet.swift`, `CoverThumbnails.swift`, `IosImport.kt`; tests `ImportTests.swift`). Fase 4 ✅ (7-11-2026): PDF con
+    PDFKit en Kotlin/Native (`PdfKitExtractor.kt`: texto, párrafos, portada, contraseña, escaneados), original guardado
+    en `originals/`, visor (`PdfViewerView.swift`: zoom, ir a página, recordar página) y «Ver el PDF original» en el lector
+    con la frase y la palabra que suenan pintadas sobre las páginas, toque para traducir y seguimiento de la voz
+    (`PdfKitWords.kt` + `WordBoxAligner`, `ReaderPdfView.swift`); «Open PDFs as» (preguntar / lectura / original) en la
+    ficha y en Ajustes. Fase 5 ✅ (7-11-2026): catálogo online movido a código común (`domain/.../data/catalog/` sobre
+    `HttpTransport`; Android usa las mismas clases) y pantalla «Library» en iOS (`OnlineLibraryView.swift`: búsqueda,
+    filtros, populares, ficha, «Add to My Books»). Pendientes: 6 iPad, giro y doble página;
     7 Supertonic en iPhone tras un spike de rendimiento con ONNX Runtime por cinterop. No aplican a iOS: motores TTS
     del sistema, escaneo del dispositivo, ayudas de WhatsApp/Telegram y servicios en primer plano.
   - ⬜ Binding de `onnxruntime-c`, medir Supertonic y wav2vec2 en iPhone; descargas con `URLSession` en segundo plano;

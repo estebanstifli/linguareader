@@ -3,6 +3,7 @@ package com.linguareader.shared
 import com.linguareader.core.model.CefrLevel
 import com.linguareader.data.content.ImportDraft
 import com.linguareader.data.content.LocalBookImporter
+import com.linguareader.data.content.OriginalDocument
 import com.linguareader.engine.supertonic.HTTP_REDIRECTS
 import com.linguareader.engine.supertonic.hostOf
 import com.linguareader.engine.supertonic.platformHttpTransport
@@ -35,7 +36,11 @@ sealed interface ImportOutcome {
 internal class IosImportService(private val importer: LocalBookImporter) {
 
     suspend fun readDocument(path: String, displayName: String, mimeType: String?): ImportOutcome = outcome {
-        importer.readFile(path.toPath(), displayName, mimeType)
+        val draft = importer.readFile(path.toPath(), displayName, mimeType)
+        // El PDF conserva el fichero original para el visor y «Ver original»: de momento la copia de la caché; al
+        // confirmar, `LinguaShared.commitImport` la mueve a la carpeta de originales de la app.
+        val original = OriginalDocument(path, draft.document.format, draft.document.pageCount).takeIf { it.viewable }
+        if (original != null) draft.copy(original = original) else draft
     }
 
     suspend fun readText(text: String, title: String?): ImportOutcome = outcome { importer.readText(text, title) }

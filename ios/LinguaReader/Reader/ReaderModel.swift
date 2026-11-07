@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import MediaPlayer
+import PDFKit
 import LinguaShared
 
 /// Ficha de palabra abierta (mini o completa).
@@ -76,6 +77,20 @@ final class ReaderModel: ObservableObject {
     @Published var error: String?
     /// Ilustraciones de los pasajes ya cargadas (índice global del pasaje).
     @Published private(set) var passageImages: [Int: UIImage] = [:]
+    /// «Ver original»: el PDF del libro en lugar del texto paginado (misma voz, fichas y progreso).
+    @Published var showOriginal = false
+    @Published private(set) var originalAvailable = false
+    @Published private(set) var pdfDocument: PDFDocument?
+    @Published private(set) var pdfMissing = false
+    @Published private(set) var pdfLayout: PdfWordLayout?
+    @Published private(set) var pdfLayoutProgress: Double?
+    @Published private(set) var pdfLayoutFailed = false
+    @Published private(set) var pdfLowCoverage = false
+    @Published var pdfPage = 0
+    private var pdfLoading = false
+    /// Tras tocar o pasar página a mano, la vista deja de seguir a la voz unos segundos.
+    private var lastPdfTouch = Date.distantPast
+    private var tokenPassage: [String: Int] = [:]
     private var loadingImages: Set<Int> = []
     @Published var translatorDownloading = false
     /// Traducciones automáticas (ML Kit, caché en Room) por id de frase, para «traducción bajo cada frase» en libros
@@ -101,9 +116,10 @@ final class ReaderModel: ObservableObject {
 
     private var audio: ReaderAudioController { LinguaShared.shared.audio }
 
-    init(bookId: String, listenOnOpen: Bool = false) {
+    init(bookId: String, listenOnOpen: Bool = false, original: Bool = false) {
         self.bookId = bookId
         self.listenOnOpen = listenOnOpen
+        self.showOriginal = original
     }
 
     var prefs: UserPreferences? { store?.prefs }
@@ -135,6 +151,10 @@ final class ReaderModel: ObservableObject {
         do {
             let loaded = try await LinguaShared.shared.books.loadBook(bookId: bookId)
             book = loaded
+            for passage in loaded.passages { for token in passage.tokens { tokenPassage[token.id] = Int(passage.index) } }
+            originalAvailable = ((try? await LinguaShared.shared.originalPdfPath(bookId: bookId)) ?? nil) != nil
+            if !originalAvailable { showOriginal = false }
+            if showOriginal { await loadPdf() }
             // Como «leer desde aquí»: escuchar desde la ficha activa la lectura en voz alta.
             if listenOnOpen && !ttsMode {
                 try? await LinguaShared.shared.setTtsMode(enabled: true)
@@ -402,6 +422,11 @@ final class ReaderModel: ObservableObject {
         if state.status == .playing, prefs?.autoScroll ?? true, let range = highlightRange(state) {
             showOffset = range.location
         }
+        if showOriginal, state.status == .playing, prefs?.autoScroll ?? true, Date().timeIntervalSince(lastPdfTouch) > 4,
+           let id = state.activeTokenId, let layout = pdfLayout {
+            let page = Int(layout.pageOf(tokenId: id))
+            if page >= 0, page != pdfPage { pdfPage = page }
+        }
         updateNowPlaying()
     }
 
@@ -462,6 +487,92 @@ final class ReaderModel: ObservableObject {
         }
         guard let target, let word = range(index, target) else { return nil }
         return PointerPlan(word: word, lead: nil, step: PointerStep(tokenId: target.id, gap: true))
+    }
+
+    // MARK: PDF original
+
+    func toggleOriginal() {
+        guard originalAvailable else { return }
+        showOriginal.toggle()
+        if showOriginal { Task { await loadPdf() } }
+    }
+
+    /// Abre el PDF y calcula (una vez por sesión) las cajas de los tokens sobre sus páginas.
+    func loadPdf() async {
+        guard pdfDocument == nil, !pdfLoading else { return }
+        pdfLoading = true
+        defer { pdfLoading = false }
+        guard let path = (try? await LinguaShared.shared.originalPdfPath(bookId: bookId)) ?? nil, let document = PDFDocument(url: URL(fileURLWithPath: path)) else {
+            pdfMissing = true
+            return
+        }
+        if document.isLocked { _ = document.unlock(withPassword: "") }
+        pdfDocument = document
+        pdfLayoutProgress = 0
+        let layout = try? await LinguaShared.shared.pdfWordLayout(bookId: bookId) { [weak self] done, total in
+            Task { @MainActor in self?.pdfLayoutProgress = total.intValue > 0 ? Double(done.intValue) / Double(total.intValue) : 0 }
+        }
+        pdfLayoutProgress = nil
+        if let layout, let book {
+            pdfLayout = layout
+            pdfLowCoverage = layout.coverage(book: book) < 0.85
+            pdfLayoutFailed = layout.tokenCount == 0
+        } else {
+            pdfLayoutFailed = true
+        }
+        if let page = currentPdfPage() { pdfPage = page }
+    }
+
+    /// Página donde está el punto de lectura actual (la voz o la primera palabra del pasaje).
+    private func currentPdfPage() -> Int? {
+        guard let layout = pdfLayout, let passage else { return nil }
+        if let id = playback?.activeTokenId, playback?.passageId == passage.id { let p = Int(layout.pageOf(tokenId: id)); if p >= 0 { return p } }
+        if let first = passage.tokens.first { let p = Int(layout.pageOf(tokenId: first.id)); if p >= 0 { return p } }
+        return nil
+    }
+
+    /// Cajas a pintar sobre el PDF: la frase que suena en claro y la palabra activa en fuerte.
+    var pdfHighlights: [PdfHighlight] {
+        guard showOriginal, let layout = pdfLayout, let playback, let passage, playback.passageId == passage.id,
+              playback.status == .playing || playback.status == .paused || playback.status == .ready else { return [] }
+        let theme = theme(systemDark: systemDark)
+        var out: [PdfHighlight] = []
+        if playback.granularity != .none, Int(playback.sentenceIndex) < passage.sentences.count {
+            let sentence = passage.sentences[Int(playback.sentenceIndex)]
+            for token in passage.tokens where token.sentenceId == sentence.id {
+                for b in layout.boxes(tokenId: token.id) {
+                    out.append(PdfHighlight(page: Int(b.page), left: CGFloat(b.left), top: CGFloat(b.top), right: CGFloat(b.right), bottom: CGFloat(b.bottom), color: theme.sentenceHighlight, rounded: false))
+                }
+            }
+        }
+        if playback.granularity == .word, let id = playback.activeTokenId {
+            for b in layout.boxes(tokenId: id) {
+                out.append(PdfHighlight(page: Int(b.page), left: CGFloat(b.left), top: CGFloat(b.top), right: CGFloat(b.right), bottom: CGFloat(b.bottom), color: theme.wordHighlight.withAlphaComponent(0.6), rounded: true))
+            }
+        }
+        return out
+    }
+
+    /// Toque sobre el PDF: la palabra bajo el dedo abre su ficha; fuera del texto, muestra u oculta los controles.
+    func pdfTapped(page: Int, x: CGFloat, y: CGFloat) async {
+        lastPdfTouch = Date()
+        if wordCard != nil, !showFullCard { await resumeAfterCard(); return }
+        guard page >= 0, let layout = pdfLayout, let book,
+              let tokenId = layout.hit(page: Int32(page), x: Float(x), y: Float(y), slopX: 0.01, slopY: 0.006),
+              let index = tokenPassage[tokenId], index < book.passages.count,
+              let token = book.passages[index].tokenById(id: tokenId) else {
+            withAnimation { controlsVisible.toggle() }
+            return
+        }
+        await showWord(passageIndex: index, token: token, anchor: nil)
+    }
+
+    /// El usuario pasó a otra página con la lectura parada: el punto de lectura pasa a la primera palabra de esa página.
+    func pdfUserScrolled(_ page: Int) {
+        lastPdfTouch = Date()
+        guard !isPlaying, let layout = pdfLayout, let book, let tokenId = layout.firstTokenOn(page: Int32(page)),
+              let index = tokenPassage[tokenId], index < book.passages.count, let token = book.passages[index].tokenById(id: tokenId) else { return }
+        if index != passageIndex { Task { await open(passageIndex: index, offset: Int(token.rangeStart), autoplay: false, scroll: false) } }
     }
 
     /// «Preparing to read…»: el motor genera las primeras frases tras pedir audio (audio en caché o narración).
@@ -605,15 +716,22 @@ final class ReaderModel: ObservableObject {
             withAnimation { controlsVisible.toggle() }
             return
         }
+        let anchor = layout.chapterRange(passageIndex: loc.passageIndex, start: Int(token.rangeStart), end: Int(token.rangeEnd))
+        await showWord(passageIndex: loc.passageIndex, token: token, anchor: anchor)
+    }
+
+    /// Ficha de una palabra (popup; sin ancla, en el PDF, la hoja completa): pausa si procede y consulta la traducción.
+    private func showWord(passageIndex index: Int, token: Token, anchor: NSRange?) async {
+        guard let book, index < book.passages.count else { return }
+        let passage = book.passages[index]
         var pausedByTap = false
         if isPlaying, prefs?.pauseOnWordTap ?? true { try? await audio.pause(); pausedByTap = true }
         do {
             let lookup = try await LinguaShared.shared.lookupWord(book: book, passage: passage, token: token, targetLanguage: translationLanguage)
             let saved = (try? await LinguaShared.shared.isSavedWord(bookId: book.id, term: token.text, targetLanguage: translationLanguage))?.boolValue ?? false
-            let anchor = layout.chapterRange(passageIndex: loc.passageIndex, start: Int(token.rangeStart), end: Int(token.rangeEnd))
-            showFullCard = false
+            showFullCard = anchor == nil
             wordAnchorRect = nil
-            wordCard = WordCard(passageIndex: loc.passageIndex, token: token, lookup: lookup, saved: saved, pausedByTap: pausedByTap, anchor: anchor)
+            wordCard = WordCard(passageIndex: index, token: token, lookup: lookup, saved: saved, pausedByTap: pausedByTap, anchor: anchor)
         } catch {
             self.error = error.localizedDescription
         }
