@@ -52,6 +52,7 @@ struct ReadingPreferencesSection: View {
 /// Preferencias de voz que no dependen del libro abierto. `sourceLanguage` es el idioma del libro (o el de lectura)
 /// para descargar el traductor que falte al cambiar «Translate to».
 struct VoicePreferencesRows: View {
+    @EnvironmentObject private var store: AppStore
     let p: UserPreferences
     let sourceLanguage: String?
 
@@ -61,7 +62,7 @@ struct VoicePreferencesRows: View {
             try? await LinguaShared.shared.setTranslationLanguage(tag: l, wifiOnly: p.translationWifiOnly)
             LinguaShared.shared.downloadTranslationModelsFor(sourceLanguage: sourceLanguage, targetLanguage: l)
         } })) {
-            ForEach(Languages.translationTargets, id: \.self) { Text(Languages.name($0)).tag($0) }.themedRows()
+            ForEach(store.nativeOptions, id: \.self) { Text(Languages.name($0)).tag($0) }
         }
         HStack {
             Text("Pause between sentences")

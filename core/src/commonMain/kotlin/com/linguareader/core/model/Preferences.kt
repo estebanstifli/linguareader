@@ -108,6 +108,18 @@ data class UserPreferences(
         return copy(learningLanguages = list, readingLanguage = list.firstOrNull())
     }
 
+    /** Lo que fija la pantalla de idiomas: los que se aprenden, el nativo, y que la app se usa para aprender (con voz). */
+    fun withLanguagesChosen(learning: List<String>, native: String, wifiOnly: Boolean): UserPreferences =
+        withLearningLanguages(learning).copy(
+            translationLanguage = native,
+            translationWifiOnly = wifiOnly,
+            translationSetupDone = true,
+            learnLanguageChosen = true,
+            purpose = AppPurpose.LEARN,
+            ttsMode = true,
+            ttsModeChosen = true,
+        )
+
     companion object {
         const val MIN_SPEECH_RATE = 0.5f
         const val MAX_SPEECH_RATE = 1.5f

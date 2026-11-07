@@ -55,6 +55,12 @@ final class ReaderModel: ObservableObject {
     private var translating: Task<Void, Never>?
 
     let bookId: String
+    /// «Read and listen» desde la ficha: la voz arranca al abrir (y activa el modo con voz si estaba apagado).
+    let listenOnOpen: Bool
+    /// Se lee con la narración pregrabada del libro (voz de estudio con tiempos por palabra) en vez de la voz del sistema.
+    @Published private(set) var narrationActive = false
+    private var narrationRequested = false
+    private var narrationPending = false
     private var watchers: [FlowWatcher] = []
     private var store: AppStore?
     private var completionHandledFor: String?
@@ -66,8 +72,9 @@ final class ReaderModel: ObservableObject {
 
     private var audio: ReaderAudioController { LinguaShared.shared.audio }
 
-    init(bookId: String) {
+    init(bookId: String, listenOnOpen: Bool = false) {
         self.bookId = bookId
+        self.listenOnOpen = listenOnOpen
     }
 
     var prefs: UserPreferences? { store?.prefs }
@@ -94,14 +101,22 @@ final class ReaderModel: ObservableObject {
             LinguaShared.shared.watchPlayback { [weak self] state in self?.onPlayback(state) },
             LinguaShared.shared.watchBookmarks(bookId: bookId) { [weak self] list in self?.bookmarks = list },
             LinguaShared.shared.watchSelectedEngine { [weak self] id in self?.engineId = id },
+            LinguaShared.shared.watchNarrationReady { [weak self] id in self?.narrationBecameReady(id) },
         ]
         do {
             let loaded = try await LinguaShared.shared.books.loadBook(bookId: bookId)
             book = loaded
+            // Como «leer desde aquí»: escuchar desde la ficha activa la lectura en voz alta.
+            if listenOnOpen && !ttsMode {
+                try? await LinguaShared.shared.setTtsMode(enabled: true)
+                for _ in 0..<20 where !ttsMode { try? await Task.sleep(for: .milliseconds(50)) }
+            }
+            // Narración pregrabada ya descargada: se lee con ella en lugar de la voz del sistema.
+            narrationActive = (try? await LinguaShared.shared.applyNarration(book: loaded, download: false))?.boolValue ?? false
             let progress = try? await LinguaShared.shared.loadProgress(bookId: bookId)
             let index = progress.map { Int($0.passageIndex) }.flatMap { $0 < loaded.passages.count ? $0 : nil } ?? 0
             let offset = progress.map { Int($0.charOffset) } ?? 0
-            await open(passageIndex: index, offset: offset, autoplay: false, scroll: true)
+            await open(passageIndex: index, offset: offset, autoplay: listenOnOpen, scroll: true)
             setupRemoteCommands()
             voices = (try? await LinguaShared.shared.listVoices(languageTag: loaded.learningLanguage)) ?? []
         } catch {
@@ -266,10 +281,13 @@ final class ReaderModel: ObservableObject {
         }
         if scroll, let target = layout?.chapterOffset(passageIndex: index, offset: offset) { showOffset = target }
         do {
+            if autoplay && ttsMode {
+                audioRequested = true
+                await requestNarration(book)
+            }
             try await audio.load(passage: passage, languageTag: book.learningLanguage, voiceId: voiceId, startOffset: Int32(offset))
             await persist(passage: passage, offset: offset)
             if autoplay && ttsMode {
-                audioRequested = true
                 if !continuation { _ = try? await audio.warmUp(passage: passage, languageTag: book.learningLanguage, voiceId: voiceId, policy: WarmUpPolicy(targetDurationMs: 15_000, maxSentences: 1), fromSentence: 0) }
                 try await audio.play()
             }
@@ -288,8 +306,32 @@ final class ReaderModel: ObservableObject {
         return prefs.voiceByLanguage[Languages.primary(book.learningLanguage)]
     }
 
+    /// Al pedir audio: si el libro trae narración y no está descargada, la baja en segundo plano (una vez por sesión);
+    /// mientras tanto, o si falla, se lee con la voz del sistema y se cambia a ella en la siguiente pausa.
+    private func requestNarration(_ book: Book) async {
+        if narrationRequested || narrationActive { return }
+        narrationRequested = true
+        narrationActive = (try? await LinguaShared.shared.applyNarration(book: book, download: true))?.boolValue ?? false
+    }
+
+    private func narrationBecameReady(_ id: String) {
+        guard id == bookId, !narrationActive else { return }
+        if isPlaying { narrationPending = true } else { Task { await switchToNarration() } }
+    }
+
+    /// Cambia a la narración ya descargada en el mismo punto (como `retryAudio` tras `awaitNarration` en Android).
+    private func switchToNarration() async {
+        narrationPending = false
+        guard let book, let passage else { return }
+        let offset = Int32(playback?.resumeOffset ?? 0)
+        narrationActive = (try? await LinguaShared.shared.applyNarration(book: book, download: false))?.boolValue ?? false
+        guard narrationActive else { return }
+        try? await audio.load(passage: passage, languageTag: book.learningLanguage, voiceId: voiceId, startOffset: offset)
+    }
+
     private func onPlayback(_ state: PlaybackState) {
         playback = state
+        if narrationPending, state.status != .playing { Task { await switchToNarration() } }
         guard let passage, state.passageId == passage.id else { return }
         if let id = state.activeTokenId, let token = passage.tokenById(id: id) { lastSpoken = token }
         if state.status == .completed {
@@ -370,8 +412,11 @@ final class ReaderModel: ObservableObject {
         do {
             if isPlaying { try await audio.pause(); await persist() } else {
                 audioRequested = true
-                if let passage, let book, playback?.passageId != passage.id {
-                    try await audio.load(passage: passage, languageTag: book.learningLanguage, voiceId: voiceId, startOffset: 0)
+                let hadNarration = narrationActive
+                if let book { await requestNarration(book) }
+                if let passage, let book, playback?.passageId != passage.id || narrationActive != hadNarration {
+                    let offset = playback?.passageId == passage.id ? (playback?.resumeOffset ?? 0) : 0
+                    try await audio.load(passage: passage, languageTag: book.learningLanguage, voiceId: voiceId, startOffset: offset)
                 }
                 try await audio.play()
             }
@@ -432,8 +477,13 @@ final class ReaderModel: ObservableObject {
         wordCard = nil
         audioRequested = true
         if !ttsMode { try? await LinguaShared.shared.setTtsMode(enabled: true) }
+        let hadNarration = narrationActive
+        if let book { await requestNarration(book) }
         if loc.passageIndex != passageIndex {
             await open(passageIndex: loc.passageIndex, offset: loc.offset, autoplay: true, scroll: false)
+        } else if narrationActive != hadNarration, let passage, let book {
+            try? await audio.load(passage: passage, languageTag: book.learningLanguage, voiceId: voiceId, startOffset: Int32(loc.offset))
+            try? await audio.play()
         } else {
             try? await audio.seekToOffset(charOffset: Int32(loc.offset))
             try? await audio.play()

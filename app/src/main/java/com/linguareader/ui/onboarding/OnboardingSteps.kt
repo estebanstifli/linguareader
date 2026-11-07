@@ -27,15 +27,3 @@ fun nextOnboardingStep(p: UserPreferences): OnboardingStep? = when {
     !p.onboardingSummaryShown -> OnboardingStep.SUMMARY
     else -> null
 }
-
-/** Lo que fija la pantalla de idiomas: los que se aprenden, el nativo, y que la app se usa para aprender (con voz). */
-fun UserPreferences.withLanguagesChosen(learning: List<String>, native: String, wifiOnly: Boolean): UserPreferences =
-    withLearningLanguages(learning).copy(
-        translationLanguage = native,
-        translationWifiOnly = wifiOnly,
-        translationSetupDone = true,
-        learnLanguageChosen = true,
-        purpose = AppPurpose.LEARN,
-        ttsMode = true,
-        ttsModeChosen = true,
-    )

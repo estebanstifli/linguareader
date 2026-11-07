@@ -20,6 +20,11 @@ final class SmokeUITests: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 90), "The sample book should appear after the first import")
         row.tap()
 
+        // La fila abre la ficha del libro; «Read» abre el lector (sin arrancar la voz: la arranca el test).
+        let read = app.buttons["detail.read"]
+        XCTAssertTrue(read.waitForExistence(timeout: 10), "The book detail should offer Read")
+        read.tap()
+
         let text = app.descendants(matching: .any).matching(identifier: "reader.text").firstMatch
         XCTAssertTrue(text.waitForExistence(timeout: 30), "The first passage should be shown")
 

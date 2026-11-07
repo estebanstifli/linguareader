@@ -3,6 +3,7 @@ import LinguaShared
 
 /// Corrige título, autor, idioma y nivel de un libro; el original no se toca (ver `BookOverrideEntity`).
 struct BookEditView: View {
+    @EnvironmentObject private var store: AppStore
     @Environment(\.dismiss) private var dismiss
     let bookId: String
     @State private var title = ""
@@ -13,7 +14,12 @@ struct BookEditView: View {
     @State private var edited = false
     @State private var failed = false
 
-    private let languages = Languages.translationTargets + ["nl", "ca"]
+    /// Idiomas que se pueden aprender (bibliotecas y voz), más el actual del libro si no está entre ellos.
+    private var languages: [String] {
+        var list = store.learnable()
+        if !list.contains(language) { list.append(language) }
+        return list
+    }
 
     var body: some View {
         Form {

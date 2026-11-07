@@ -8,8 +8,9 @@ struct ReaderView: View {
     @StateObject private var model: ReaderModel
     @State private var sheet: ReaderSheet?
 
-    init(bookId: String) {
-        _model = StateObject(wrappedValue: ReaderModel(bookId: bookId))
+    /// `listen`: «Read and listen» desde la ficha: la voz arranca al abrir.
+    init(bookId: String, listen: Bool = false) {
+        _model = StateObject(wrappedValue: ReaderModel(bookId: bookId, listenOnOpen: listen))
     }
 
     private var theme: ReaderTheme { model.theme(systemDark: colorScheme == .dark) }
@@ -176,6 +177,7 @@ struct PlayerBar: View {
         var parts = [p.status.name.lowercased()]
         if p.status == .error { parts.append("audio failed, see Diagnostics in reading settings") }
         if p.buffering { parts.append("generating audio…") }
+        if model.narrationActive { parts.append("studio narration") }
         switch p.granularity {
         case .word: parts.append("word sync")
         case .sentence: parts.append("sentence sync")

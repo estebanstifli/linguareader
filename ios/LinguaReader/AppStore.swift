@@ -14,6 +14,11 @@ final class AppStore: ObservableObject {
     @Published var libraryStates: [String: LibraryPackState] = [:]
     @Published var vocabulary: [VocabularyEntity] = []
     @Published var translationModels: TranslationModelsState?
+    @Published var bookTranslations: [String: BookTranslationState] = [:]
+    @Published var translationStatus: [String: ImportedBookRepositoryTranslationStatus] = [:]
+    @Published var narrationDownloading: Set<String> = []
+    /// Último libro cuya narración quedó descargada (la ficha se refresca con él).
+    @Published var narrationReady: String?
     @Published var status: String = ""
 
     /// Traductor ML Kit (solo en la app de iPhone: los pods no tienen rebanada arm64 de simulador, ver ios/Podfile);
@@ -48,6 +53,10 @@ final class AppStore: ObservableObject {
             shared.watchLibraryCatalog { [weak self] c in self?.libraryCatalog = c },
             shared.watchLibraryStates { [weak self] s in self?.libraryStates = s },
             shared.watchVocabulary { [weak self] v in self?.vocabulary = v },
+            shared.watchBookTranslations { [weak self] m in self?.bookTranslations = m },
+            shared.watchTranslationStatus { [weak self] m in self?.translationStatus = m },
+            shared.watchNarrationDownloads { [weak self] s in self?.narrationDownloading = s },
+            shared.watchNarrationReady { [weak self] id in self?.narrationReady = id },
         ]
         if let models = shared.watchTranslationModels(block: { [weak self] s in self?.translationModels = s }) { watchers.append(models) }
         Task {
@@ -71,6 +80,37 @@ final class AppStore: ObservableObject {
     func deleteLibrary(_ lang: String) { Task { try? await LinguaShared.shared.libraryPacks.delete(lang: lang) } }
 
     func isLibraryBook(_ bookId: String) -> Bool { LinguaShared.shared.isLibraryBook(bookId: bookId) }
+
+    /// Libro importado por el usuario o instalado desde una biblioteca (se puede pretraducir).
+    func isImported(_ bookId: String) -> Bool { LinguaShared.shared.isImportedBook(bookId: bookId) }
+
+    // MARK: Idiomas
+
+    /// Idiomas que se aprenden (subetiqueta primaria), en el orden elegido.
+    var learningLanguages: [String] { (prefs?.learningLanguages ?? []).map(Languages.primary) }
+
+    /// Idiomas a los que se puede traducir: los del traductor del dispositivo; sin traductor (simulador), los de la interfaz.
+    var nativeOptions: [String] { translationModels?.supported ?? Languages.fallbackTargets }
+
+    /// Idiomas que se pueden aprender: los que tienen biblioteca primero, después los que la voz sabe leer, por nombre.
+    func learnable() -> [String] {
+        let catalog = Set(libraryCatalog.keys)
+        let all = catalog.union(LinguaShared.shared.voiceLanguages())
+        return all.sorted { a, b in
+            let inCatalog = (catalog.contains(a), catalog.contains(b))
+            if inCatalog.0 != inCatalog.1 { return inCatalog.0 }
+            return Languages.name(a).localizedCaseInsensitiveCompare(Languages.name(b)) == .orderedAscending
+        }
+    }
+
+    /// Códigos ML Kit entre los que se traduce al aprender `lang`: el suyo y el nativo (nada si son el mismo o no se traducen).
+    func neededModels(_ lang: String, native: String) -> [String] {
+        var codes: [String] = []
+        for tag in [lang, native] {
+            if let code = LinguaShared.shared.translationCode(languageTag: tag), !codes.contains(code) { codes.append(code) }
+        }
+        return codes.count > 1 ? codes : []
+    }
 
     /// Fracción leída (0–1) o nil si el libro no se ha abierto.
     func progressFraction(_ bookId: String) -> Double? {
@@ -136,14 +176,21 @@ final class AppStore: ObservableObject {
     }
 }
 
-/// Nombres legibles de los idiomas que maneja la app.
+/// Nombres de los idiomas en el idioma de la interfaz (los da el sistema, para cualquier etiqueta BCP-47).
 enum Languages {
-    static let names: [String: String] = ["en": "English", "es": "Spanish", "fr": "French", "de": "German", "it": "Italian", "pt": "Portuguese", "nl": "Dutch", "ca": "Catalan"]
-    static let translationTargets = ["en", "es", "fr", "de", "it", "pt"]
+    /// Idiomas de la interfaz; a los que se traduce cuando la app no tiene traductor (simulador).
+    static let fallbackTargets = ["en", "es", "fr", "de", "it", "pt"]
 
+    /// Nombre con mayúscula inicial, para títulos y listas («Inglés»).
     static func name(_ tag: String) -> String {
-        let primary = tag.split(separator: "-").first.map(String.init)?.lowercased() ?? tag
-        return names[primary] ?? Locale.current.localizedString(forLanguageCode: primary) ?? tag
+        let n = nameInSentence(tag)
+        return n.prefix(1).uppercased() + n.dropFirst()
+    }
+
+    /// Nombre tal como va dentro de una frase («traducir al inglés»): como lo da el sistema en cada idioma.
+    static func nameInSentence(_ tag: String) -> String {
+        let code = primary(tag)
+        return Locale.current.localizedString(forLanguageCode: code) ?? code
     }
 
     static func primary(_ tag: String) -> String { tag.split(separator: "-").first.map(String.init)?.lowercased() ?? tag }

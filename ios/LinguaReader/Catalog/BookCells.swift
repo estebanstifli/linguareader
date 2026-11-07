@@ -58,6 +58,7 @@ struct BookRow: View {
                         Text("\(Int(fraction * 100)) %").font(.caption2).foregroundStyle(.secondary)
                     }
                 }
+                BookTranslationRow(bookId: book.id)
             }
             Spacer(minLength: 0)
         }

@@ -1,29 +1,28 @@
 import SwiftUI
 import LinguaShared
 
-/// Primera apertura. La app de iPhone es solo para aprender idiomas, así que no pregunta el propósito (queda fijado
-/// en «aprender», con voz): idioma a aprender (descarga su biblioteca) → tu idioma → nivel → resumen.
+/// Primera apertura, los mismos pasos que Android (la app es solo para aprender idiomas, así que no pregunta el propósito):
+/// idiomas (uno o varios) y tu idioma → nivel → resumen de lo preparado. Cada paso queda guardado al completarlo, así que
+/// cerrar la app a medias retoma donde se quedó y lo ya lanzado sigue descargándose.
 struct OnboardingView: View {
     @EnvironmentObject private var store: AppStore
 
-    private enum Step { case learnLanguage, nativeLanguage, level, summary }
+    private enum Step { case languages, level, summary }
 
     private var step: Step {
-        guard let p = store.prefs, p.purpose != nil else { return .learnLanguage }
-        if !p.learnLanguageChosen { return .learnLanguage }
-        if !p.translationSetupDone { return .nativeLanguage }
+        guard let p = store.prefs else { return .languages }
+        if !p.learnLanguageChosen || !p.translationSetupDone { return .languages }
         if !p.learnerLevelChosen { return .level }
         return .summary
     }
 
-    private let totalSteps = 4
+    private let totalSteps = 3
 
     private var stepIndex: Int {
         switch step {
-        case .learnLanguage: return 1
-        case .nativeLanguage: return 2
-        case .level: return 3
-        case .summary: return 4
+        case .languages: return 1
+        case .level: return 2
+        case .summary: return 3
         }
     }
 
@@ -33,8 +32,8 @@ struct OnboardingView: View {
                 ProgressView(value: Double(stepIndex), total: Double(totalSteps))
                 Text("Step \(stepIndex) of \(totalSteps)").font(.footnote).foregroundStyle(.secondary)
                 switch step {
-                case .learnLanguage: learnLanguage
-                case .nativeLanguage: nativeLanguage
+                case .languages:
+                    if let p = store.prefs { LanguagesOnboardingStep(prefs: p) }
                 case .level: level
                 case .summary: summary
                 }
@@ -51,54 +50,27 @@ struct OnboardingView: View {
 
     // MARK: Pasos
 
-    private var learnLanguage: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Which language do you want to learn?").font(.largeTitle.bold())
-            Text("We'll download its library of graded readers (A1 to B2) so you can read and listen offline.").foregroundStyle(.secondary)
-            ForEach(store.libraryCatalog.keys.sorted(), id: \.self) { lang in
-                let info = store.libraryCatalog[lang]!
-                Button {
-                    Task {
-                        try? await LinguaShared.shared.setReadingLanguage(tag: lang)
-                    }
-                } label: {
-                    HStack {
-                        Text(Languages.name(lang)).font(.title3.bold())
-                        Spacer()
-                        Text("\(info.books) books · \(ByteCountFormatter.string(fromByteCount: info.sizeBytes, countStyle: .file))").foregroundStyle(.secondary)
-                    }
-                    .padding().frame(maxWidth: .infinity).background(Color.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("onboarding.language.\(lang)")
-            }
-            Button("Not now") { Task { try? await LinguaShared.shared.setReadingLanguage(tag: nil); try? await LinguaShared.shared.setTranslationLanguage(tag: store.prefs?.translationLanguage ?? "en", wifiOnly: true) } }
-                .accessibilityIdentifier("onboarding.notNow")
-        }
-    }
-
-    private var nativeLanguage: some View {
-        NativeLanguageStep(learning: store.prefs?.readingLanguage, initial: store.prefs?.translationLanguage ?? "en")
-    }
-
     private var level: some View {
-        LevelStep(language: store.prefs?.readingLanguage ?? "en") { level in
-            Task {
-                try? await LinguaShared.shared.setLearnerLevel(level: level)
-                if let lang = store.prefs?.readingLanguage { store.downloadLibrary(Languages.primary(lang)) }
-            }
+        let languages = store.learningLanguages
+        return LevelStep(language: languages.count == 1 ? languages[0] : nil) { level in
+            Task { try? await LinguaShared.shared.setLearnerLevel(level: level) }
         }
     }
 
     private var summary: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        let native = store.prefs.map { Languages.primary($0.translationLanguage) } ?? "en"
+        return VStack(alignment: .leading, spacing: 16) {
             Text("Here's what we've set up").font(.largeTitle.bold())
             Text("Anything still downloading continues in the background: you can start now.").foregroundStyle(.secondary)
-            if let lang = store.prefs?.readingLanguage.map(Languages.primary) {
+            if store.learningLanguages.isEmpty {
+                summaryRow("Language to learn", "Not chosen: you can add languages in Settings › Languages", "character.book.closed")
+            }
+            ForEach(store.learningLanguages, id: \.self) { lang in
                 summaryRow("\(Languages.name(lang)) library", libraryStatus(lang), "books.vertical")
+                if let translator = translatorStatus(lang, native: native) {
+                    summaryRow("\(Languages.name(lang)) translator", translator, "character.bubble")
+                }
                 summaryRow("\(Languages.name(lang)) voice", "Ready (system voice)", "person.wave.2")
-            } else {
-                summaryRow("Language to learn", "Not chosen: you can download libraries in Settings › Libraries", "character.book.closed")
             }
             Button {
                 Task { try? await LinguaShared.shared.finishOnboarding() }
@@ -112,12 +84,23 @@ struct OnboardingView: View {
 
     private func libraryStatus(_ lang: String) -> String {
         switch store.libraryStates[lang] {
-        case let s as LibraryPackStateInstalled: return "Ready · \(s.books) books"
-        case is LibraryPackStateDownloading: return "Downloading…"
-        case let s as LibraryPackStateInstalling: return "Installing \(s.done)/\(s.total)…"
+        case let s as LibraryPackStateInstalled: return String(localized: "Ready · \(Int(s.books)) books")
+        case is LibraryPackStateDownloading: return String(localized: "Downloading…")
+        case let s as LibraryPackStateInstalling: return String(localized: "Installing \(Int(s.done))/\(Int(s.total))…")
         case let s as LibraryPackStateFailed: return PackErrors.text(s.error)
-        default: return "Pending"
+        default: return store.libraryCatalog[lang] == nil ? String(localized: "Books coming soon · voice and translation available") : String(localized: "Pending")
         }
+    }
+
+    /// Estado de los modelos de traducción entre el idioma y el nativo; nil si no hacen falta (mismo idioma, sin traductor).
+    private func translatorStatus(_ lang: String, native: String) -> String? {
+        guard let models = store.translationModels else { return nil }
+        let codes = store.neededModels(lang, native: native)
+        if codes.isEmpty { return nil }
+        if codes.allSatisfy({ models.downloaded.contains($0) }) { return String(localized: "Ready, works offline") }
+        if codes.contains(where: { models.downloads[$0] is TranslationModelDownloadRunning }) { return String(localized: "Downloading…") }
+        if codes.contains(where: { models.downloads[$0] is TranslationModelDownloadFailed }) { return String(localized: "Download failed · retry in Settings › Languages") }
+        return String(localized: "Pending")
     }
 
     private func summaryRow(_ title: String, _ detail: String, _ icon: String) -> some View {
@@ -130,83 +113,123 @@ struct OnboardingView: View {
         }
         .padding().frame(maxWidth: .infinity, alignment: .leading).background(Color.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
     }
-
-    private func choiceCard(_ title: String, _ detail: String, _ icon: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(alignment: .top, spacing: 14) {
-                Image(systemName: icon).font(.title2).frame(width: 44, height: 44).background(Color.accentColor.opacity(0.15), in: Circle())
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title).font(.headline)
-                    Text(detail).font(.subheadline).foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-            }
-            .padding().frame(maxWidth: .infinity).background(Color.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
-        }
-        .buttonStyle(.plain)
-    }
 }
 
-private struct NativeLanguageStep: View {
-    let learning: String?
-    @State var initial: String
-    @State private var wifiOnly = true
+/// Paso 1: tu idioma, los idiomas a aprender (uno o varios, con casillas; primero los que tienen libros) y «Continue».
+/// No guarda nada hasta pulsar el botón, como `LanguagesOnboardingContent` en Android; al pulsarlo arrancan las descargas.
+private struct LanguagesOnboardingStep: View {
+    @EnvironmentObject private var store: AppStore
+    private let previous: [String]
+    @State private var selected: Set<String>
+    @State private var native: String
+    @State private var wifiOnly: Bool
+    @State private var showAll = false
 
-    private var sameAsLearning: Bool { learning.map { Languages.primary($0) == Languages.primary(initial) } ?? false }
+    init(prefs p: UserPreferences) {
+        previous = p.learningLanguages.map(Languages.primary)
+        _selected = State(initialValue: Set(previous))
+        let device = Locale.current.language.languageCode?.identifier ?? "en"
+        _native = State(initialValue: p.translationSetupDone ? Languages.primary(p.translationLanguage) : device)
+        _wifiOnly = State(initialValue: p.translationWifiOnly)
+    }
+
+    private var nativeClash: Bool { selected.contains(native) }
 
     var body: some View {
+        let all = store.learnable()
+        let shown = showAll ? all : all.filter { store.libraryCatalog[$0] != nil || selected.contains($0) }
         VStack(alignment: .leading, spacing: 16) {
-            Text("What's your language?").font(.largeTitle.bold())
-            Text("Words and sentences will be translated into this language.").foregroundStyle(.secondary)
-            Picker("Your language", selection: $initial) {
-                ForEach(Languages.translationTargets, id: \.self) { Text(Languages.name($0)).tag($0) }
-            }
-            .pickerStyle(.menu)
-            if sameAsLearning { Text("Choose a language different from the one you are learning.").foregroundStyle(.red).font(.footnote) }
-            Toggle("Download translators only over Wi-Fi", isOn: $wifiOnly)
-            Button {
-                Task {
-                    try? await LinguaShared.shared.setTranslationLanguage(tag: initial, wifiOnly: wifiOnly)
-                    LinguaShared.shared.downloadTranslationModelsFor(sourceLanguage: learning, targetLanguage: initial)
+            Text("Which languages do you want to learn?").font(.largeTitle.bold())
+            Text("Choose one or several. We'll download their libraries of graded readers (A1 to B2) and the translators, so you can read and listen offline.")
+                .foregroundStyle(.secondary)
+            HStack {
+                Text("Your language").font(.headline)
+                Spacer()
+                Picker("Your language", selection: $native) {
+                    ForEach(store.nativeOptions, id: \.self) { Text(Languages.name($0)).tag($0) }
                 }
+                .pickerStyle(.menu)
+                .accessibilityIdentifier("onboarding.native")
+            }
+            if nativeClash {
+                Text("It's the same language you're going to learn: choose another one to be able to translate.").foregroundStyle(.red).font(.footnote)
+            }
+            Text("Languages you're learning").font(.headline)
+            ForEach(shown, id: \.self) { lang in languageCard(lang) }
+            if !showAll && shown.count < all.count {
+                Button("Show \(all.count - shown.count) more languages (voice and translation, books coming soon)") { showAll = true }
+                    .font(.subheadline)
+            }
+            Toggle("Download translators only over Wi-Fi (≈40 MB per language)", isOn: $wifiOnly)
+            Button {
+                // Los que ya se aprendían y siguen marcados conservan su orden; los nuevos van detrás.
+                let learning = previous.filter { selected.contains($0) } + selected.subtracting(previous).sorted()
+                Task { try? await LinguaShared.shared.chooseLanguages(learning: learning, native: native, wifiOnly: wifiOnly) }
             } label: { Text("Continue").frame(maxWidth: .infinity) }
-                .buttonStyle(.borderedProminent).controlSize(.large).disabled(sameAsLearning)
+                .buttonStyle(.borderedProminent).controlSize(.large)
+                .disabled(selected.isEmpty || nativeClash)
                 .accessibilityIdentifier("onboarding.continue")
         }
         .onAppear {
-            if sameAsLearning { initial = Languages.translationTargets.first { $0 != Languages.primary(learning ?? "") } ?? "en" }
+            let options = store.nativeOptions
+            if !options.contains(native) { native = options.first ?? "en" }
         }
+    }
+
+    private func languageCard(_ lang: String) -> some View {
+        let on = selected.contains(lang)
+        return Button {
+            if on { selected.remove(lang) } else { selected.insert(lang) }
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: on ? "checkmark.circle.fill" : "circle").font(.title3).foregroundStyle(.tint)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(Languages.name(lang)).font(.title3.bold())
+                    Text(libraryAvailability(store.libraryCatalog[lang])).font(.footnote).foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .padding().frame(maxWidth: .infinity)
+            .background(on ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("onboarding.language.\(lang)")
     }
 }
 
+/// Paso 2: nivel aproximado (A1–B2 o «I don't know»); con varios idiomas la pregunta es genérica, como en Android.
 private struct LevelStep: View {
-    let language: String
+    let language: String?
     let choose: (CefrLevel?) -> Void
     @State private var selected: CefrLevel?
     @State private var unknown = false
 
     private let options: [(CefrLevel, String)] = [
-        (.a1, "I'm starting from scratch, or nearly"),
-        (.a2, "I understand simple, everyday sentences"),
-        (.b1, "I can get by on everyday topics"),
-        (.b2, "I read general texts quite fluently"),
+        (.a1, String(localized: "I'm starting from scratch, or nearly")),
+        (.a2, String(localized: "I understand simple, everyday sentences")),
+        (.b1, String(localized: "I can get by on everyday topics")),
+        (.b2, String(localized: "I read general texts quite fluently")),
     ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("What's your level of \(Languages.name(language))?").font(.largeTitle.bold())
+            if let language {
+                Text("What's your level of \(Languages.name(language))?").font(.largeTitle.bold())
+            } else {
+                Text("What's your level in the language?").font(.largeTitle.bold())
+            }
             Text("We'll show you books at your level first. You can always see the others.").foregroundStyle(.secondary)
             ForEach(options, id: \.0) { level, hint in
                 option(selected == level && !unknown, "\(level.name) · \(hint)") { selected = level; unknown = false }
                     .accessibilityIdentifier("onboarding.level.\(level.name)")
             }
-            option(unknown, "I don't know") { unknown = true; selected = nil }
+            option(unknown, String(localized: "I don't know")) { unknown = true; selected = nil }
             Button {
                 choose(unknown ? nil : selected)
             } label: { Text("Continue and download").frame(maxWidth: .infinity) }
                 .buttonStyle(.borderedProminent).controlSize(.large).disabled(selected == nil && !unknown)
                 .accessibilityIdentifier("onboarding.download")
-            Text("When you continue, the library starts downloading in the background; you can keep using the app.")
+            Text("The libraries and translators are downloading in the background; you can keep using the app.")
                 .font(.footnote).foregroundStyle(.secondary)
         }
     }

@@ -3,24 +3,34 @@ import LinguaShared
 
 /// Apartados de la biblioteca (el cajón de Android): filtros sobre el mismo catálogo.
 enum CatalogSection: Hashable, Identifiable {
-    case reading, books, learn(String), learnOther, shelf(Int64), trash
+    case reading, books, learn(String), shelf(Int64), trash
 
     var id: String {
         switch self {
         case .reading: return "reading"
         case .books: return "books"
         case .learn(let lang): return "learn-\(lang)"
-        case .learnOther: return "learn-other"
         case .shelf(let id): return "shelf-\(id)"
         case .trash: return "trash"
         }
     }
-
-    static let learnLanguages = ["en", "es", "fr"]
 }
 
+/// Pantallas a las que se navega desde el catálogo: ficha del libro, lector (con o sin voz al abrir), idiomas, vocabulario,
+/// ajustes y edición de un libro.
 enum CatalogDestination: Hashable {
-    case vocabulary, settings, edit(String)
+    case detail(String), reader(String, Bool), languages, vocabulary, settings, edit(String)
+
+    @ViewBuilder var view: some View {
+        switch self {
+        case .detail(let bookId): BookDetailView(bookId: bookId)
+        case .reader(let bookId, let listen): ReaderView(bookId: bookId, listen: listen)
+        case .languages: LanguagesView()
+        case .vocabulary: VocabularyView()
+        case .settings: SettingsView()
+        case .edit(let bookId): BookEditView(bookId: bookId)
+        }
+    }
 }
 
 struct CatalogView: View {
@@ -34,20 +44,13 @@ struct CatalogView: View {
         } detail: {
             NavigationStack {
                 BookListView(section: section ?? .books)
-                    .navigationDestination(for: String.self) { bookId in ReaderView(bookId: bookId) }
-                    .navigationDestination(for: CatalogDestination.self) { destination in
-                        switch destination {
-                        case .vocabulary: VocabularyView()
-                        case .settings: SettingsView()
-                        case .edit(let bookId): BookEditView(bookId: bookId)
-                        }
-                    }
+                    .navigationDestination(for: CatalogDestination.self) { $0.view }
             }
         }
-        .task(id: store.prefs?.readingLanguage) {
-            // Tras la primera apertura, la biblioteca del idioma elegido es la pantalla de inicio.
-            if let lang = store.prefs?.readingLanguage, section == .books, store.books.isEmpty == false || store.libraryStates.isEmpty == false {
-                section = CatalogSection.learnLanguages.contains(Languages.primary(lang)) ? .learn(Languages.primary(lang)) : .learnOther
+        .task(id: store.learningLanguages.first) {
+            // Tras la primera apertura, la biblioteca del primer idioma que se aprende es la pantalla de inicio.
+            if let lang = store.learningLanguages.first, section == .books, store.books.isEmpty == false || store.libraryStates.isEmpty == false {
+                section = .learn(lang)
             }
         }
     }
@@ -64,10 +67,11 @@ private struct SectionsList: View {
                 row(.books, "Books", "books.vertical", count: store.books.filter { !trashed($0.id) }.count)
             }.themedRows()
             Section {
-                ForEach(CatalogSection.learnLanguages, id: \.self) { lang in
+                ForEach(store.learningLanguages, id: \.self) { lang in
                     row(.learn(lang), "Learn \(Languages.name(lang))", "character.book.closed", count: store.books.filter { Languages.primary($0.learningLanguage) == lang && !trashed($0.id) }.count)
-                }.themedRows()
-                row(.learnOther, "Learn other languages", "globe", count: store.books.filter { !CatalogSection.learnLanguages.contains(Languages.primary($0.learningLanguage)) && !trashed($0.id) }.count)
+                }
+                NavigationLink(value: CatalogDestination.languages) { Label("Learn other languages", systemImage: "globe") }
+                    .accessibilityIdentifier("section.learn-other")
             }.themedRows()
             Section("Shelves") {
                 ForEach(store.shelves?.shelves ?? [], id: \.id) { shelf in
@@ -89,13 +93,7 @@ private struct SectionsList: View {
         }
         .themedScreen()
         .navigationTitle("LingoAudioBook")
-        .navigationDestination(for: CatalogDestination.self) { destination in
-            switch destination {
-            case .vocabulary: VocabularyView()
-            case .settings: SettingsView()
-            case .edit(let bookId): BookEditView(bookId: bookId)
-            }
-        }
+        .navigationDestination(for: CatalogDestination.self) { $0.view }
     }
 
     private func trashed(_ bookId: String) -> Bool { store.shelves?.trashedIds.contains(bookId) ?? false }
@@ -150,7 +148,6 @@ struct BookListView: View {
             case .reading: return store.progress[book.id] != nil && !trashed.contains(book.id)
             case .books: return !trashed.contains(book.id)
             case .learn(let lang): return Languages.primary(book.learningLanguage) == lang && !trashed.contains(book.id)
-            case .learnOther: return !CatalogSection.learnLanguages.contains(Languages.primary(book.learningLanguage)) && !trashed.contains(book.id)
             case .shelf(let id): return (store.shelves?.shelves.first { $0.id == id }?.bookIds.contains(book.id) ?? false) && !trashed.contains(book.id)
             }
         }
@@ -160,7 +157,7 @@ struct BookListView: View {
         }
         switch section {
         case .reading: return list.sorted { (store.progress[$0.id]?.updatedAt ?? 0) > (store.progress[$1.id]?.updatedAt ?? 0) }
-        case .learn, .learnOther: return list.sorted { ($0.cefrLevel.ordinal, $0.title) < ($1.cefrLevel.ordinal, $1.title) }
+        case .learn: return list.sorted { ($0.cefrLevel.ordinal, $0.title) < ($1.cefrLevel.ordinal, $1.title) }
         default: return list
         }
     }
@@ -187,16 +184,40 @@ struct BookListView: View {
         .searchable(text: $query, prompt: "Title or author")
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
+                if case .learn(let lang) = section { translateToMenu(lang) }
                 Button { store.setLibraryGrid(!grid) } label: { Image(systemName: grid ? "list.bullet" : "square.grid.2x2") }
                     .accessibilityIdentifier("catalog.layout")
             }
         }
         .safeAreaInset(edge: .top) {
-            if case .trash = section { EmptyView() } else { levelChips }
+            if case .trash = section {
+                EmptyView()
+            } else {
+                VStack(spacing: 0) {
+                    levelChips
+                    if case .learn(let lang) = section {
+                        LibraryBanner(lang: lang)
+                        StartHereCard(lang: lang)
+                    }
+                }
+            }
         }
         .sheet(item: $newCollectionFor) { book in
             NewCollectionSheet { name in store.createCollection(name, bookId: book.id) }
         }
+    }
+
+    /// «Translate to» del apartado de un idioma, como en Android: cambia tu idioma y baja los traductores que falten.
+    private func translateToMenu(_ lang: String) -> some View {
+        let current = Languages.primary(store.prefs?.translationLanguage ?? "en")
+        return Menu {
+            ForEach(store.nativeOptions, id: \.self) { code in
+                Button {
+                    Task { try? await LinguaShared.shared.setNativeLanguage(code: code) }
+                } label: { Label(Languages.name(code), systemImage: code == current ? "checkmark" : "") }
+            }
+        } label: { Label("Translate to", systemImage: "character.bubble") }
+        .accessibilityIdentifier("catalog.translateTo")
     }
 
     private var levelChips: some View {
@@ -228,7 +249,7 @@ struct BookListView: View {
         if case .trash = section {
             TrashRow(book: book)
         } else {
-            NavigationLink(value: book.id) {
+            NavigationLink(value: CatalogDestination.detail(book.id)) {
                 if grid { BookGridCell(book: book) } else { BookRow(book: book) }
             }
             .buttonStyle(.plain)
@@ -242,7 +263,6 @@ struct BookListView: View {
         case .reading: return "Reading now"
         case .books: return "Books"
         case .learn(let lang): return "Learn \(Languages.name(lang))"
-        case .learnOther: return "Other languages"
         case .shelf(let id): return store.shelves?.shelves.first { $0.id == id }.map { s in
             switch s.kind {
             case LibraryRepository.companion.FAVORITES: return "Favorites"
@@ -267,7 +287,7 @@ struct BookListView: View {
 
     private var emptyHint: String {
         if case .learn(let lang) = section, store.libraryCatalog[lang] != nil {
-            return "Download the \(Languages.name(lang)) library in Settings › Libraries."
+            return "Download the \(Languages.name(lang)) library in Settings › Languages."
         }
         return query.isEmpty ? "Books you add will appear here." : "Nothing matches your search."
     }
@@ -315,6 +335,11 @@ private struct BookMenu: View {
         Button { newCollection() } label: { Label("New collection…", systemImage: "folder.badge.plus") }
         Divider()
         NavigationLink(value: CatalogDestination.edit(book.id)) { Label("Edit", systemImage: "pencil") }
+        if let target = translateTarget {
+            Button {
+                LinguaShared.shared.startBookTranslation(bookId: book.id, target: target)
+            } label: { Label("Translate the whole book into \(Languages.name(target))", systemImage: "character.bubble") }
+        }
         Button {
             Task {
                 if let txt = try? await LinguaShared.shared.bookText(bookId: book.id) {
@@ -331,12 +356,81 @@ private struct BookMenu: View {
         Button(role: .destructive) { store.trash(book) } label: { Label("Move to trash", systemImage: "trash") }
     }
 
+    /// Idioma al que traducir el libro entero: si no está ya en él, no trae esa traducción y no hay una en marcha o hecha.
+    private var translateTarget: String? {
+        let target = Languages.primary(store.prefs?.translationLanguage ?? "en")
+        guard store.isImported(book.id), Languages.primary(book.learningLanguage) != target,
+              !book.translationLanguages.contains(where: { Languages.primary($0) == target }),
+              store.bookTranslations[book.id] == nil,
+              store.translationStatus[book.id]?.done.contains(target) != true else { return nil }
+        return target
+    }
+
     private func shelfTitle(_ shelf: Shelf) -> String {
         switch shelf.kind {
         case LibraryRepository.companion.FAVORITES: return "Favorite"
         case LibraryRepository.companion.TO_READ: return "To read"
         case LibraryRepository.companion.READ: return "Read"
         default: return shelf.name
+        }
+    }
+}
+
+/// Descarga de la biblioteca de un idioma en la cabecera de su apartado, como `LibraryDownloadBanner` en Android.
+private struct LibraryBanner: View {
+    @EnvironmentObject private var store: AppStore
+    let lang: String
+
+    var body: some View {
+        switch store.libraryStates[lang] {
+        case let s as LibraryPackStateDownloading:
+            banner { ProgressView(value: s.total > 0 ? Double(s.bytes) / Double(s.total) : 0) { Text("Downloading the \(Languages.name(lang)) library…").font(.footnote) } }
+        case let s as LibraryPackStateInstalling:
+            banner { ProgressView(value: s.total > 0 ? Double(s.done) / Double(s.total) : 0) { Text("Installing books \(s.done)/\(s.total)…").font(.footnote) } }
+        case let s as LibraryPackStateFailed:
+            banner {
+                HStack {
+                    Text(PackErrors.text(s.error)).font(.footnote).foregroundStyle(.red)
+                    Spacer()
+                    Button("Retry") { store.downloadLibrary(lang) }.buttonStyle(.bordered).font(.footnote)
+                }
+            }
+        default:
+            EmptyView()
+        }
+    }
+
+    private func banner<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        content().padding(.horizontal).padding(.vertical, 8).frame(maxWidth: .infinity).themedBar()
+    }
+}
+
+/// «Where do I start?»: si no se ha empezado ningún libro del idioma, propone el más corto (como en Android).
+private struct StartHereCard: View {
+    @EnvironmentObject private var store: AppStore
+    let lang: String
+
+    var body: some View {
+        let trashed = store.shelves?.trashedIds ?? []
+        let books = store.books.filter { Languages.primary($0.learningLanguage) == lang && !trashed.contains($0.id) }
+        if !books.isEmpty, !books.contains(where: { store.progress[$0.id] != nil }),
+           let shortest = books.min(by: { ($0.estimatedMinutes, $0.cefrLevel.ordinal) < ($1.estimatedMinutes, $1.cefrLevel.ordinal) }) {
+            NavigationLink(value: CatalogDestination.detail(shortest.id)) {
+                HStack(spacing: 12) {
+                    Image(systemName: "sparkles").font(.title3).foregroundStyle(.tint)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Where do I start?").font(.subheadline.bold())
+                        Text("Try the shortest one: \(shortest.title) (\(shortest.cefrLevel.name), ≈ \(shortest.estimatedMinutes) min).")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.footnote).foregroundStyle(.secondary)
+                }
+                .padding(.horizontal).padding(.vertical, 8)
+            }
+            .buttonStyle(.plain)
+            .themedBar()
+            .accessibilityIdentifier("catalog.startHere")
         }
     }
 }

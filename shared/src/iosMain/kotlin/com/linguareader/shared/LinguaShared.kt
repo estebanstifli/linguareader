@@ -73,6 +73,8 @@ import com.linguareader.engine.packs.LibraryInfo
 import com.linguareader.engine.packs.LibraryPackManager
 import com.linguareader.engine.packs.LibraryPackState
 import com.linguareader.engine.translation.BookTranslationService
+import com.linguareader.engine.translation.BookTranslationState
+import com.linguareader.engine.supertonic.SupertonicModel
 import com.linguareader.engine.translation.TranslationModels
 import com.linguareader.importer.ExtractorRegistry
 import kotlinx.coroutines.CoroutineScope
@@ -243,6 +245,12 @@ object LinguaShared {
                 settings.ttsPitch = p.ttsPitch
             }
         }
+        // Instalaciones anteriores de iOS guardaban solo readingLanguage y dejaban vacía la lista de idiomas que se aprenden.
+        koin.get<CoroutineScope>().launch {
+            val repo = koin.get<UserPreferencesRepository>()
+            val p = repo.preferences.first()
+            if (p.learningLanguages.isEmpty() && p.readingLanguage != null) repo.update { it.withLearningLanguages(listOfNotNull(it.readingLanguage)) }
+        }
     }
 
     val books: BookRepository get() = koin.get()
@@ -315,13 +323,47 @@ object LinguaShared {
 
     @Throws(Throwable::class)
     suspend fun setReadingLanguage(tag: String?) = preferences.update {
-        it.copy(readingLanguage = tag, learnLanguageChosen = true, learnerLevelChosen = tag == null || it.learnerLevelChosen)
+        // También la lista de idiomas que se aprenden: si solo se escribiera readingLanguage, la clave quedaría vacía.
+        it.withLearningLanguages(listOfNotNull(tag)).copy(learnLanguageChosen = true, learnerLevelChosen = tag == null || it.learnerLevelChosen)
     }
 
     @Throws(Throwable::class)
     suspend fun setTranslationLanguage(tag: String, wifiOnly: Boolean) = preferences.update {
         it.copy(translationLanguage = tag, translationWifiOnly = wifiOnly, translationSetupDone = true)
     }
+
+    // ---- Idiomas que se aprenden (varios a la vez), como LanguagesViewModel + LanguageInstaller en Android
+
+    private val languageInstaller: IosLanguageInstaller get() = IosLanguageInstaller(libraryPacks, translationModels)
+
+    /** Idiomas que se pueden aprender además de los que tienen biblioteca: los que la voz sabe leer (misma lista que Android). */
+    fun voiceLanguages(): List<String> = SupertonicModel.LANGUAGES.toList()
+
+    /** Primera apertura: los idiomas que se aprenden, el nativo y «solo Wi-Fi» de una vez; arrancan sus descargas. */
+    @Throws(Throwable::class)
+    suspend fun chooseLanguages(learning: List<String>, native: String, wifiOnly: Boolean) {
+        preferences.update { it.withLanguagesChosen(learning, native, wifiOnly) }
+        languageInstaller.installAll(preferences.preferences.first())
+    }
+
+    @Throws(Throwable::class)
+    suspend fun addLearningLanguage(tag: String) {
+        preferences.update { it.withLearningLanguages(it.learningLanguages + tag) }
+        languageInstaller.install(tag, preferences.preferences.first())
+    }
+
+    /** Quita el idioma del menú; sus libros descargados se conservan (se borran aparte con `libraryPacks.delete`). */
+    @Throws(Throwable::class)
+    suspend fun removeLearningLanguage(tag: String) = preferences.update { it.withLearningLanguages(it.learningLanguages - tag) }
+
+    @Throws(Throwable::class)
+    suspend fun setNativeLanguage(code: String) {
+        preferences.update { it.copy(translationLanguage = code) }
+        languageInstaller.installAll(preferences.preferences.first())
+    }
+
+    @Throws(Throwable::class)
+    suspend fun setTranslationWifiOnly(enabled: Boolean) = preferences.update { it.copy(translationWifiOnly = enabled) }
 
     @Throws(Throwable::class)
     suspend fun setLearnerLevel(level: CefrLevel?) = preferences.update { it.copy(learnerLevel = level, learnerLevelChosen = true) }
@@ -509,6 +551,62 @@ object LinguaShared {
         koin.get<TranslationEngine>().translate(
             TranslationRequest(text = text, contextBefore = "", contextAfter = "", sourceLanguage = sourceLanguage, targetLanguage = targetLanguage, unit = TranslationUnit.SENTENCE),
         )
+
+    // MARK: Pretraducción de libros (BookTranslationService, misma lógica que Android)
+
+    val bookTranslations: BookTranslationService get() = koin.get()
+    val importedBooks: ImportedBookRepository get() = koin.get()
+
+    /** Traducciones completas en marcha, por id de libro. */
+    fun watchBookTranslations(block: (Map<String, BookTranslationState>) -> Unit): FlowWatcher = watch(bookTranslations.states, block)
+
+    /** Por libro importado: idiomas a los que ya está traducido entero y traducción en pausa, si la hay. */
+    fun watchTranslationStatus(block: (Map<String, ImportedBookRepository.TranslationStatus>) -> Unit): FlowWatcher =
+        watch(importedBooks.translationStatus, block)
+
+    fun startBookTranslation(bookId: String, target: String) { bookTranslations.start(bookId, target) }
+    fun cancelBookTranslation(bookId: String) = bookTranslations.cancel(bookId)
+    fun dismissBookTranslationError(bookId: String) { bookTranslations.dismissError(bookId) }
+
+    /** Libro importado por el usuario o instalado desde una biblioteca (en iOS, todos los libros). */
+    fun isImportedBook(bookId: String): Boolean = importedBooks.owns(bookId)
+
+    // MARK: Narración pregrabada (mp3 + tiempos por palabra), como en ReaderViewModel y BookDetailViewModel
+
+    /** Narración que declara el libro: lista (descargada y casada con el texto), descargándose, y bytes que ocupa. */
+    class NarrationInfo(val ready: Boolean, val downloading: Boolean, val bytes: Long)
+
+    @Throws(Throwable::class)
+    suspend fun narrationInfo(bookId: String): NarrationInfo? {
+        val book = runCatching { books.loadBook(bookId) }.getOrNull() ?: return null
+        val ref = narrations.declared(book) ?: return null
+        val bytes = (ref.audio.sizeBytes ?: 0L) + (ref.timings.sizeBytes ?: 0L)
+        if (narrations.needsDownload(book)) return NarrationInfo(ready = false, downloading = bookId in narrations.downloading.value, bytes = bytes)
+        // Descargada pero sin casar con el texto: no sirve (se lee con la voz, como cualquier libro).
+        if (narrations.cached(book) == null) return null
+        return NarrationInfo(ready = true, downloading = false, bytes = bytes)
+    }
+
+    /** Libros cuya narración se está descargando ahora. */
+    fun watchNarrationDownloads(block: (Set<String>) -> Unit): FlowWatcher = watch(narrations.downloading, block)
+
+    /** Id del libro cuya narración acaba de quedar descargada. */
+    fun watchNarrationReady(block: (String) -> Unit): FlowWatcher = watch(narrations.ready, block)
+
+    @Throws(Throwable::class)
+    suspend fun downloadNarration(bookId: String, retry: Boolean) { narrations.download(books.loadBook(bookId), retry) }
+
+    /**
+     * Lector: lee con la narración si está descargada y casa con el texto; si no la hay y el libro la declara, con
+     * [download] la pide en segundo plano (el lector cambia a ella en la siguiente pausa). Devuelve si queda activa.
+     */
+    @Throws(Throwable::class)
+    suspend fun applyNarration(book: Book, download: Boolean): Boolean {
+        val narration = narrations.cached(book)
+        narrationSelector.setNarration(narration)
+        if (narration == null && download && narrations.needsDownload(book)) narrations.download(book)
+        return narration != null
+    }
 
     /** Versión del código compartido que ve la app (para la pantalla «Acerca de» y los logs de Device Farm). */
     const val VERSION = "0.4.2-ios"
