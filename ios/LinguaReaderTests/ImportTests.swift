@@ -1,5 +1,6 @@
 import XCTest
 import LinguaShared
+@testable import LinguaReader
 
 /// Importación de documentos del usuario por la fachada compartida (fase 3): TXT, HTML y FB2 de `Fixtures/`, texto
 /// pegado y un fichero que no se puede importar. Corre en el simulador (CI) y en el iPhone real (Device Farm).
