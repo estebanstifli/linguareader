@@ -34,7 +34,7 @@ glosario de abajo recibe una entrada con el título traducido.
 | 13 | ✅ | B1 | `en/B1/a-christmas-carol.txt` | `tr/B1/bir-noel-sarkisi.txt` | Bir Noel Şarkısı | 8.754 | 9,4 | Ateşman 80 | Narración en *-di* con *-mişti*; Fred ↔ Scrooge «dayı» + *sen*, Bob → Scrooge «efendim» + *siz*, Scrooge → Ruhlar *siz*, Ruhlar → Scrooge *sen*; Bah! Humbug! = “Hıh! Saçmalık!”; Tiny Tim = «Küçük Tim»; “Tanrı hepimizi korusun, her birimizi!”; Founder of the Feast = «Ziyafetin Sahibi»; Ignorance/Want = «Cehalet»/«Yoksulluk»; juego gravy/grave → “mezardan değil, midemden”; juego «Evet mi, Hayır mı» |
 | 14 | ✅ | B1 | `en/B1/around-the-world-in-eighty-days.txt` | `tr/B1/seksen-gunde-devrialem.txt` | Seksen Günde Devrialem | 7.008 | 8,0 | Ateşman 82 | Narración en *-di* con *-mişti*; todos *siz* (Fogg también a Passepartout), Passepartout → Fogg «efendim» (y una vez «Mösyö»); Aouda = «Auda» («Auda Hanım»); Kazançlar (Gains); Long Noses = «Uzun Burunlar»; Honourable = «Muhterem»; Sioux = «Siu» |
 | 15 | ✅ | B2 | `en/B2/frankenstein.txt` | `tr/B2/frankenstein.txt` | Frankenstein | 13.900 | 9,9 | Ateşman 70 | Narración en *-di* con *-mişti*; Walton ↔ Victor, criatura ↔ De Lacey y Victor → padre: *siz*; Victor ↔ criatura, Elizabeth, Clerval: *sen*; demon = «iblis», fiend = «şeytan», wretch = «zavallı»; Mer de Glace = «Buz Denizi»; relato de la criatura (caps. 9–12) sin comillas externas |
-| 16 | ⬜ | B2 | `en/B2/pride-and-prejudice.txt` |  |  |  |  |  |  |
+| 16 | ✅ | B2 | `en/B2/pride-and-prejudice.txt` | `tr/B2/ask-ve-gurur.txt` | Aşk ve Gurur | 14.764 | 9,8 | Ateşman 73 | Narración en *-di* con *-mişti*; Mr/Mrs/Miss = «Bay/Bayan/Matmazel», Lady = «Leydi», your ladyship = «Leydi Hazretleri», Sir William = «Sör William»; esposos Bennet *siz* («hanımcığım» / «Bay Bennet»), padres ↔ hijas y hermanas *sen*, Elizabeth ↔ Darcy *siz* hasta el final; entail = «vakıf şartı»; patroness = «hamim»; sufijos con armonía de la pronunciación (*Bennet'in, Netherfield'de, Hurst'un*) |
 
 ## Vocabulario fuera de nivel (para glosario)
 
@@ -107,3 +107,8 @@ incluirlas en el glosario del libro. Una entrada por libro, con el título tradu
   iblis, şeytan, zavallı, sefil, iğrenç, tiksindirici, minyatür, kızıl, darağacı, aforoz, günah
   çıkarmak, buzul, Buz Denizi, fersah, baraka, domuz ahırı, kulübe, peçe, sürgün, kefen, mumya,
   menteşe, sulh yargıcı, büyük jüri, hançer, tabanca, Tataristan, dip dalgası, sal, odun yığını
+- **Aşk ve Gurur**: servet, yıllık gelir, kiralamak, balo, malikâne, vakıf şartı, mirasçı, papaz,
+  papazlık, kilise bölgesi, hami, papaz evi, kâhya, milis alayı, subaylık görevi, kadril,
+  hünerli/hüner, iç etek, çit basamağı, mürebbiye, sosyeteye çıkmak, kont, kaçmak, Gretna Green,
+  vasi, refakatçi, ulak, iffet, centilmen, önyargı, kibir, fıkırdak, nüktedan, kontluk, olta takımı,
+  harçlık

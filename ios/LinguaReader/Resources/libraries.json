@@ -117,6 +117,24 @@
       "books": 16,
       "words": 98863,
       "fingerprint": "3821f2a9b917b8e2ce570de9588077d6cd44cf85c2371cc19ec672292caf9688"
+    },
+    "tr": {
+      "version": 1,
+      "asset": "library-tr-v1.zip",
+      "sizeBytes": 2085694,
+      "sha256": "5e22a0458d005ca79bf7d18b1184a01e71a757eb47e2994de6c040877779f4b0",
+      "books": 16,
+      "words": 86587,
+      "fingerprint": "20f6e7995452c3e78c69b5677baf577574171e7e323ab4c2d7c5c84d045cb4f7"
+    },
+    "el": {
+      "version": 1,
+      "asset": "library-el-v1.zip",
+      "sizeBytes": 2225234,
+      "sha256": "2e46be04b320f4e5bd978f2b5329811180ff1a8d7a1210097e9bcdce3d255db5",
+      "books": 16,
+      "words": 111875,
+      "fingerprint": "c5c759f22fe4ea6a72e2690e9884c9a06a18fd33d0d68a3deab0f69269b35b2a"
     }
   }
 }
