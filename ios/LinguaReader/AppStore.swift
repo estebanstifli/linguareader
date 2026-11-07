@@ -15,7 +15,7 @@ final class AppStore: ObservableObject {
     @Published var vocabulary: [VocabularyEntity] = []
     @Published var translationModels: TranslationModelsState?
     @Published var bookTranslations: [String: BookTranslationState] = [:]
-    @Published var translationStatus: [String: ImportedBookRepositoryTranslationStatus] = [:]
+    @Published var translationStatus: [String: ImportedBookRepository.TranslationStatus] = [:]
     @Published var narrationDownloading: Set<String> = []
     /// Último libro cuya narración quedó descargada (la ficha se refresca con él).
     @Published var narrationReady: String?

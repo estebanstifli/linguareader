@@ -7,7 +7,7 @@ import LinguaShared
 struct BookDetailView: View {
     @EnvironmentObject private var store: AppStore
     let bookId: String
-    @State private var narration: LinguaSharedNarrationInfo?
+    @State private var narration: LinguaShared.NarrationInfo?
 
     private var book: BookSummary? { store.books.first { $0.id == bookId } }
 
@@ -115,7 +115,7 @@ private struct TranslationCard: View {
 /// Libro con narración pregrabada (voz de estudio y tiempos por palabra del servidor): no hay nada que generar.
 private struct NarrationCard: View {
     let bookId: String
-    let info: LinguaSharedNarrationInfo
+    let info: LinguaShared.NarrationInfo
 
     var body: some View {
         let size = ByteCountFormatter.string(fromByteCount: info.bytes, countStyle: .file)
@@ -191,7 +191,7 @@ struct TranslationJobView: View {
 
 struct TranslationPausedView: View {
     let bookId: String
-    let pause: ImportedBookRepositoryTranslationPause
+    let pause: ImportedBookRepository.TranslationPause
 
     var body: some View {
         let language = Languages.nameInSentence(pause.target)
