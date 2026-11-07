@@ -44,6 +44,8 @@ struct ReadingPreferencesSection: View {
             Toggle("Continue with the next passage", isOn: Binding(get: { p.autoContinue }, set: { v in Task { try? await LinguaShared.shared.setAutoContinue(enabled: v) } }))
             Toggle("Pointing finger over the word", isOn: Binding(get: { p.fingerPointerEnabled }, set: { v in Task { try? await LinguaShared.shared.setFingerPointer(enabled: v) } }))
                 .accessibilityIdentifier("settings.fingerPointer")
+            Toggle("Show illustrations", isOn: Binding(get: { p.showIllustrations }, set: { v in Task { try? await LinguaShared.shared.setShowIllustrations(enabled: v) } }))
+                .accessibilityIdentifier("settings.illustrations")
             Toggle("Reduce motion", isOn: Binding(get: { p.reduceMotion }, set: { v in Task { try? await LinguaShared.shared.setReduceMotion(enabled: v) } }))
         }.themedRows()
     }
@@ -65,10 +67,116 @@ struct VoicePreferencesRows: View {
             ForEach(store.nativeOptions, id: \.self) { Text(Languages.name($0)).tag($0) }
         }
         HStack {
+            Text("Speed")
+            Slider(value: Binding(get: { Double(p.speechRate) }, set: { v in Task { try? await LinguaShared.shared.setSpeechRate(rate: Float(v)) } }), in: 0.5...1.5, step: 0.05)
+            Text(String(format: "%.2f×", p.speechRate)).font(.footnote).monospacedDigit()
+        }
+        HStack {
+            Text("Pitch")
+            Slider(value: Binding(get: { Double(p.ttsPitch) }, set: { v in Task { try? await LinguaShared.shared.setTtsPitch(pitch: Float(v)) } }), in: 0.7...1.3, step: 0.05)
+            Text(String(format: "%.2f", p.ttsPitch)).font(.footnote).monospacedDigit()
+        }
+        HStack {
             Text("Pause between sentences")
             Slider(value: Binding(get: { Double(p.sentencePauseMs) }, set: { v in Task { try? await LinguaShared.shared.setSentencePause(ms: Int32(v)) } }), in: 200...1500, step: 50)
             Text("\(Double(p.sentencePauseMs) / 1000, specifier: "%.1f") s").font(.footnote).monospacedDigit()
         }
+        HStack {
+            Text("Pause between paragraphs")
+            Slider(value: Binding(get: { Double(p.paragraphPauseMs) }, set: { v in Task { try? await LinguaShared.shared.setParagraphPause(ms: Int32(v)) } }), in: 300...3000, step: 100)
+            Text("\(Double(p.paragraphPauseMs) / 1000, specifier: "%.1f") s").font(.footnote).monospacedDigit()
+        }
+    }
+}
+
+/// Voces del sistema para un idioma, con «Hear sample» (la frase de prueba en ese idioma) y la voz elegida por idioma.
+struct VoiceListSection: View {
+    @EnvironmentObject private var store: AppStore
+    let p: UserPreferences
+    let language: String
+    @State private var voices: [VoiceInfo] = []
+    @State private var playing: String?
+
+    var body: some View {
+        Section {
+            if voices.isEmpty {
+                Text("No voice installed for \(Languages.nameInSentence(language)). Add one in iOS Settings › Accessibility › Spoken Content › Voices.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            let selected = p.voiceByLanguage[language]
+            if !voices.isEmpty {
+                voiceRow(id: nil, title: String(localized: "Automatic"), detail: String(localized: "The best installed voice for the language"), selected: selected == nil)
+            }
+            ForEach(voices, id: \.id) { v in
+                let quality = (v.quality?.intValue ?? 0) >= 400 ? String(localized: "enhanced") : String(localized: "standard")
+                voiceRow(id: v.id, title: v.displayName, detail: "\(v.languageTag) · \(quality)", selected: selected == v.id)
+            }
+        } header: {
+            Text("\(Languages.name(language)) voices")
+        } footer: {
+            Text("Voices are Apple's, downloaded from iOS Settings › Accessibility › Spoken Content. The sample uses the speed and pitch above.")
+        }
+        .themedRows()
+        .task(id: language) { voices = (try? await LinguaShared.shared.listVoices(languageTag: language)) ?? [] }
+        .onDisappear { LinguaShared.shared.stopVoiceSample() }
+    }
+
+    private func voiceRow(id: String?, title: String, detail: String, selected: Bool) -> some View {
+        HStack {
+            Button {
+                Task { try? await LinguaShared.shared.setVoice(languageTag: language, voiceId: id) }
+            } label: {
+                HStack {
+                    Image(systemName: selected ? "largecircle.fill.circle" : "circle").foregroundStyle(.tint)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title)
+                        Text(detail).font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            Spacer()
+            Button {
+                Task {
+                    playing = id ?? "auto"
+                    _ = try? await LinguaShared.shared.playVoiceSample(languageTag: language, voiceId: id, speed: p.speechRate)
+                    try? await Task.sleep(for: .seconds(4))
+                    if playing == (id ?? "auto") { playing = nil }
+                }
+            } label: { Image(systemName: playing == (id ?? "auto") ? "speaker.wave.3.fill" : "play.circle") }
+            .buttonStyle(.borderless)
+            .accessibilityLabel("Hear sample")
+        }
+        .accessibilityIdentifier("voice.\(id ?? "auto")")
+    }
+}
+
+/// Caché de audio generado (frases ya sintetizadas): uso, límite y vaciar, como la tarjeta de Android.
+struct AudioCacheSection: View {
+    let p: UserPreferences
+    @State private var bytes: Int64 = 0
+    private let limits: [Int32] = [128, 256, 512, 1024]
+
+    var body: some View {
+        Section {
+            Text("In use: \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)) of \(Int(p.audioCacheMb)) MB").font(.subheadline)
+            Picker("Limit", selection: Binding(get: { p.audioCacheMb }, set: { mb in Task { try? await LinguaShared.shared.setAudioCacheLimit(mb: mb) } })) {
+                ForEach(limits, id: \.self) { Text(verbatim: "\($0) MB").tag($0) }
+            }
+            .pickerStyle(.segmented)
+            Button("Clear audio cache", role: .destructive) {
+                LinguaShared.shared.clearAudioCache()
+                bytes = LinguaShared.shared.audioCacheBytes()
+            }
+            .disabled(bytes == 0)
+            .accessibilityIdentifier("settings.clearAudioCache")
+        } header: {
+            Text("Audio cache")
+        } footer: {
+            Text("Sentences already synthesized are kept so they play instantly next time. The oldest ones are removed when the limit is reached.")
+        }
+        .themedRows()
+        .task { bytes = LinguaShared.shared.audioCacheBytes() }
     }
 }
 
@@ -84,6 +192,10 @@ struct ReadingSettingsView: View {
                 Section("Voice") {
                     VoicePreferencesRows(p: p, sourceLanguage: p.readingLanguage)
                 }.themedRows()
+                ForEach(store.learningLanguages, id: \.self) { lang in
+                    VoiceListSection(p: p, language: lang)
+                }
+                AudioCacheSection(p: p)
             }
         }
         .themedScreen()

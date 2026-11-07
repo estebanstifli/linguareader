@@ -138,6 +138,17 @@ final class AppStore: ObservableObject {
 
     func setLibraryGrid(_ grid: Bool) { Task { try? await LinguaShared.shared.setLibraryGrid(grid: grid) } }
 
+    /// «Share as text» del menú de un libro: el texto plano en un .txt temporal por la hoja de compartir del sistema.
+    func shareText(of book: BookSummary) {
+        Task {
+            guard let text = try? await LinguaShared.shared.bookText(bookId: book.id) else { return }
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(book.title.replacingOccurrences(of: "/", with: "-")).txt")
+            try? text.write(to: url, atomically: true, encoding: .utf8)
+            let controller = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+            UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first?.rootViewController?.present(controller, animated: true)
+        }
+    }
+
     func deleteVocabulary(_ id: Int64) { Task { try? await LinguaShared.shared.deleteVocabulary(id: id) } }
 
     /// Portada reducida, con caché en memoria; nil si el libro no la tiene (se dibuja una generada).
@@ -155,23 +166,32 @@ final class AppStore: ObservableObject {
     func importSampleIfEmpty() async {
         guard (try? await LinguaShared.shared.isLibraryEmpty())?.boolValue == true,
               let url = Bundle.main.url(forResource: "cinderella", withExtension: "epub") else { return }
-        status = "Importing the sample book…"
+        status = String(localized: "Importing the sample book…")
         do {
             _ = try await LinguaShared.shared.importFile(path: url.path, displayName: "cinderella.epub", language: "en", level: nil)
             status = ""
         } catch {
-            status = "Import failed: \(error.localizedDescription)"
+            status = String(localized: "Import failed: \(error.localizedDescription)")
         }
     }
 
-    /// Carpeta persistente de la app, excluida de la copia de iCloud (modelos y caché no deben subir).
+    /// Carpeta persistente de la app. Como `backup_rules.xml` en Android, a la copia de iCloud van solo la base de datos
+    /// y las preferencias (progreso, marcadores, vocabulario, estanterías); los libros descargados o importados, las
+    /// bibliotecas, las narraciones, los modelos y la caché de audio se excluyen (se vuelven a descargar o importar).
     private static func applicationSupportDirectory() -> URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         var dir = base.appendingPathComponent("LinguaReader", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        var values = URLResourceValues()
-        values.isExcludedFromBackup = true
-        try? dir.setResourceValues(values)
+        var include = URLResourceValues()
+        include.isExcludedFromBackup = false
+        try? dir.setResourceValues(include)
+        for name in ["imported", "libraries", "narrations", "models", "audio-cache", "import"] {
+            var sub = dir.appendingPathComponent(name, isDirectory: true)
+            try? FileManager.default.createDirectory(at: sub, withIntermediateDirectories: true)
+            var exclude = URLResourceValues()
+            exclude.isExcludedFromBackup = true
+            try? sub.setResourceValues(exclude)
+        }
         return dir
     }
 }

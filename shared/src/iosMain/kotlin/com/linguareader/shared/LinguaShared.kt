@@ -75,6 +75,8 @@ import com.linguareader.engine.packs.LibraryPackState
 import com.linguareader.engine.translation.BookTranslationService
 import com.linguareader.engine.translation.BookTranslationState
 import com.linguareader.engine.supertonic.SupertonicModel
+import com.linguareader.engine.supertonic.SupertonicSampleTexts
+import com.linguareader.core.engine.EngineReadiness
 import com.linguareader.engine.translation.TranslationModels
 import com.linguareader.importer.ExtractorRegistry
 import kotlinx.coroutines.CoroutineScope
@@ -487,6 +489,37 @@ object LinguaShared {
     @Throws(Throwable::class) suspend fun setSpeechRate(rate: Float) = preferences.update { it.copy(speechRate = rate) }
     @Throws(Throwable::class) suspend fun setSentencePause(ms: Int) = preferences.update { it.copy(sentencePauseMs = ms) }
     @Throws(Throwable::class) suspend fun setParagraphPause(ms: Int) = preferences.update { it.copy(paragraphPauseMs = ms) }
+    @Throws(Throwable::class) suspend fun setShowIllustrations(enabled: Boolean) = preferences.update { it.copy(showIllustrations = enabled) }
+    @Throws(Throwable::class) suspend fun setTtsPitch(pitch: Float) = preferences.update { it.copy(ttsPitch = pitch) }
+    @Throws(Throwable::class) suspend fun setAudioCacheLimit(mb: Int) = preferences.update { it.copy(audioCacheMb = mb) }
+
+    /** Bytes que ocupa la caché de audio (sin los clips fijados), como la tarjeta «Caché de audio» de Android. */
+    fun audioCacheBytes(): Long = audioCache.sizeBytes()
+
+    fun clearAudioCache() {
+        audioCache.clear()
+        Diagnostics.log("AudioCache", "cleared from settings")
+    }
+
+    /** Frase de muestra en el idioma de la voz (no en el de la interfaz), para «Oír muestra» en Ajustes. */
+    fun sampleText(languageTag: String): String {
+        val primary = LanguageTags.primary(languageTag)
+        return VOICE_SAMPLES[primary] ?: SupertonicSampleTexts.sample(languageTag)
+    }
+
+    /**
+     * Reproduce la frase de muestra con una voz del sistema (null = automática) sin pasar por el lector: la elige con
+     * `prepare` y la encola con `flush`, así que corta la muestra anterior. Devuelve false si el idioma no tiene voz.
+     */
+    @Throws(Throwable::class)
+    suspend fun playVoiceSample(languageTag: String, voiceId: String?, speed: Float): Boolean {
+        val readiness = speech.prepare(languageTag, voiceId)
+        if (readiness !is EngineReadiness.Ready) return false
+        speech.enqueue("sample|${epochMillis()}", sampleText(languageTag), speed, flush = true)
+        return true
+    }
+
+    fun stopVoiceSample() = speech.stop()
 
     /** Modo de audio activo: `apple-tts` (lectura en directo) o `apple-tts-cached` (frase a frase a la caché). */
     fun watchSelectedEngine(block: (String) -> Unit): FlowWatcher = watch(engineSelector.selectedEngineId, block)
@@ -610,6 +643,16 @@ object LinguaShared {
 
     /** Versión del código compartido que ve la app (para la pantalla «Acerca de» y los logs de Device Farm). */
     const val VERSION = "0.4.2-ios"
+
+    // Frases de prueba en el idioma de la voz (las mismas que SystemTtsProbe en Android).
+    private val VOICE_SAMPLES = mapOf(
+        "en" to "The little fox runs through the quiet forest every morning.",
+        "es" to "El pequeño zorro corre por el bosque tranquilo cada mañana.",
+        "fr" to "Le petit renard court dans la forêt tranquille chaque matin.",
+        "de" to "Der kleine Fuchs läuft jeden Morgen durch den stillen Wald.",
+        "it" to "La piccola volpe corre nel bosco tranquillo ogni mattina.",
+        "pt" to "A pequena raposa corre pela floresta tranquila todas as manhãs.",
+    )
 }
 
 @OptIn(ExperimentalForeignApi::class)

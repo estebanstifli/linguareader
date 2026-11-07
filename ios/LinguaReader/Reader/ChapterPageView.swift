@@ -11,7 +11,8 @@ struct PageHighlight: Equatable {
 
 /// Página de un capítulo con TextKit 2: el capítulo se compone una vez en un contenedor de altura infinita y se
 /// corta en páginas por líneas enteras; cada página se dibuja desplazando el contexto. El resaltado de frase y
-/// palabra son atributos de dibujo (no cambian la composición). Toque → offset del capítulo.
+/// palabra son atributos de dibujo (no cambian la composición). Toque → offset del capítulo; pulsación larga →
+/// offset para la hoja de frase.
 struct ChapterPageView: UIViewRepresentable {
     let layout: ChapterLayout?
     let theme: ReaderTheme
@@ -23,18 +24,24 @@ struct ChapterPageView: UIViewRepresentable {
     let reduceMotion: Bool
     /// Offset del capítulo que debe quedar visible (tras un salto o al seguir a la voz); nil = ninguno.
     let showOffset: Int?
+    /// Rango de la palabra tocada: la vista devuelve su caja en la página (para colocar el popup), o nil si no se ve.
+    let anchor: NSRange?
+    let onAnchorRect: (CGRect?) -> Void
     let onShowOffsetApplied: () -> Void
     let onPages: ([Int]) -> Void
     let onTap: (Int?) -> Void
+    let onLongPress: (Int?) -> Void
 
     func makeUIView(context: Context) -> PageTextView {
         let view = PageTextView()
         view.onTap = { offset in onTap(offset) }
+        view.onLongPress = { offset in onLongPress(offset) }
         return view
     }
 
     func updateUIView(_ view: PageTextView, context: Context) {
         view.onTap = { offset in onTap(offset) }
+        view.onLongPress = { offset in onLongPress(offset) }
         view.onPages = { pages in onPages(pages) }
         view.backgroundColor = theme.background
         if let layout { view.present(layout.attributed, key: layout.key, keepTogether: layout.keepTogether) }
@@ -49,6 +56,15 @@ struct ChapterPageView: UIViewRepresentable {
             view.pageIndex = pageIndex
         }
         view.apply(pointer: pointer, playing: playing, reduceMotion: reduceMotion)
+        if let anchor {
+            let rect = view.pageRect(for: anchor)
+            if rect != view.lastAnchorRect {
+                view.lastAnchorRect = rect
+                DispatchQueue.main.async { onAnchorRect(rect) }
+            }
+        } else {
+            view.lastAnchorRect = nil
+        }
     }
 }
 
@@ -65,8 +81,13 @@ final class PageTextView: UIView {
     private var keepTogether: [NSRange] = []
     private var currentHighlight = PageHighlight()
     private var highlighted: [NSTextRange] = []
+    /// Cajas del marcador (estilo «Marker»): se pintan detrás del texto en `draw`, no como atributo.
+    private var markerRects: [CGRect] = []
+    private var markerColor = UIColor.yellow
     var onTap: ((Int?) -> Void)?
+    var onLongPress: ((Int?) -> Void)?
     var onPages: (([Int]) -> Void)?
+    var lastAnchorRect: CGRect?
     private var pending: (NSAttributedString, String)?
     private let hand = HandPointerView()
     private var pointerInputs: (plan: PointerPlan?, playing: Bool, reduceMotion: Bool) = (nil, false, false)
@@ -85,7 +106,7 @@ final class PageTextView: UIView {
     }
 
     var pageIndex = 0 {
-        didSet { if oldValue != pageIndex { setNeedsDisplay(); refreshPointer() } }
+        didSet { if oldValue != pageIndex { setNeedsDisplay(); refreshPointer(); lastAnchorRect = nil } }
     }
 
     override init(frame: CGRect) {
@@ -95,7 +116,11 @@ final class PageTextView: UIView {
         container.lineFragmentPadding = 0
         isOpaque = true
         contentMode = .redraw
-        addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(tapped(_:))))
+        let tap = UITapGestureRecognizer(target: self, action: #selector(tapped(_:)))
+        let long = UILongPressGestureRecognizer(target: self, action: #selector(longPressed(_:)))
+        long.minimumPressDuration = 0.45
+        addGestureRecognizer(tap)
+        addGestureRecognizer(long)
         addSubview(hand)
     }
 
@@ -121,7 +146,9 @@ final class PageTextView: UIView {
         layoutKey = key
         self.pageSize = pageSize
         highlighted = []
+        markerRects = []
         currentHighlight = PageHighlight()
+        lastAnchorRect = nil
         contentStorage.performEditingTransaction { contentStorage.attributedString = text }
         container.size = CGSize(width: pageSize.width, height: CGFloat.greatestFiniteMagnitude)
         paginate()
@@ -159,6 +186,17 @@ final class PageTextView: UIView {
         return frame.offsetBy(dx: 0, dy: -top)
     }
 
+    /// Cajas por línea de un rango, en coordenadas del documento (para el marcador).
+    private func segmentRects(for range: NSRange) -> [CGRect] {
+        guard let textRange = textRange(range) else { return [] }
+        var rects: [CGRect] = []
+        layoutManager.enumerateTextSegments(in: textRange, type: .standard, options: [.rangeNotRequired]) { _, frame, _, _ in
+            rects.append(frame)
+            return true
+        }
+        return rects
+    }
+
     /// Corta en páginas por líneas enteras y anota el primer carácter de cada página.
     private func paginate() {
         lines = []
@@ -178,7 +216,8 @@ final class PageTextView: UIView {
         var pageFirst = 0
         for (i, line) in lines.enumerated() {
             if line.rect.maxY - top > pageSize.height, line.rect.minY > top {
-                // Si el corte cae dentro de un bloque (frase + traducción), el bloque entero pasa a la página siguiente.
+                // Si el corte cae dentro de un bloque (frase + traducción, ilustración + primera frase), el bloque
+                // entero pasa a la página siguiente.
                 var breakAt = i
                 if let block = keepTogether.first(where: { $0.location < line.start && line.start < $0.location + $0.length }),
                    let j = lines.indices.first(where: { lines[$0].start >= block.location }), j > pageFirst, j < i {
@@ -221,18 +260,29 @@ final class PageTextView: UIView {
         currentHighlight = highlight
         for range in highlighted { layoutManager.invalidateRenderingAttributes(for: range) }
         highlighted = []
+        markerRects = []
         if let s = highlight.sentence, let range = textRange(s) {
             layoutManager.setRenderingAttributes([.backgroundColor: theme.sentenceHighlight], for: range)
             highlighted.append(range)
         }
-        if let w = highlight.word, let range = textRange(w) {
-            var attributes: [NSAttributedString.Key: Any]
+        if let w = highlight.word {
             switch highlight.style {
-            case .underline: attributes = [.underlineStyle: NSUnderlineStyle.thick.rawValue, .underlineColor: theme.wordHighlight]
-            default: attributes = [.backgroundColor: theme.wordHighlight, .foregroundColor: theme.wordText]
+            case .marker:
+                // Marcador fluorescente: franja semitransparente sobre la mitad inferior de la línea, detrás del texto
+                // (como `drawBehind` en Android); el texto no cambia de color.
+                markerRects = segmentRects(for: w)
+                markerColor = theme.wordHighlight.withAlphaComponent(0.55)
+            case .underline:
+                if let range = textRange(w) {
+                    layoutManager.setRenderingAttributes([.underlineStyle: NSUnderlineStyle.thick.rawValue, .underlineColor: theme.wordHighlight], for: range)
+                    highlighted.append(range)
+                }
+            default:
+                if let range = textRange(w) {
+                    layoutManager.setRenderingAttributes([.backgroundColor: theme.wordHighlight, .foregroundColor: theme.wordText], for: range)
+                    highlighted.append(range)
+                }
             }
-            layoutManager.setRenderingAttributes(attributes, for: range)
-            highlighted.append(range)
         }
         setNeedsDisplay()
     }
@@ -245,6 +295,14 @@ final class PageTextView: UIView {
         ctx.saveGState()
         ctx.clip(to: CGRect(x: 0, y: 0, width: bounds.width, height: min(bounds.height, bottom - top)))
         ctx.translateBy(x: 0, y: -top)
+        if !markerRects.isEmpty {
+            ctx.setFillColor(markerColor.cgColor)
+            for r in markerRects where r.maxY >= top && r.minY <= bottom {
+                let band = CGRect(x: r.minX - 2, y: r.minY + r.height * 0.42, width: r.width + 4, height: r.height * 0.62)
+                ctx.addPath(UIBezierPath(roundedRect: band, cornerRadius: 3).cgPath)
+                ctx.fillPath()
+            }
+        }
         layoutManager.enumerateTextLayoutFragments(from: nil, options: [.ensuresLayout]) { fragment in
             let frame = fragment.layoutFragmentFrame
             if frame.minY > bottom { return false }
@@ -257,6 +315,12 @@ final class PageTextView: UIView {
     @objc private func tapped(_ recognizer: UITapGestureRecognizer) {
         let point = recognizer.location(in: self)
         onTap?(offset(at: point))
+    }
+
+    @objc private func longPressed(_ recognizer: UILongPressGestureRecognizer) {
+        guard recognizer.state == .began else { return }
+        let point = recognizer.location(in: self)
+        onLongPress?(offset(at: point))
     }
 
     /// Offset del capítulo bajo un punto de la página, o nil si no hay texto.

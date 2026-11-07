@@ -9,13 +9,14 @@ struct ChapterSegment {
     let length: Int
 }
 
-/// Texto de un capítulo listo para TextKit (título + pasajes, con la traducción bajo cada frase si se pide) y la
-/// correspondencia entre offsets del capítulo y offsets de cada pasaje. Equivale a `BookBlocks` en Android.
+/// Texto de un capítulo listo para TextKit (título + pasajes, con la traducción bajo cada frase si se pide y la
+/// ilustración del pasaje si la tiene) y la correspondencia entre offsets del capítulo y offsets de cada pasaje.
+/// Equivale a `BookBlocks` en Android.
 struct ChapterLayout {
     let chapterIndex: Int
     let attributed: NSAttributedString
     let segments: [ChapterSegment]
-    /// Bloques que no se parten entre páginas (frase + su traducción), en offsets del capítulo.
+    /// Bloques que no se parten entre páginas (frase + su traducción; ilustración + primera frase), en offsets del capítulo.
     let keepTogether: [NSRange]
     let key: String
 
@@ -46,9 +47,11 @@ struct ChapterLayout {
         /// Traducciones automáticas por id de frase, para las frases sin traducción incluida en el libro.
         var machineTranslations: [String: String] = [:]
         var themeId = "light"
+        /// Pasajes cuya ilustración ya está cargada (índice global del pasaje); vacío = sin ilustraciones.
+        var illustratedPassages: [Int] = []
     }
 
-    static func build(book: Book, chapterIndex: Int, style: Style, theme: ReaderTheme) -> ChapterLayout {
+    static func build(book: Book, chapterIndex: Int, style: Style, theme: ReaderTheme, images: [Int: UIImage] = [:]) -> ChapterLayout {
         let chapter = book.chapters[chapterIndex]
         let text = NSMutableAttributedString()
         var segments: [ChapterSegment] = []
@@ -74,14 +77,28 @@ struct ChapterLayout {
         let translationAttributes: [NSAttributedString.Key: Any] = [
             .font: serif(size: 16 * style.fontScale, weight: .regular, italic: true), .foregroundColor: theme.secondary, .paragraphStyle: paragraph,
         ]
+        let imageStyle = NSMutableParagraphStyle()
+        imageStyle.alignment = .center
+        imageStyle.paragraphSpacing = size * 0.6
+        imageStyle.paragraphSpacingBefore = size * 0.3
 
         for passage in chapter.passages {
             let index = Int(passage.index)
+            // Ilustración al inicio del pasaje, entera (ancho de página, proporción conservada), unida a su primera frase.
+            let imageStart = text.length
+            if style.illustratedPassages.contains(index), let image = images[index] {
+                let attachment = IllustrationAttachment(image: image)
+                let line = NSMutableAttributedString(attachment: attachment)
+                line.addAttributes([.paragraphStyle: imageStyle], range: NSRange(location: 0, length: line.length))
+                line.append(NSAttributedString(string: "\n", attributes: [.paragraphStyle: imageStyle, .font: body]))
+                text.append(line)
+            }
+            let hasImage = text.length > imageStart
             if style.showTranslations {
-                for sentence in passage.sentences {
+                for (n, sentence) in passage.sentences.enumerated() {
                     let start = Int(sentence.rangeStart), end = Int(sentence.rangeEnd)
                     let slice = utf16Slice(passage.text, start, end)
-                    let blockStart = text.length
+                    let blockStart = (n == 0 && hasImage) ? imageStart : text.length
                     segments.append(ChapterSegment(passageIndex: index, passageOffset: start, chapterOffset: text.length, length: slice.utf16.count))
                     text.append(NSAttributedString(string: slice + "\n", attributes: bodyAttributes))
                     let translation = sentence.translations[language] ?? sentence.translations[style.translationLanguage] ?? style.machineTranslations[sentence.id]
@@ -93,9 +110,14 @@ struct ChapterLayout {
             } else {
                 segments.append(ChapterSegment(passageIndex: index, passageOffset: 0, chapterOffset: text.length, length: passage.text.utf16.count))
                 text.append(NSAttributedString(string: passage.text + "\n", attributes: bodyAttributes))
+                if hasImage, let first = passage.sentences.first {
+                    // La imagen y la primera frase del pasaje van juntas (la frase entera: el párrafo sigue en la página siguiente).
+                    let firstEnd = text.length - passage.text.utf16.count - 1 + Int(first.rangeEnd)
+                    keepTogether.append(NSRange(location: imageStart, length: max(1, firstEnd - imageStart)))
+                }
             }
         }
-        let key = "\(book.id)|\(chapterIndex)|\(style.fontScale)|\(style.lineHeight)|\(style.justification)|\(style.showTranslations)|\(style.translationLanguage)|\(style.machineTranslations.count)|\(style.themeId)"
+        let key = "\(book.id)|\(chapterIndex)|\(style.fontScale)|\(style.lineHeight)|\(style.justification)|\(style.showTranslations)|\(style.translationLanguage)|\(style.machineTranslations.count)|\(style.themeId)|\(style.illustratedPassages)"
         return ChapterLayout(chapterIndex: chapterIndex, attributed: text, segments: segments, keepTogether: keepTogether, key: key)
     }
 
@@ -111,5 +133,31 @@ struct ChapterLayout {
         let s = utf16.index(utf16.startIndex, offsetBy: start)
         let e = utf16.index(utf16.startIndex, offsetBy: end)
         return String(text[s..<e])
+    }
+}
+
+/// Ilustración de un pasaje como adjunto de texto: ocupa el ancho de la línea y conserva la proporción (nunca se
+/// recorta); como mucho, la altura de 3/4 del ancho para que quepa en la página con su primera frase.
+final class IllustrationAttachment: NSTextAttachment {
+    private let aspect: CGFloat
+
+    init(image: UIImage) {
+        aspect = image.size.width > 0 ? image.size.height / image.size.width : 0.75
+        super.init(data: nil, ofType: nil)
+        self.image = image
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func attachmentBounds(for textContainer: NSTextContainer?, proposedLineFragment lineFrag: CGRect, glyphPosition position: CGPoint, characterIndex charIndex: Int) -> CGRect {
+        let width = max(40, lineFrag.width)
+        let maxHeight = width * 0.75
+        var height = width * aspect
+        var drawWidth = width
+        if height > maxHeight {
+            height = maxHeight
+            drawWidth = aspect > 0 ? height / aspect : width
+        }
+        return CGRect(x: 0, y: 0, width: drawWidth, height: height)
     }
 }

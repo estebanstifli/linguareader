@@ -63,14 +63,14 @@ struct OnboardingView: View {
             Text("Here's what we've set up").font(.largeTitle.bold())
             Text("Anything still downloading continues in the background: you can start now.").foregroundStyle(.secondary)
             if store.learningLanguages.isEmpty {
-                summaryRow("Language to learn", "Not chosen: you can add languages in Settings › Languages", "character.book.closed")
+                summaryRow("Language to learn", String(localized: "Not chosen: you can add languages in Settings › Languages"), "character.book.closed")
             }
             ForEach(store.learningLanguages, id: \.self) { lang in
                 summaryRow("\(Languages.name(lang)) library", libraryStatus(lang), "books.vertical")
                 if let translator = translatorStatus(lang, native: native) {
                     summaryRow("\(Languages.name(lang)) translator", translator, "character.bubble")
                 }
-                summaryRow("\(Languages.name(lang)) voice", "Ready (system voice)", "person.wave.2")
+                summaryRow("\(Languages.name(lang)) voice", String(localized: "Ready (system voice)"), "person.wave.2")
             }
             Button {
                 Task { try? await LinguaShared.shared.finishOnboarding() }
@@ -103,7 +103,7 @@ struct OnboardingView: View {
         return String(localized: "Pending")
     }
 
-    private func summaryRow(_ title: String, _ detail: String, _ icon: String) -> some View {
+    private func summaryRow(_ title: LocalizedStringKey, _ detail: String, _ icon: String) -> some View {
         HStack(spacing: 14) {
             Image(systemName: icon).font(.title2).frame(width: 44, height: 44).background(Color.accentColor.opacity(0.15), in: Circle())
             VStack(alignment: .leading) {

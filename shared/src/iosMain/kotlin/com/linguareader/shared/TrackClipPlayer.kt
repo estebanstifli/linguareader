@@ -37,7 +37,7 @@ class TrackClipPlayer : ClipPlayer {
     override fun enqueue(tag: Int, path: String) {
         val url = if ("://" in path) NSURL(string = path) else NSURL.fileURLWithPath(path)
         val p = AVAudioPlayer(contentsOfURL = url, error = null) ?: run {
-            _events.tryEmit(ClipEvent.Error("No se pudo abrir $path"))
+            _events.tryEmit(ClipEvent.Error("Could not open $path"))
             return
         }
         player?.stop()

@@ -100,22 +100,22 @@ private struct NoticeRow: View {
     }
 }
 
-/// Texto de los motivos tipados de fallo (hasta que llegue el catálogo de cadenas en el hito 3).
+/// Texto de los motivos tipados de fallo de las descargas (`PackError`), traducible.
 enum PackErrors {
     static func text(_ error: PackError) -> String {
         switch error {
-        case let e as PackErrorNoSpace: return "Not enough space: \(e.neededMb) MB needed, \(e.freeMb) MB free."
-        case let e as PackErrorDownloadInterruptedResumable: return "Download interrupted (\(e.detail)). It will resume where it left off."
-        case let e as PackErrorDownloadInterrupted: return "Download interrupted: \(e.detail)"
-        case let e as PackErrorDownloadError: return "Download failed: \(e.detail)"
-        case let e as PackErrorLibraryFailed: return "The library could not be installed: \(e.detail)"
-        case let e as PackErrorFilesCorrupt: return "Corrupt files: \(e.files)"
-        case let e as PackErrorVerifyError: return "Verification failed: \(e.detail)"
-        case let e as PackErrorFolderInaccessible: return "The model folder is not accessible: \(e.detail)"
-        case is PackErrorFolderCreateFailed: return "The model folder could not be created."
-        case is PackErrorRepoNotConfigured: return "The download server is not configured."
-        case is PackErrorVoicePackCatalogUnavailable: return "The voice pack catalog is unavailable."
-        default: return "Something went wrong."
+        case let e as PackErrorNoSpace: return String(localized: "Not enough space: \(Int(e.neededMb)) MB needed, \(Int(e.freeMb)) MB free.")
+        case let e as PackErrorDownloadInterruptedResumable: return String(localized: "Download interrupted (\(e.detail)). It will resume where it left off.")
+        case let e as PackErrorDownloadInterrupted: return String(localized: "Download interrupted: \(e.detail)")
+        case let e as PackErrorDownloadError: return String(localized: "Download failed: \(e.detail)")
+        case let e as PackErrorLibraryFailed: return String(localized: "The library could not be installed: \(e.detail)")
+        case let e as PackErrorFilesCorrupt: return String(localized: "Corrupt files: \(e.files)")
+        case let e as PackErrorVerifyError: return String(localized: "Verification failed: \(e.detail)")
+        case let e as PackErrorFolderInaccessible: return String(localized: "The model folder is not accessible: \(e.detail)")
+        case is PackErrorFolderCreateFailed: return String(localized: "The model folder could not be created.")
+        case is PackErrorRepoNotConfigured: return String(localized: "The download server is not configured.")
+        case is PackErrorVoicePackCatalogUnavailable: return String(localized: "The voice pack catalog is unavailable.")
+        default: return String(localized: "Something went wrong.")
         }
     }
 }

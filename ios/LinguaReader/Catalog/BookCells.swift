@@ -50,8 +50,11 @@ struct BookRow: View {
                 if !book.authors.isEmpty {
                     Text(book.authors.joined(separator: ", ")).font(.subheadline).foregroundStyle(.secondary)
                 }
-                Text("\(Languages.name(book.learningLanguage)) · ≈\(book.estimatedMinutes) min\(store.isLibraryBook(book.id) ? "" : " · Imported")")
-                    .font(.caption).foregroundStyle(.secondary)
+                if store.isLibraryBook(book.id) {
+                    Text("\(Languages.name(book.learningLanguage)) · ≈\(Int(book.estimatedMinutes)) min").font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text("\(Languages.name(book.learningLanguage)) · ≈\(Int(book.estimatedMinutes)) min · Imported").font(.caption).foregroundStyle(.secondary)
+                }
                 if let fraction = store.progressFraction(book.id) {
                     HStack(spacing: 8) {
                         ProgressView(value: fraction)
@@ -61,8 +64,37 @@ struct BookRow: View {
                 BookTranslationRow(bookId: book.id)
             }
             Spacer(minLength: 0)
+            ShelfQuickIcons(bookId: book.id)
         }
         .padding(.vertical, 4)
+    }
+}
+
+/// Iconos rápidos de la fila (como en Android): Para leer, Leídos y Favorito; un toque entra o sale de la estantería.
+struct ShelfQuickIcons: View {
+    @EnvironmentObject private var store: AppStore
+    let bookId: String
+
+    var body: some View {
+        VStack(spacing: 10) {
+            ForEach(ordered, id: \.id) { shelf in
+                let member = shelf.bookIds.contains(bookId)
+                Button { store.setInShelf(shelf.id, bookId, !member) } label: {
+                    Image(systemName: Shelves.icon(shelf) + (member ? ".fill" : ""))
+                        .font(.footnote)
+                        .foregroundStyle(member ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel(Shelves.title(shelf))
+                .accessibilityValue(member ? Text("On") : Text("Off"))
+            }
+        }
+        .padding(.top, 2)
+    }
+
+    private var ordered: [Shelf] {
+        let kinds = [LibraryRepository.companion.TO_READ, LibraryRepository.companion.READ, LibraryRepository.companion.FAVORITES]
+        return kinds.compactMap { kind in (store.shelves?.shelves ?? []).first { $0.kind == kind } }
     }
 }
 

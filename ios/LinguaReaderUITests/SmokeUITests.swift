@@ -39,6 +39,22 @@ final class SmokeUITests: XCTestCase {
 
         app.buttons["reader.next"].tap()
         XCTAssertTrue(text.waitForExistence(timeout: 10))
+
+        // Pulsación larga sobre el texto: hoja de la frase con «Listen to sentence» (fase 2).
+        app.buttons["reader.pause"].tap()
+        text.press(forDuration: 0.8)
+        let sentence = app.descendants(matching: .any).matching(identifier: "sentence.sheet").firstMatch
+        XCTAssertTrue(sentence.waitForExistence(timeout: 15), "A long press should open the sentence sheet")
+        XCTAssertTrue(app.buttons["sentence.listen"].waitForExistence(timeout: 5))
+        app.buttons["Close"].firstMatch.tap()
+
+        // Toque en una palabra: el popup compacto, y «More information» abre la ficha completa.
+        text.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45)).tap()
+        let popup = app.descendants(matching: .any).matching(identifier: "word.popup").firstMatch
+        if popup.waitForExistence(timeout: 10) {
+            app.buttons["word.moreInfo"].tap()
+            XCTAssertTrue(app.navigationBars["Word"].waitForExistence(timeout: 10), "The full word card should open from the popup")
+        }
     }
 
     /// Primera apertura completa: aprender inglés, nivel A1, descarga e instalación de la biblioteca (38 libros) y

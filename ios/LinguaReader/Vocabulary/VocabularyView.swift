@@ -14,8 +14,11 @@ struct VocabularyView: View {
                     ForEach(store.vocabulary, id: \.id) { entry in
                         VStack(alignment: .leading, spacing: 4) {
                             Text(entry.term).font(.headline)
-                            Text(entry.translation ?? "No translation into \(Languages.name(entry.targetLanguage))")
-                                .foregroundStyle(entry.translation == nil ? .secondary : .primary)
+                            if let translation = entry.translation {
+                                Text(translation)
+                            } else {
+                                Text("No translation into \(Languages.nameInSentence(entry.targetLanguage))").foregroundStyle(.secondary)
+                            }
                             if let lemma = entry.lemma, lemma != entry.term {
                                 Text(lemma).font(.subheadline).foregroundStyle(.secondary)
                             }

@@ -272,7 +272,7 @@ class AppleSpeechEngine : StreamingSpeechEngine, FileSpeechSynthesizer {
      */
     override suspend fun synthesizeTo(request: SpeechRequest, target: Path): SynthesisOutcome = fileMutex.withLock {
         val chosen = resolveVoice(request.languageTag, request.voiceId)
-            ?: return SynthesisOutcome.Failed(SpeechResult.Failure(EngineUnavailableReason.LANGUAGE_NOT_SUPPORTED, "Idioma no disponible"))
+            ?: return SynthesisOutcome.Failed(SpeechResult.Failure(EngineUnavailableReason.LANGUAGE_NOT_SUPPORTED, "Language not available"))
         val pitch = request.parameters[PITCH_PARAM]?.toFloatOrNull() ?: 1.0f
         val job = FileJob()
         val writer = AVSpeechSynthesizer()

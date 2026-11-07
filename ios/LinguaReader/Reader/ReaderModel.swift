@@ -11,6 +11,8 @@ struct WordCard: Identifiable {
     let lookup: WordLookup
     var saved: Bool
     var pausedByTap: Bool
+    /// Rango de la palabra en el capítulo: la página devuelve su caja para colocar el popup junto a ella.
+    var anchor: NSRange?
 }
 
 struct SentenceCard: Identifiable {
@@ -18,6 +20,28 @@ struct SentenceCard: Identifiable {
     let passageIndex: Int
     let sentence: Sentence
     let translation: String?
+    /// La traducción la hizo el traductor del dispositivo (no viene con el libro): se etiqueta «Machine translation».
+    var machine: Bool = false
+    var pausedByTap: Bool = false
+}
+
+/// Texto de los motivos por los que no hay traducción (`TranslationResult.Unavailable`), como `Labels.unavailable` en Android.
+enum TranslationLabels {
+    static func unavailable(_ result: TranslationResult?, target: String) -> String {
+        guard let reason = (result as? TranslationResultUnavailable)?.reason else { return String(localized: "No translation available.") }
+        if reason == TranslationResultReason.sameLanguage { return String(localized: "Same language as the book.") }
+        if reason == TranslationResultReason.modelMissing { return String(localized: "The translator for this language is not downloaded yet.") }
+        if reason == TranslationResultReason.languagePairUnsupported { return String(localized: "This language pair is not supported.") }
+        if reason == TranslationResultReason.offline { return String(localized: "No connection: the translation needs internet.") }
+        if reason == TranslationResultReason.engineError { return String(localized: "The translator failed. Try again.") }
+        return String(localized: "No translation into \(Languages.nameInSentence(target)) for this word.")
+    }
+
+    /// Traducción hecha por el traductor del dispositivo (no por el glosario incluido en el libro).
+    static func isMachine(_ result: TranslationResult?) -> Bool {
+        guard let t = result as? TranslationResultTranslated else { return false }
+        return t.providerId != "bundled"
+    }
 }
 
 struct SearchHit: Identifiable {
@@ -45,9 +69,14 @@ final class ReaderModel: ObservableObject {
     @Published var showOffset: Int?
     @Published var controlsVisible = true
     @Published var wordCard: WordCard?
+    /// Caja de la palabra de `wordCard` en la página visible (coordenadas de la página); nil si no se ve.
+    @Published var wordAnchorRect: CGRect?
     @Published var sentenceCard: SentenceCard?
     @Published var showFullCard = false
     @Published var error: String?
+    /// Ilustraciones de los pasajes ya cargadas (índice global del pasaje).
+    @Published private(set) var passageImages: [Int: UIImage] = [:]
+    private var loadingImages: Set<Int> = []
     @Published var translatorDownloading = false
     /// Traducciones automáticas (ML Kit, caché en Room) por id de frase, para «traducción bajo cada frase» en libros
     /// sin traducciones incluidas.
@@ -152,6 +181,10 @@ final class ReaderModel: ObservableObject {
             s.translationLanguage = p.translationLanguage
             if s.showTranslations { s.machineTranslations = machineTranslations }
             s.themeId = p.theme.name
+            if p.showIllustrations, let book, chapterIndex < book.chapters.count {
+                let inChapter = Set(book.chapters[chapterIndex].passages.map { Int($0.index) })
+                s.illustratedPassages = passageImages.keys.filter { inChapter.contains($0) }.sorted()
+            }
         }
         s.themeId += systemDark ? "-dark" : "-light"
         return s
@@ -160,11 +193,12 @@ final class ReaderModel: ObservableObject {
     func rebuildLayoutIfNeeded() {
         guard let book, chapterIndex < book.chapters.count else { return }
         ensureMachineTranslations()
+        ensureIllustrations()
         let style = self.style
         if layout != nil, layout?.chapterIndex == chapterIndex, lastStyle == style { return }
         lastStyle = style
         let anchor = currentReadingOffset()
-        layout = ChapterLayout.build(book: book, chapterIndex: chapterIndex, style: style, theme: theme(systemDark: systemDark))
+        layout = ChapterLayout.build(book: book, chapterIndex: chapterIndex, style: style, theme: theme(systemDark: systemDark), images: passageImages)
         if let anchor, let offset = layout?.chapterOffset(passageIndex: anchor.passageIndex, offset: anchor.offset) { showOffset = offset }
         UIApplication.shared.isIdleTimerDisabled = prefs?.keepScreenOn ?? false
     }
@@ -194,6 +228,28 @@ final class ReaderModel: ObservableObject {
             if !done.isEmpty {
                 self.machineTranslations.merge(done) { _, new in new }
                 self.rebuildLayoutIfNeeded()
+            }
+        }
+    }
+
+    /// Carga (una vez) las ilustraciones de los pasajes del capítulo y recompone cuando llegan. Verificadas por sha256
+    /// como la portada; una imagen corrupta o ausente simplemente no se muestra.
+    private func ensureIllustrations() {
+        guard let book, prefs?.showIllustrations ?? true, chapterIndex < book.chapters.count else { return }
+        for passage in book.chapters[chapterIndex].passages {
+            let index = Int(passage.index)
+            guard let ref = passage.image, passageImages[index] == nil, !loadingImages.contains(index) else { continue }
+            loadingImages.insert(index)
+            Task { [weak self] in
+                let data = try? await LinguaShared.shared.loadCover(bookId: book.id, cover: ref)
+                let image = data.flatMap { UIImage(data: $0) }?.preparingThumbnail(of: CGSize(width: 1200, height: 1200))
+                    ?? data.flatMap { UIImage(data: $0) }
+                guard let self else { return }
+                self.loadingImages.remove(index)
+                if let image {
+                    self.passageImages[index] = image
+                    self.rebuildLayoutIfNeeded()
+                }
             }
         }
     }
@@ -244,7 +300,8 @@ final class ReaderModel: ObservableObject {
         chapterIndex = index
         lastStyle = nil
         ensureMachineTranslations()
-        layout = ChapterLayout.build(book: book, chapterIndex: index, style: style, theme: theme(systemDark: systemDark))
+        ensureIllustrations()
+        layout = ChapterLayout.build(book: book, chapterIndex: index, style: style, theme: theme(systemDark: systemDark), images: passageImages)
         pageOffsets = []
         pageIndex = atEnd ? Int.max / 2 : 0
         showOffset = atEnd ? layout?.attributed.length ?? 0 : 0
@@ -269,7 +326,7 @@ final class ReaderModel: ObservableObject {
         passageIndex = index
         completionHandledFor = nil
         lastSpoken = nil
-        wordCard = nil
+        dismissWordCard()
         sentenceCard = nil
         if let chapter = book.chapterOf(passage: passage), let ci = book.chapters.firstIndex(where: { $0.id == chapter.id }) {
             chapterIndex = ci
@@ -407,6 +464,49 @@ final class ReaderModel: ObservableObject {
         return PointerPlan(word: word, lead: nil, step: PointerStep(tokenId: target.id, gap: true))
     }
 
+    /// «Preparing to read…»: el motor genera las primeras frases tras pedir audio (audio en caché o narración).
+    var preparing: Bool {
+        guard audioRequested, let playback, playback.buffering else { return false }
+        return playback.status != .playing && playback.status != .error
+    }
+
+    /// Error de audio que merece banner (como `AudioBanner` en Android): voz no disponible o motor caído.
+    var audioProblem: String? {
+        guard ttsMode, let playback else { return nil }
+        if let unavailable = playback.readiness as? EngineReadinessUnavailable {
+            let lang = Languages.nameInSentence(unavailable.languageTag)
+            return String(localized: "No voice available for \(lang) on this device.")
+        }
+        if playback.status == .error {
+            let code = playback.errorCode.map { "\($0.intValue)" } ?? "?"
+            return String(localized: "The speech engine failed (code \(code)). Press play to try again.")
+        }
+        return nil
+    }
+
+    /// Vuelve a cargar el pasaje en el mismo punto y reproduce (botón «Retry» del banner de error).
+    func retryAudio() async {
+        guard let book, let passage else { return }
+        let offset = playback?.passageId == passage.id ? (playback?.resumeOffset ?? 0) : 0
+        audioRequested = true
+        do {
+            try await audio.load(passage: passage, languageTag: book.learningLanguage, voiceId: voiceId, startOffset: offset)
+            try await audio.play()
+        } catch { self.error = error.localizedDescription }
+    }
+
+    /// Códigos de traductor que faltan para traducir del idioma del libro al del usuario (banner del lector).
+    var missingTranslators: [String] {
+        guard let book, let models = store?.translationModels, let store else { return [] }
+        let native = LinguaShared.shared.translationCode(languageTag: translationLanguage) ?? Languages.primary(translationLanguage)
+        return store.neededModels(Languages.primary(book.learningLanguage), native: native).filter { !models.downloaded.contains($0) }
+    }
+
+    func downloadMissingTranslators() {
+        guard let book else { return }
+        LinguaShared.shared.downloadTranslationModelsFor(sourceLanguage: book.learningLanguage, targetLanguage: translationLanguage)
+    }
+
     func togglePlay() async {
         guard ttsMode else { try? await LinguaShared.shared.setTtsMode(enabled: true); return }
         do {
@@ -474,7 +574,7 @@ final class ReaderModel: ObservableObject {
     /// «Leer desde aquí»: desde un offset del capítulo.
     func readFrom(chapterOffset: Int) async {
         guard let layout, let loc = layout.location(chapterOffset: chapterOffset) else { return }
-        wordCard = nil
+        dismissWordCard()
         audioRequested = true
         if !ttsMode { try? await LinguaShared.shared.setTtsMode(enabled: true) }
         let hadNarration = narrationActive
@@ -493,6 +593,8 @@ final class ReaderModel: ObservableObject {
     // MARK: Toque en palabra
 
     func tapped(chapterOffset: Int?) async {
+        // Con el popup abierto, el toque en la página lo cierra (y reanuda si la voz se pausó por él), como en Android.
+        if wordCard != nil, !showFullCard { await resumeAfterCard(); return }
         guard let chapterOffset, let layout, let book, let loc = layout.location(chapterOffset: chapterOffset),
               loc.passageIndex < book.passages.count else {
             withAnimation { controlsVisible.toggle() }
@@ -508,18 +610,75 @@ final class ReaderModel: ObservableObject {
         do {
             let lookup = try await LinguaShared.shared.lookupWord(book: book, passage: passage, token: token, targetLanguage: translationLanguage)
             let saved = (try? await LinguaShared.shared.isSavedWord(bookId: book.id, term: token.text, targetLanguage: translationLanguage))?.boolValue ?? false
-            wordCard = WordCard(passageIndex: loc.passageIndex, token: token, lookup: lookup, saved: saved, pausedByTap: pausedByTap)
+            let anchor = layout.chapterRange(passageIndex: loc.passageIndex, start: Int(token.rangeStart), end: Int(token.rangeEnd))
+            showFullCard = false
+            wordAnchorRect = nil
+            wordCard = WordCard(passageIndex: loc.passageIndex, token: token, lookup: lookup, saved: saved, pausedByTap: pausedByTap, anchor: anchor)
         } catch {
             self.error = error.localizedDescription
         }
     }
 
-    func openSentenceCard(_ card: WordCard) async {
+    /// Pulsación larga: hoja de la frase bajo el dedo, con su traducción (incluida en el libro o automática).
+    func longPressed(chapterOffset: Int?) async {
+        guard let chapterOffset, let layout, let book, let loc = layout.location(chapterOffset: chapterOffset),
+              loc.passageIndex < book.passages.count else { return }
+        let passage = book.passages[loc.passageIndex]
+        guard let sentence = OffsetIndex.shared.sentenceAt(sentences: passage.sentences, offset: Int32(loc.offset))
+            ?? passage.sentences.last(where: { Int($0.rangeStart) <= loc.offset }) else { return }
+        await openSentence(passageIndex: loc.passageIndex, sentence: sentence)
+    }
+
+    /// Acción de accesibilidad «Translate sentence»: la que suena o, en pausa, la primera de la página.
+    func translateCurrentSentence() async {
+        guard let book, let passage else { return }
+        if let playback, playback.passageId == passage.id, playback.granularity != .none, Int(playback.sentenceIndex) < passage.sentences.count {
+            await openSentence(passageIndex: passageIndex, sentence: passage.sentences[Int(playback.sentenceIndex)])
+            return
+        }
+        guard let layout, pageIndex < pageOffsets.count, let loc = layout.location(chapterOffset: pageOffsets[pageIndex]),
+              loc.passageIndex < book.passages.count else { return }
+        let p = book.passages[loc.passageIndex]
+        guard let sentence = OffsetIndex.shared.sentenceAt(sentences: p.sentences, offset: Int32(loc.offset)) ?? p.sentences.first(where: { Int($0.rangeStart) >= loc.offset }) else { return }
+        await openSentence(passageIndex: loc.passageIndex, sentence: sentence)
+    }
+
+    private func openSentence(passageIndex index: Int, sentence: Sentence) async {
         guard let book else { return }
-        let passage = book.passages[card.passageIndex]
-        let translation = (card.lookup.sentenceTranslation as? TranslationResultTranslated)?.text
-        sentenceCard = SentenceCard(passageIndex: card.passageIndex, sentence: card.lookup.sentence, translation: translation)
-        _ = passage
+        let passage = book.passages[index]
+        var pausedByTap = false
+        if isPlaying, prefs?.pauseOnWordTap ?? true { try? await audio.pause(); pausedByTap = true }
+        wordCard = nil
+        let language = Languages.primary(translationLanguage)
+        if let included = sentence.translations[language] ?? sentence.translations[translationLanguage] {
+            sentenceCard = SentenceCard(passageIndex: index, sentence: sentence, translation: included, machine: false, pausedByTap: pausedByTap)
+            return
+        }
+        let result = try? await LinguaShared.shared.translateSentence(book: book, passage: passage, sentence: sentence, targetLanguage: translationLanguage)
+        let translation = (result as? TranslationResultTranslated)?.text
+        sentenceCard = SentenceCard(passageIndex: index, sentence: sentence, translation: translation, machine: TranslationLabels.isMachine(result), pausedByTap: pausedByTap)
+    }
+
+    func openSentenceCard(_ card: WordCard) async {
+        let result = card.lookup.sentenceTranslation
+        let translation = (result as? TranslationResultTranslated)?.text
+        showFullCard = false
+        wordCard = nil
+        sentenceCard = SentenceCard(passageIndex: card.passageIndex, sentence: card.lookup.sentence, translation: translation, machine: TranslationLabels.isMachine(result), pausedByTap: card.pausedByTap)
+    }
+
+    /// Reproduce la frase de la hoja con la voz del libro, sin mover el punto de lectura.
+    func speakSentence(_ card: SentenceCard) async { await speak(card.sentence.text) }
+
+    // MARK: Menú del lector (compartir, estanterías, papelera)
+
+    /// Texto plano del libro en un fichero temporal para la hoja de compartir del sistema.
+    func shareTextFile() async -> URL? {
+        guard let book, let text = try? await LinguaShared.shared.bookText(bookId: book.id) else { return nil }
+        let name = book.title.replacingOccurrences(of: "/", with: "-")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(name).txt")
+        try? text.write(to: url, atomically: true, encoding: .utf8)
+        return url
     }
 
     func saveWord(_ card: WordCard) async {
@@ -545,10 +704,19 @@ final class ReaderModel: ObservableObject {
     }
 
     func resumeAfterCard() async {
-        let paused = wordCard?.pausedByTap ?? false
+        let paused = (wordCard?.pausedByTap ?? false) || (sentenceCard?.pausedByTap ?? false)
         wordCard = nil
         sentenceCard = nil
+        showFullCard = false
+        wordAnchorRect = nil
         if paused { try? await audio.play() }
+    }
+
+    /// Cierra la ficha de palabra sin reanudar (al pasar a otra acción, p. ej. «Read from here»).
+    func dismissWordCard() {
+        wordCard = nil
+        showFullCard = false
+        wordAnchorRect = nil
     }
 
     func speak(_ text: String) async {

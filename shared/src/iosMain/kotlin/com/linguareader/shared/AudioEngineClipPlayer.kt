@@ -76,7 +76,7 @@ class AudioEngineClipPlayer : ClipPlayer {
     override fun enqueue(tag: Int, path: String) {
         val buffer = load(path) ?: run {
             Diagnostics.log(TAG, "cannot read clip $tag: $path")
-            _events.tryEmit(ClipEvent.Error("No se pudo leer $path"))
+            _events.tryEmit(ClipEvent.Error("Could not read $path"))
             return
         }
         append(Item(tag, buffer, scheduledFrames))
@@ -132,7 +132,7 @@ class AudioEngineClipPlayer : ClipPlayer {
     override fun play() {
         if (!ensureEngine()) {
             Diagnostics.log(TAG, "AVAudioEngine did not start")
-            _events.tryEmit(ClipEvent.Error("AVAudioEngine no arranca"))
+            _events.tryEmit(ClipEvent.Error("AVAudioEngine did not start"))
             return
         }
         val first = queue.firstOrNull { !it.done }
