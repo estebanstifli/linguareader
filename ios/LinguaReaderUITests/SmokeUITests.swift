@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 
 /// Humo de la app en simulador (CI) y en iPhone real (Device Farm, XCTest UI).
 final class SmokeUITests: XCTestCase {
@@ -55,6 +56,48 @@ final class SmokeUITests: XCTestCase {
             app.buttons["word.moreInfo"].tap()
             XCTAssertTrue(app.navigationBars["Word"].waitForExistence(timeout: 10), "The full word card should open from the popup")
         }
+    }
+
+    /// iPad en horizontal (fase 6): el lector abre el libro como un libro abierto, con dos caras por pliego, y se
+    /// puede pasar el pliego. Deja capturas para la ficha de App Store (iPad de 13"). En iPhone no aplica.
+    func test3OpensTwoPagesOnAnIPadInLandscape() throws {
+        guard UIDevice.current.userInterfaceIdiom == .pad else { throw XCTSkip("Double page is checked on iPad") }
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let app = XCUIApplication()
+        app.launchArguments = ["-skipOnboarding", "-importSample"]
+        app.launch()
+
+        let row = app.descendants(matching: .any).matching(identifier: "catalog.row").firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 90), "The sample book should appear after the first import")
+        screenshot(app, "ipad-catalog-landscape")
+        row.tap()
+        let read = app.buttons["detail.read"]
+        XCTAssertTrue(read.waitForExistence(timeout: 10), "The book detail should offer Read")
+        read.tap()
+
+        let text = app.descendants(matching: .any).matching(identifier: "reader.text").firstMatch
+        XCTAssertTrue(text.waitForExistence(timeout: 30), "The first passage should be shown")
+        let spread = app.descendants(matching: .any).matching(identifier: "reader.pages.spread").firstMatch
+        XCTAssertTrue(spread.waitForExistence(timeout: 15), "A landscape iPad should show two pages side by side")
+        screenshot(app, "ipad-reader-two-pages")
+
+        // Tocar una palabra de la cara derecha abre su traducción (el toque se mapea a la segunda columna).
+        text.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.3)).tap()
+        let popup = app.descendants(matching: .any).matching(identifier: "word.popup").firstMatch
+        if popup.waitForExistence(timeout: 10) { screenshot(app, "ipad-reader-word") }
+
+        // De vuelta a vertical: el lector vuelve a cortar el capítulo en una sola página por pantalla.
+        XCUIDevice.shared.orientation = .portrait
+        XCTAssertTrue(text.waitForExistence(timeout: 10))
+        screenshot(app, "ipad-reader-portrait")
+    }
+
+    private func screenshot(_ app: XCUIApplication, _ name: String) {
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = name
+        shot.lifetime = .keepAlways
+        add(shot)
     }
 
     /// Primera apertura completa: aprender inglés, nivel A1, descarga e instalación de la biblioteca (38 libros) y

@@ -30,7 +30,10 @@ targets:
         CFBundleLocalizations: [en, es, fr, de, it, pt]
         UILaunchScreen: {}
         UIBackgroundModes: [audio]
-        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        # iPhone: vertical por defecto; la app limita en tiempo de ejecución según la preferencia (OrientationLock).
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        # iPad: las cuatro (requisito de la multitarea de iPadOS).
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         ITSAppUsesNonExemptEncryption: false
         # Importar documentos del usuario («Abrir en LingoAudioBook» desde Archivos, Mail, WhatsApp, Safari…): la app
         # recibe una URL con ámbito de seguridad y la copia a su caché (DocumentInbox).
@@ -86,7 +89,8 @@ targets:
       base:
         # App ID registrado en el programa de desarrolladores (equivale a com.lingoaudiobook.app en Android).
         PRODUCT_BUNDLE_IDENTIFIER: com.lingoaudiobook.ios
-        TARGETED_DEVICE_FAMILY: "1"
+        # iPhone e iPad (fase 6: doble página en horizontal, rejillas adaptativas, giro libre en iPad).
+        TARGETED_DEVICE_FAMILY: "1,2"
         MARKETING_VERSION: "0.4.2"
         CURRENT_PROJECT_VERSION: "6"
         # El compilador emite .stringsdata con las claves de las vistas SwiftUI; CI los vuelca al catálogo.

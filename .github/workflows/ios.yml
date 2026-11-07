@@ -173,6 +173,36 @@ jobs:
           $XCODEBUILD_FLAGS
           | tee build/xcodebuild-simulator.log | grep -E "Test Case|error:|warning: unre|\*\* TEST|Executed" || true;
           grep -q "\*\* TEST SUCCEEDED \*\*" build/xcodebuild-simulator.log
+      - name: "iPad: smoke test and the landscape double page (iPad Pro 13-inch, also the App Store screenshots)"
+        working-directory: ios
+        run: |
+          set -o pipefail
+          bash scripts/prepare-simulator.sh build/ipad-udid.txt "iPad Pro 13-inch (M4)" | tee build/prepare-ipad.log
+          xcodebuild test-without-building \
+            -project LinguaReader.xcodeproj -scheme LinguaReader \
+            -destination "platform=iOS Simulator,id=$(cat build/ipad-udid.txt)" \
+            -derivedDataPath build/simulator \
+            -resultBundlePath build/simulator/LinguaReader-iPad.xcresult \
+            -only-testing:LinguaReaderUITests/SmokeUITests/test1OpensTheSampleBookAndStartsReading \
+            -only-testing:LinguaReaderUITests/SmokeUITests/test3OpensTwoPagesOnAnIPadInLandscape \
+            $XCODEBUILD_FLAGS \
+            | tee build/xcodebuild-ipad.log | grep -E "Test Case|error:|\*\* TEST|Executed" || true
+          grep -q "\*\* TEST SUCCEEDED \*\*" build/xcodebuild-ipad.log
+      - name: Export the iPad screenshots
+        if: always()
+        working-directory: ios
+        run: |
+          mkdir -p build/ipad-screenshots
+          [ -d build/simulator/LinguaReader-iPad.xcresult ] || exit 0
+          xcrun xcresulttool export attachments --path build/simulator/LinguaReader-iPad.xcresult --output-path build/ipad-screenshots || true
+          ls -la build/ipad-screenshots
+      - name: Upload the iPad screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipad-screenshots
+          path: ios/build/ipad-screenshots
+          if-no-files-found: ignore
       - name: Package the simulator app for Appetize.io (.app zipped; no ML Kit, and Appetize has no iOS audio)
         if: always()
         working-directory: ios
@@ -208,7 +238,9 @@ jobs:
           name: ios-simulator-results
           path: |
             ios/build/xcodebuild-simulator.log
+            ios/build/xcodebuild-ipad.log
             ios/build/prepare-simulator.log
+            ios/build/prepare-ipad.log
             ios/build/simulator/LinguaReader.xcresult
             ios/build/diagnostics
           if-no-files-found: ignore

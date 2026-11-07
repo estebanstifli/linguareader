@@ -80,6 +80,7 @@ import com.linguareader.engine.supertonic.SupertonicSampleTexts
 import com.linguareader.shared.pdf.PdfKitExtractor
 import com.linguareader.shared.pdf.PdfWordLayout
 import com.linguareader.core.model.OriginalOpenMode
+import com.linguareader.core.model.ScreenOrientation
 import com.linguareader.data.catalog.CatalogCategory
 import com.linguareader.data.catalog.CatalogLanguage
 import com.linguareader.data.catalog.CatalogPage
@@ -517,6 +518,25 @@ object LinguaShared {
     @Throws(Throwable::class) suspend fun setShowIllustrations(enabled: Boolean) = preferences.update { it.copy(showIllustrations = enabled) }
     @Throws(Throwable::class) suspend fun setTtsPitch(pitch: Float) = preferences.update { it.copy(ttsPitch = pitch) }
     @Throws(Throwable::class) suspend fun setAudioCacheLimit(mb: Int) = preferences.update { it.copy(audioCacheMb = mb) }
+    @Throws(Throwable::class) suspend fun setDoublePage(enabled: Boolean) = preferences.update { it.copy(doublePage = enabled) }
+
+    /** Orientación por nombre (PORTRAIT, LANDSCAPE, AUTO): Swift no depende de cómo se exporta la entrada AUTO. */
+    @Throws(Throwable::class)
+    suspend fun setOrientation(name: String) = preferences.update { p ->
+        p.copy(orientation = ScreenOrientation.entries.firstOrNull { it.name == name } ?: p.orientation)
+    }
+
+    /** Botón del lector: vertical → horizontal → automática, como en Android. */
+    @Throws(Throwable::class)
+    suspend fun cycleOrientation() = preferences.update { p ->
+        p.copy(
+            orientation = when (p.orientation) {
+                ScreenOrientation.PORTRAIT -> ScreenOrientation.LANDSCAPE
+                ScreenOrientation.LANDSCAPE -> ScreenOrientation.AUTO
+                ScreenOrientation.AUTO -> ScreenOrientation.PORTRAIT
+            },
+        )
+    }
 
     /** Bytes que ocupa la caché de audio (sin los clips fijados), como la tarjeta «Caché de audio» de Android. */
     fun audioCacheBytes(): Long = audioCache.sizeBytes()

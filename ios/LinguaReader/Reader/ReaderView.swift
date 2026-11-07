@@ -10,6 +10,7 @@ struct ReaderView: View {
     @State private var shareItem: ShareItem?
     @State private var confirmTrash = false
     @State private var newCollection = false
+    @State private var readerSize: CGSize = .zero
 
     /// `listen`: «Read and listen» desde la ficha: la voz arranca al abrir. `original`: abrir viendo el PDF original.
     init(bookId: String, listen: Bool = false, original: Bool = false) {
@@ -37,6 +38,7 @@ struct ReaderView: View {
             }
             if model.controlsVisible { bars }
         }
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { readerSize = $0 }
         .statusBarHidden(!model.controlsVisible)
         .toolbar(.hidden, for: .navigationBar)
         .preferredColorScheme(theme.dark ? .dark : .light)
@@ -72,10 +74,17 @@ struct ReaderView: View {
         }
     }
 
+    /// Libro abierto (dos caras) en horizontal cuando cada cara tiene un ancho cómodo: iPad, y iPhone grande en
+    /// horizontal. Misma regla que Android (`PagedReader.kt`: ≥ 840 de ancho y más ancho que alto).
+    private var columns: Int {
+        (model.prefs?.doublePage ?? true) && readerSize.width > readerSize.height && readerSize.width >= 840 ? 2 : 1
+    }
+
     private var page: some View {
         ChapterPageView(
             layout: model.layout,
             theme: theme,
+            columns: columns,
             pageIndex: $model.pageIndex,
             highlight: model.highlight,
             pointer: model.pointerPlan,
@@ -96,11 +105,12 @@ struct ReaderView: View {
                 }
             }
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, columns > 1 ? 32 : 20)
         .padding(.top, model.controlsVisible ? 96 : 44)
         .padding(.bottom, model.controlsVisible ? (model.ttsMode ? 150 : 90) : 36)
         .accessibilityIdentifier("reader.text")
         .accessibilityLabel(model.passage?.text ?? "")
+        .accessibilityValue(columns > 1 ? String(localized: "Two pages") : "")
         .accessibilityAction(named: Text("Next page")) { model.nextPage() }
         .accessibilityAction(named: Text("Previous page")) { model.previousPage() }
         .accessibilityAction(named: Text("Show or hide the controls")) { withAnimation { model.controlsVisible.toggle() } }
@@ -213,6 +223,7 @@ struct ReaderView: View {
                 EmptyView()
             } else { HStack {
                 Text("\(model.pageIndex + 1) / \(model.pageCount)").font(.caption).monospacedDigit()
+                    .accessibilityIdentifier(columns > 1 ? "reader.pages.spread" : "reader.pages")
                 if model.pageCount > 1 {
                     Slider(value: Binding(get: { Double(min(model.pageIndex, model.pageCount - 1)) }, set: { model.pageIndex = Int($0.rounded()) }), in: 0...Double(model.pageCount - 1), step: 1)
                         .accessibilityLabel("Page")
@@ -224,6 +235,15 @@ struct ReaderView: View {
                 }
                 .accessibilityIdentifier("reader.bookmark")
                 .accessibilityLabel(model.currentPageBookmark != nil ? Text("Remove bookmark") : Text("Add bookmark"))
+                if OrientationLock.isPhone, let prefs = store.prefs {
+                    // Orientación de toda la app (vertical → horizontal → automática), como el botón de Android.
+                    Button { Task { try? await LinguaShared.shared.cycleOrientation() } } label: {
+                        Image(systemName: OrientationLock.icon(prefs.orientation.name))
+                    }
+                    .padding(.leading, 12)
+                    .accessibilityIdentifier("reader.orientation")
+                    .accessibilityLabel(Text("Screen orientation: \(OrientationLock.label(prefs.orientation.name))"))
+                }
             } }
         }
         .padding(.horizontal, 16).padding(.vertical, 10)

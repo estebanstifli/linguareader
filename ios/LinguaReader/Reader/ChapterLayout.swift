@@ -137,7 +137,7 @@ struct ChapterLayout {
 }
 
 /// Ilustración de un pasaje como adjunto de texto: ocupa el ancho de la línea y conserva la proporción (nunca se
-/// recorta); como mucho, la altura de 3/4 del ancho para que quepa en la página con su primera frase.
+/// recorta); como mucho, la altura de 3/4 del ancho y el 60 % de la cara para que quepa con su primera frase.
 final class IllustrationAttachment: NSTextAttachment {
     private let aspect: CGFloat
 
@@ -151,7 +151,8 @@ final class IllustrationAttachment: NSTextAttachment {
 
     override func attachmentBounds(for textContainer: NSTextContainer?, proposedLineFragment lineFrag: CGRect, glyphPosition position: CGPoint, characterIndex charIndex: Int) -> CGRect {
         let width = max(40, lineFrag.width)
-        let maxHeight = width * 0.75
+        let pageHeight = (textContainer as? PagedTextContainer)?.pageHeight ?? .greatestFiniteMagnitude
+        let maxHeight = max(60, min(width * 0.75, pageHeight * 0.6))
         var height = width * aspect
         var drawWidth = width
         if height > maxHeight {

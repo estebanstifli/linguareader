@@ -46,6 +46,13 @@ struct ReadingPreferencesSection: View {
                 .accessibilityIdentifier("settings.fingerPointer")
             Toggle("Show illustrations", isOn: Binding(get: { p.showIllustrations }, set: { v in Task { try? await LinguaShared.shared.setShowIllustrations(enabled: v) } }))
                 .accessibilityIdentifier("settings.illustrations")
+            Toggle("Double page in landscape", isOn: Binding(get: { p.doublePage }, set: { v in Task { try? await LinguaShared.shared.setDoublePage(enabled: v) } }))
+                .accessibilityIdentifier("settings.doublePage")
+            if OrientationLock.isPhone {
+                Picker("Screen orientation", selection: Binding(get: { p.orientation.name }, set: { v in Task { try? await LinguaShared.shared.setOrientation(name: v) } })) {
+                    Text("Portrait").tag("PORTRAIT"); Text("Landscape").tag("LANDSCAPE"); Text("Automatic").tag("AUTO")
+                }
+            }
             Picker("Open PDFs as", selection: Binding(get: { p.originalOpenMode }, set: { m in Task { try? await LinguaShared.shared.setOriginalOpenMode(mode: m) } })) {
                 Text("Ask").tag(OriginalOpenMode.ask); Text("Reading mode").tag(OriginalOpenMode.reader); Text("Original").tag(OriginalOpenMode.original)
             }

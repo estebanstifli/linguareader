@@ -10,12 +10,15 @@ struct PageHighlight: Equatable {
 }
 
 /// Página de un capítulo con TextKit 2: el capítulo se compone una vez en un contenedor de altura infinita y se
-/// corta en páginas por líneas enteras; cada página se dibuja desplazando el contexto. El resaltado de frase y
+/// corta en columnas por líneas enteras; cada cara se dibuja desplazando el contexto. Con `columns = 2` (doble página
+/// en horizontal, como `PagedReader.kt`) una «página» del lector es un pliego con dos caras. El resaltado de frase y
 /// palabra son atributos de dibujo (no cambian la composición). Toque → offset del capítulo; pulsación larga →
 /// offset para la hoja de frase.
 struct ChapterPageView: UIViewRepresentable {
     let layout: ChapterLayout?
     let theme: ReaderTheme
+    /// 1 = una página; 2 = libro abierto (dos caras por pliego).
+    var columns: Int = 1
     @Binding var pageIndex: Int
     let highlight: PageHighlight
     /// Palabra que señala la mano (nil = mano desactivada o sin reproducción), y lo que necesita para moverse.
@@ -44,6 +47,7 @@ struct ChapterPageView: UIViewRepresentable {
         view.onLongPress = { offset in onLongPress(offset) }
         view.onPages = { pages in onPages(pages) }
         view.backgroundColor = theme.background
+        view.columns = columns
         if let layout { view.present(layout.attributed, key: layout.key, keepTogether: layout.keepTogether) }
         view.apply(highlight: highlight, theme: theme)
         if let showOffset, let page = view.page(forOffset: showOffset) {
@@ -68,14 +72,26 @@ struct ChapterPageView: UIViewRepresentable {
     }
 }
 
+/// Contenedor de texto que conoce la altura de una cara: las ilustraciones no pasan de una parte de ella (en
+/// horizontal la cara es baja y una lámina a todo el ancho no cabría con su primera frase).
+final class PagedTextContainer: NSTextContainer {
+    var pageHeight: CGFloat = .greatestFiniteMagnitude
+}
+
 final class PageTextView: UIView {
+    /// Separación entre las dos caras del libro abierto (la misma que Android).
+    static let gutter: CGFloat = 56
+
     private let contentStorage = NSTextContentStorage()
     private let layoutManager = NSTextLayoutManager()
-    private let container = NSTextContainer(size: CGSize(width: 320, height: CGFloat.greatestFiniteMagnitude))
+    private let container = PagedTextContainer(size: CGSize(width: 320, height: CGFloat.greatestFiniteMagnitude))
 
     private(set) var layoutKey = ""
     private(set) var pageSize = CGSize.zero
-    private var pageTops: [CGFloat] = []
+    private var laidOutColumns = 1
+    /// Borde superior (en el documento) de cada cara; con dos columnas, las caras 2k y 2k+1 forman la página k.
+    private var columnTops: [CGFloat] = []
+    /// Primer carácter de cada página (pliego), lo que recibe el modelo.
     private(set) var pageOffsets: [Int] = []
     private var lines: [(rect: CGRect, start: Int)] = []
     private var keepTogether: [NSRange] = []
@@ -91,6 +107,14 @@ final class PageTextView: UIView {
     private var pending: (NSAttributedString, String)?
     private let hand = HandPointerView()
     private var pointerInputs: (plan: PointerPlan?, playing: Bool, reduceMotion: Bool) = (nil, false, false)
+
+    /// Caras por página. Cambiarlo vuelve a cortar el capítulo (el modelo mantiene la posición por offset).
+    var columns = 1 {
+        didSet {
+            guard columns != oldValue else { return }
+            setNeedsLayout()
+        }
+    }
 
     /** Compone el texto en cuanto la vista tiene tamaño; hasta entonces lo deja pendiente. */
     func present(_ text: NSAttributedString, key: String, keepTogether: [NSRange]) {
@@ -135,22 +159,29 @@ final class PageTextView: UIView {
             setText(text, key: key, pageSize: bounds.size)
             let pages = pageOffsets
             DispatchQueue.main.async { self.onPages?(pages) }
-        } else if bounds.size != pageSize, !layoutKey.isEmpty, let text = contentStorage.attributedString {
+        } else if (bounds.size != pageSize || columns != laidOutColumns), !layoutKey.isEmpty, let text = contentStorage.attributedString {
             setText(text, key: layoutKey, pageSize: bounds.size)
             let pages = pageOffsets
             DispatchQueue.main.async { self.onPages?(pages) }
         }
     }
 
+    /// Ancho de una cara.
+    private var columnWidth: CGFloat {
+        laidOutColumns > 1 ? max(40, (pageSize.width - Self.gutter * CGFloat(laidOutColumns - 1)) / CGFloat(laidOutColumns)) : pageSize.width
+    }
+
     func setText(_ text: NSAttributedString, key: String, pageSize: CGSize) {
         layoutKey = key
         self.pageSize = pageSize
+        laidOutColumns = max(1, columns)
         highlighted = []
         markerRects = []
         currentHighlight = PageHighlight()
         lastAnchorRect = nil
+        container.pageHeight = pageSize.height
+        container.size = CGSize(width: columnWidth, height: CGFloat.greatestFiniteMagnitude)
         contentStorage.performEditingTransaction { contentStorage.attributedString = text }
-        container.size = CGSize(width: pageSize.width, height: CGFloat.greatestFiniteMagnitude)
         paginate()
         setNeedsDisplay()
         refreshPointer()
@@ -170,20 +201,29 @@ final class PageTextView: UIView {
         )
     }
 
+    /// Caras de la página visible: tramo del documento que muestra cada una y su desplazamiento horizontal.
+    private func faces() -> [(top: CGFloat, bottom: CGFloat, x: CGFloat)] {
+        guard !columnTops.isEmpty else { return [] }
+        let page = min(pageIndex, pageCount - 1)
+        return (0..<laidOutColumns).compactMap { c in
+            let i = page * laidOutColumns + c
+            guard i < columnTops.count else { return nil }
+            let bottom = i + 1 < columnTops.count ? columnTops[i + 1] : CGFloat.greatestFiniteMagnitude
+            return (columnTops[i], bottom, CGFloat(c) * (columnWidth + Self.gutter))
+        }
+    }
+
     /// Caja de un rango del capítulo en coordenadas de la página visible, o nil si no está en ella.
     func pageRect(for range: NSRange) -> CGRect? {
-        guard !pageTops.isEmpty, let textRange = textRange(range) else { return nil }
+        guard !columnTops.isEmpty, let textRange = textRange(range) else { return nil }
         var union: CGRect?
         layoutManager.enumerateTextSegments(in: textRange, type: .standard, options: [.rangeNotRequired]) { _, frame, _, _ in
             union = union.map { $0.union(frame) } ?? frame
             return true
         }
         guard let frame = union else { return nil }
-        let page = min(pageIndex, pageTops.count - 1)
-        let top = pageTops[page]
-        let bottom = page + 1 < pageTops.count ? pageTops[page + 1] : CGFloat.greatestFiniteMagnitude
-        guard frame.midY >= top, frame.midY < bottom else { return nil }
-        return frame.offsetBy(dx: 0, dy: -top)
+        guard let face = faces().first(where: { frame.midY >= $0.top && frame.midY < $0.bottom }) else { return nil }
+        return frame.offsetBy(dx: face.x, dy: -face.top)
     }
 
     /// Cajas por línea de un rango, en coordenadas del documento (para el marcador).
@@ -197,7 +237,7 @@ final class PageTextView: UIView {
         return rects
     }
 
-    /// Corta en páginas por líneas enteras y anota el primer carácter de cada página.
+    /// Corta en caras por líneas enteras y anota el primer carácter de cada página.
     private func paginate() {
         lines = []
         layoutManager.ensureLayout(for: layoutManager.documentRange)
@@ -217,7 +257,7 @@ final class PageTextView: UIView {
         for (i, line) in lines.enumerated() {
             if line.rect.maxY - top > pageSize.height, line.rect.minY > top {
                 // Si el corte cae dentro de un bloque (frase + traducción, ilustración + primera frase), el bloque
-                // entero pasa a la página siguiente.
+                // entero pasa a la cara siguiente.
                 var breakAt = i
                 if let block = keepTogether.first(where: { $0.location < line.start && line.start < $0.location + $0.length }),
                    let j = lines.indices.first(where: { lines[$0].start >= block.location }), j > pageFirst, j < i {
@@ -229,20 +269,20 @@ final class PageTextView: UIView {
                 pageFirst = breakAt
             }
         }
-        pageTops = tops
-        pageOffsets = offsets
-        if pageIndex >= tops.count { pageIndex = max(0, tops.count - 1) }
+        columnTops = tops
+        pageOffsets = stride(from: 0, to: offsets.count, by: laidOutColumns).map { offsets[$0] }
+        if pageIndex >= pageCount { pageIndex = max(0, pageCount - 1) }
     }
 
-    var pageCount: Int { pageTops.count }
+    var pageCount: Int { (columnTops.count + laidOutColumns - 1) / laidOutColumns }
 
     func page(forOffset offset: Int) -> Int? {
         guard !lines.isEmpty else { return nil }
         let line = lines.last { $0.start <= offset } ?? lines[0]
         let y = line.rect.minY
-        var page = 0
-        for (i, top) in pageTops.enumerated() where top <= y + 0.5 { page = i }
-        return page
+        var column = 0
+        for (i, top) in columnTops.enumerated() where top <= y + 0.5 { column = i }
+        return column / laidOutColumns
     }
 
     private func offset(of location: NSTextLocation) -> Int {
@@ -288,28 +328,27 @@ final class PageTextView: UIView {
     }
 
     override func draw(_ rect: CGRect) {
-        guard let ctx = UIGraphicsGetCurrentContext(), !pageTops.isEmpty else { return }
-        let page = min(pageIndex, pageTops.count - 1)
-        let top = pageTops[page]
-        let bottom = page + 1 < pageTops.count ? pageTops[page + 1] : CGFloat.greatestFiniteMagnitude
-        ctx.saveGState()
-        ctx.clip(to: CGRect(x: 0, y: 0, width: bounds.width, height: min(bounds.height, bottom - top)))
-        ctx.translateBy(x: 0, y: -top)
-        if !markerRects.isEmpty {
-            ctx.setFillColor(markerColor.cgColor)
-            for r in markerRects where r.maxY >= top && r.minY <= bottom {
-                let band = CGRect(x: r.minX - 2, y: r.minY + r.height * 0.42, width: r.width + 4, height: r.height * 0.62)
-                ctx.addPath(UIBezierPath(roundedRect: band, cornerRadius: 3).cgPath)
-                ctx.fillPath()
+        guard let ctx = UIGraphicsGetCurrentContext() else { return }
+        for face in faces() {
+            ctx.saveGState()
+            ctx.clip(to: CGRect(x: face.x, y: 0, width: columnWidth, height: min(bounds.height, face.bottom - face.top)))
+            ctx.translateBy(x: face.x, y: -face.top)
+            if !markerRects.isEmpty {
+                ctx.setFillColor(markerColor.cgColor)
+                for r in markerRects where r.maxY >= face.top && r.minY <= face.bottom {
+                    let band = CGRect(x: r.minX - 2, y: r.minY + r.height * 0.42, width: r.width + 4, height: r.height * 0.62)
+                    ctx.addPath(UIBezierPath(roundedRect: band, cornerRadius: 3).cgPath)
+                    ctx.fillPath()
+                }
             }
+            layoutManager.enumerateTextLayoutFragments(from: nil, options: [.ensuresLayout]) { fragment in
+                let frame = fragment.layoutFragmentFrame
+                if frame.minY > face.bottom { return false }
+                if frame.maxY >= face.top { fragment.draw(at: frame.origin, in: ctx) }
+                return true
+            }
+            ctx.restoreGState()
         }
-        layoutManager.enumerateTextLayoutFragments(from: nil, options: [.ensuresLayout]) { fragment in
-            let frame = fragment.layoutFragmentFrame
-            if frame.minY > bottom { return false }
-            if frame.maxY >= top { fragment.draw(at: frame.origin, in: ctx) }
-            return true
-        }
-        ctx.restoreGState()
     }
 
     @objc private func tapped(_ recognizer: UITapGestureRecognizer) {
@@ -323,12 +362,14 @@ final class PageTextView: UIView {
         onLongPress?(offset(at: point))
     }
 
-    /// Offset del capítulo bajo un punto de la página, o nil si no hay texto.
+    /// Offset del capítulo bajo un punto de la página (en cualquiera de las dos caras), o nil si no hay texto.
     func offset(at point: CGPoint) -> Int? {
-        guard !pageTops.isEmpty else { return nil }
-        let page = min(pageIndex, pageTops.count - 1)
-        let p = CGPoint(x: point.x, y: point.y + pageTops[page])
-        guard let fragment = layoutManager.textLayoutFragment(for: p) else { return nil }
+        let faces = faces()
+        guard !faces.isEmpty else { return nil }
+        let face = faces.last { point.x >= $0.x - Self.gutter / 2 } ?? faces[0]
+        guard point.x - face.x <= columnWidth + 4 else { return nil }
+        let p = CGPoint(x: point.x - face.x, y: point.y + face.top)
+        guard p.y < face.bottom, let fragment = layoutManager.textLayoutFragment(for: p) else { return nil }
         let origin = fragment.layoutFragmentFrame.origin
         let local = CGPoint(x: p.x - origin.x, y: p.y - origin.y)
         let elementStart = offset(of: fragment.rangeInElement.location)

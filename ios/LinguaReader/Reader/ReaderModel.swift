@@ -274,9 +274,16 @@ final class ReaderModel: ObservableObject {
         }
     }
 
+    /// Páginas (o pliegos) nuevas del capítulo. Si se volvió a cortar el mismo capítulo (giro, doble página, letra),
+    /// la página visible sigue siendo la que contiene el texto que se veía.
     func pagesResolved(_ offsets: [Int]) {
+        let visible = pageIndex < pageOffsets.count ? pageOffsets[pageIndex] : nil
         pageOffsets = offsets
-        if let showOffset, let page = page(forChapterOffset: showOffset) { pageIndex = page }
+        if let showOffset, let page = page(forChapterOffset: showOffset) {
+            pageIndex = page
+        } else if let visible, let page = page(forChapterOffset: visible) {
+            pageIndex = page
+        }
     }
 
     private func page(forChapterOffset offset: Int) -> Int? {

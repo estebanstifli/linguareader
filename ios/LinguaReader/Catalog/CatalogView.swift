@@ -270,6 +270,8 @@ struct CatalogSearch: Equatable {
 
 /// Lista o cuadrícula de libros de un apartado, con filtros de nivel, búsqueda, importación y menú por libro.
 struct BookListView: View {
+    /// En iPad (ancho regular) las portadas son algo más grandes: 4–6 columnas en vez de muchas pequeñas.
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @EnvironmentObject private var store: AppStore
     let section: CatalogSection
     @ObservedObject var importModel: ImportModel
@@ -323,7 +325,7 @@ struct BookListView: View {
                 ContentUnavailableView(emptyTitle, systemImage: "books.vertical", description: Text(emptyHint))
             } else if grid {
                 ScrollView {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), spacing: 12)], spacing: 16) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: sizeClass == .regular ? 150 : 110), spacing: sizeClass == .regular ? 20 : 12)], spacing: 16) {
                         ForEach(visible, id: \.id) { book in cell(book) }.themedRows()
                     }
                     .padding()
